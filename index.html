@@ -924,7 +924,7 @@
     }
 
     /* ============================================
-       ESTILOS PARA ABAS TELEGRAM (COP REDE INFORMA)
+       ESTILOS PARA ABAS WHATSAPP (COP REDE INFORMA)
        ============================================ */
     .telegram-panel {
       background: white;
@@ -937,7 +937,7 @@
 
     .telegram-header {
       padding: 0.75rem 1rem;
-      background: linear-gradient(135deg, #0088cc 0%, #006699 100%);
+      background: linear-gradient(135deg, #25D366 0%, #128C7E 100%);
       color: white;
       display: flex;
       align-items: center;
@@ -967,14 +967,14 @@
     }
 
     .telegram-tab:hover {
-      background: rgba(0,136,204,0.05);
-      color: #0088cc;
+      background: rgba(37,211,102,0.05);
+      color: #25D366;
     }
 
     .telegram-tab.active {
       background: white;
-      color: #0088cc;
-      border-bottom-color: #0088cc;
+      color: #25D366;
+      border-bottom-color: #25D366;
       font-weight: 500;
     }
 
@@ -1036,7 +1036,7 @@
     }
 
     .telegram-table tr:hover {
-      background: rgba(0,136,204,0.03);
+      background: rgba(37,211,102,0.03);
     }
 
     .telegram-table .badge {
@@ -1048,11 +1048,11 @@
       border-radius: 8px;
       padding: 1rem;
       margin-bottom: 1rem;
-      border-left: 4px solid #0088cc;
+      border-left: 4px solid #25D366;
     }
 
     .telegram-detail-card h5 {
-      color: #0088cc;
+      color: #25D366;
       margin-bottom: 0.75rem;
       font-size: 1rem;
     }
@@ -1142,12 +1142,12 @@
     }
 
     .telegram-btn-primary {
-      background: #0088cc;
+      background: #25D366;
       color: white;
     }
 
     .telegram-btn-primary:hover {
-      background: #006699;
+      background: #128C7E;
     }
 
     .telegram-btn-success {
@@ -1217,7 +1217,7 @@
     .telegram-stat-card .number {
       font-size: 1.5rem;
       font-weight: bold;
-      color: #0088cc;
+      color: #25D366;
     }
 
     .telegram-stat-card .label {
@@ -1227,15 +1227,15 @@
 
     /* Resumo de Áreas */
     .telegram-area-summary {
-      background: #f0f7ff;
+      background: #D4F4DD;
       border-radius: 8px;
       padding: 1rem;
       margin-bottom: 1rem;
-      border-left: 4px solid #0088cc;
+      border-left: 4px solid #25D366;
     }
 
     .telegram-area-summary h6 {
-      color: #0088cc;
+      color: #128C7E;
       margin-bottom: 0.75rem;
       font-weight: 600;
     }
@@ -1269,7 +1269,7 @@
     .area-volume-item .area-volume {
       font-size: 1.3rem;
       font-weight: bold;
-      color: #0088cc;
+      color: #25D366;
     }
 
     .area-summary-item .area-responsible,
@@ -1553,9 +1553,9 @@
       Divisão de Tarefas
     </button>
     <button class="admin-nav-tab telegram-tab-nav" data-admin-tab="telegram" onclick="trocarAbaAdmin('telegram')">
-      <i class="bi bi-telegram"></i>
+      <i class="bi bi-whatsapp"></i>
       COP Rede Informa
-      <span class="badge bg-primary" id="badgeTelegramNav">0</span>
+      <span class="badge bg-success" id="badgeTelegramNav">0</span>
     </button>
   </div>
 
@@ -1629,13 +1629,13 @@
 
   </div><!-- Fim tabDivisao -->
 
-  <!-- Conteúdo da Aba Telegram -->
+  <!-- Conteúdo da Aba WhatsApp -->
   <div class="admin-tab-content" id="tabTelegram">
 
-  <!-- Painel Telegram COP REDE INFORMA -->
+  <!-- Painel WhatsApp COP REDE INFORMA -->
   <div class="telegram-panel" id="telegramPanel">
     <div class="telegram-header">
-      <span><i class="bi bi-telegram me-2"></i>COP Rede Informa - Telegram</span>
+      <span><i class="bi bi-whatsapp me-2"></i>COP Rede Informa - WhatsApp</span>
       <div style="display: flex; align-items: center; gap: 1rem;">
         <div class="backend-status offline" id="backendStatus">
           <span class="dot"></span>
@@ -1746,7 +1746,7 @@
   <div class="modal fade" id="modalDetalhesCop" tabindex="-1">
     <div class="modal-dialog modal-lg">
       <div class="modal-content">
-        <div class="modal-header" style="background: linear-gradient(135deg, #0088cc 0%, #006699 100%); color: white;">
+        <div class="modal-header" style="background: linear-gradient(135deg, #25D366 0%, #128C7E 100%); color: white;">
           <h5 class="modal-title"><i class="bi bi-megaphone me-2"></i>Detalhes da Mensagem</h5>
           <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
         </div>
@@ -3010,11 +3010,11 @@ function processarDadosCarregados(dados) {
   const tabTelegram = document.getElementById('tabTelegram');
 
   if (isAdmin) {
-    // Admin: mostrar aba divisão por padrão, ocultar telegram
+    // Admin: mostrar aba divisão por padrão, ocultar whatsapp
     if (tabDivisao) tabDivisao.classList.add('active');
     if (tabTelegram) tabTelegram.classList.remove('active');
   } else {
-    // Viewer: mostrar divisão sempre, ocultar telegram
+    // Viewer: mostrar divisão sempre, ocultar whatsapp
     if (tabDivisao) tabDivisao.classList.add('active');
     if (tabTelegram) tabTelegram.classList.remove('active');
   }
@@ -3088,17 +3088,17 @@ function verificarAutenticacao() {
   } else if (auth === 'admin') {
     iniciarComoAdmin();
     carregarDadosDaNuvem();
-    // Sincronizar e carregar dados do Telegram ao iniciar
+    // Sincronizar e carregar dados do WhatsApp ao iniciar
     setTimeout(() => {
-      carregarCopRedeInforma(true); // Sincroniza com Telegram e carrega
+      carregarCopRedeInforma(true); // Sincroniza com WhatsApp e carrega
       carregarAlertas();
     }, 1000);
   } else if (auth === 'viewer') {
     iniciarComoVisualizador();
     carregarDadosDaNuvem();
-    // Sincronizar e carregar dados do Telegram ao iniciar
+    // Sincronizar e carregar dados do WhatsApp ao iniciar
     setTimeout(() => {
-      carregarCopRedeInforma(true); // Sincroniza com Telegram e carrega
+      carregarCopRedeInforma(true); // Sincroniza com WhatsApp e carrega
       carregarAlertas();
     }, 1000);
   } else {
@@ -3145,7 +3145,7 @@ function verificarPin() {
     // Iniciar como admin
     iniciarComoAdmin();
     carregarDadosDaNuvem();
-    // Sincronizar e carregar dados do Telegram ao iniciar
+    // Sincronizar e carregar dados do WhatsApp ao iniciar
     setTimeout(() => {
       carregarCopRedeInforma(true);
       carregarAlertas();
@@ -3178,7 +3178,7 @@ function entrarComoVisualizador() {
   // Iniciar como visualizador
   iniciarComoVisualizador();
   carregarDadosDaNuvem();
-  // Sincronizar e carregar dados do Telegram ao iniciar
+  // Sincronizar e carregar dados do WhatsApp ao iniciar
   setTimeout(() => {
     carregarCopRedeInforma(true);
     carregarAlertas();
@@ -3201,7 +3201,7 @@ function iniciarComoAdmin() {
   const btnAgendarTrocas = document.getElementById('btnAgendarTrocas');
   if (btnAgendarTrocas) btnAgendarTrocas.style.display = 'inline-flex';
 
-  // Mostrar navegação de abas do admin (incluindo Telegram)
+  // Mostrar navegação de abas do admin (incluindo WhatsApp)
   const adminNavTabs = document.getElementById('adminNavTabs');
   if (adminNavTabs) adminNavTabs.classList.add('show');
 
@@ -5138,7 +5138,7 @@ function showToast(message, type = 'info') {
 }
 
 // ============================================
-// INTEGRAÇÃO TELEGRAM - COP REDE INFORMA
+// INTEGRAÇÃO WHATSAPP - COP REDE INFORMA
 // ============================================
 
 // Configuração do Backend - URL fixa do Render
