@@ -85,9 +85,76 @@ async function inicializarUserBot() {
     console.log('[UserBot] Grupo ID:', USERBOT_CONFIG.GROUP_ID);
     console.log('[UserBot] ====================================');
 
+    // Buscar histórico de mensagens ao iniciar
+    console.log('[UserBot] 🔄 Buscando histórico de mensagens...');
+    await buscarHistoricoInicial();
+
   } catch (error) {
     console.error('[UserBot] ❌ Erro:', error.message);
     throw error;
+  }
+}
+
+/**
+ * Busca histórico de mensagens do grupo ao iniciar
+ */
+async function buscarHistoricoInicial() {
+  try {
+    const limite = 100; // Buscar últimas 100 mensagens
+    console.log(`[UserBot] Buscando últimas ${limite} mensagens do grupo...`);
+
+    const messages = await client.getMessages(parseInt(USERBOT_CONFIG.GROUP_ID), {
+      limit: limite
+    });
+
+    console.log(`[UserBot] ${messages.length} mensagens encontradas`);
+
+    let copRedeProcessadas = 0;
+    let alertasProcessados = 0;
+
+    // Processar mensagens do mais antigo para o mais novo
+    for (const message of messages.reverse()) {
+      if (!message.text) continue;
+
+      const sender = await message.getSender();
+      const isBot = sender?.bot === true;
+      const username = sender?.username || 'desconhecido';
+
+      // Criar objeto compatível com o parser
+      const msgCompativel = {
+        message_id: message.id,
+        date: message.date,
+        text: message.text,
+        from: {
+          username: username,
+          is_bot: isBot
+        },
+        chat: {
+          id: message.chatId?.toString()
+        }
+      };
+
+      const resultado = processarMensagem(msgCompativel);
+
+      if (resultado) {
+        if (resultado.tipo === 'COP_REDE_INFORMA') {
+          await adicionarCopRedeInforma(resultado.dados);
+          copRedeProcessadas++;
+        } else if (resultado.tipo === 'NOVO_EVENTO') {
+          await adicionarAlerta(resultado.dados);
+          alertasProcessados++;
+        }
+      }
+    }
+
+    console.log('[UserBot] ====================================');
+    console.log('[UserBot] ✅ HISTÓRICO PROCESSADO!');
+    console.log(`[UserBot] - COP Rede Informa: ${copRedeProcessadas} mensagens`);
+    console.log(`[UserBot] - Alertas: ${alertasProcessados} mensagens`);
+    console.log('[UserBot] ====================================');
+
+  } catch (error) {
+    console.error('[UserBot] ❌ Erro ao buscar histórico:', error.message);
   }
 }
 
