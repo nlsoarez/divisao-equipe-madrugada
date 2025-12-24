@@ -128,55 +128,45 @@
       box-shadow: 0 4px 8px rgba(0,0,0,0.2);
     }
     
+    /* Botão Upload - Amarelo suave */
     .refresh-btn.upload-admin {
-      background: linear-gradient(135deg, #ff9800 0%, #f57c00 100%);
-      color: #fff;
+      background: linear-gradient(135deg, #fdd835 0%, #fbc02d 100%);
+      color: #5a4a0a;
     }
 
     .refresh-btn.upload-admin:hover {
-      background: linear-gradient(135deg, #f57c00 0%, #e65100 100%);
-      color: white;
+      background: linear-gradient(135deg, #fbc02d 0%, #f9a825 100%);
+      color: #4a3a00;
     }
 
-    /* Botão Logout - VERMELHO */
-    .refresh-btn.logout-admin {
-      background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
-      color: white;
-    }
-
-    .refresh-btn.logout-admin:hover {
-      background: linear-gradient(135deg, #c82333 0%, #a71d2a 100%);
-    }
-
-    /* Botão Delete - Laranja/Vermelho */
+    /* Botão Delete - Laranja coral */
     .refresh-btn.delete-admin {
-      background: linear-gradient(135deg, #ff5722 0%, #e64a19 100%);
+      background: linear-gradient(135deg, #ff7043 0%, #ff5722 100%);
       color: white;
     }
 
     .refresh-btn.delete-admin:hover {
-      background: linear-gradient(135deg, #e64a19 0%, #d84315 100%);
+      background: linear-gradient(135deg, #ff5722 0%, #f4511e 100%);
     }
 
-    /* Botão refresh admin - Verde (início do degradê) */
+    /* Botão Refresh admin - Verde */
     .admin-controls .refresh-btn:not(.upload-admin):not(.delete-admin):not(.logout-admin) {
-      background: linear-gradient(135deg, #4caf50 0%, #388e3c 100%);
+      background: linear-gradient(135deg, #66bb6a 0%, #4caf50 100%);
       color: white;
     }
 
     .admin-controls .refresh-btn:not(.upload-admin):not(.delete-admin):not(.logout-admin):hover {
-      background: linear-gradient(135deg, #388e3c 0%, #2e7d32 100%);
+      background: linear-gradient(135deg, #4caf50 0%, #43a047 100%);
     }
 
-    /* Botão Upload - Amarelo/Laranja (meio do degradê) */
-    .refresh-btn.upload-admin {
-      background: linear-gradient(135deg, #ffc107 0%, #ff9800 100%);
-      color: #333;
+    /* Botão Logout - Vermelho suave */
+    .refresh-btn.logout-admin {
+      background: linear-gradient(135deg, #ef5350 0%, #e53935 100%);
+      color: white;
     }
 
-    .refresh-btn.upload-admin:hover {
-      background: linear-gradient(135deg, #ff9800 0%, #f57c00 100%);
-      color: #fff;
+    .refresh-btn.logout-admin:hover {
+      background: linear-gradient(135deg, #e53935 0%, #d32f2f 100%);
     }
 
     .refresh-btn.logout-viewer {
@@ -1571,7 +1561,6 @@
     <button class="admin-nav-tab telegram-tab-nav" data-admin-tab="telegram" onclick="trocarAbaAdmin('telegram')">
       <i class="bi bi-whatsapp"></i>
       COP Rede Informa
-      <span class="badge bg-success" id="badgeTelegramNav">0</span>
     </button>
   </div>
 
@@ -1883,7 +1872,7 @@
 <div class="modal fade" id="swapModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog">
     <div class="modal-content">
-      <div class="modal-header bg-info text-white">
+      <div class="modal-header text-white" style="background: linear-gradient(135deg, #26a69a 0%, #00897b 100%);">
         <h5 class="modal-title">
           <i class="bi bi-arrow-left-right me-2"></i>Confirmar Troca de Dias
         </h5>
@@ -1898,7 +1887,7 @@
       </div>
       <div class="modal-footer">
         <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancelar</button>
-        <button type="button" class="btn btn-info btn-sm" onclick="confirmarTroca()">Confirmar Troca</button>
+        <button type="button" class="btn btn-sm" style="background: linear-gradient(135deg, #26a69a 0%, #00897b 100%); color: white; border: none;" onclick="confirmarTroca()">Confirmar Troca</button>
       </div>
     </div>
   </div>
@@ -1908,7 +1897,7 @@
 <div class="modal fade" id="selectPersonModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-sm">
     <div class="modal-content">
-      <div class="modal-header bg-primary text-white">
+      <div class="modal-header text-white" style="background: linear-gradient(135deg, #66bb6a 0%, #4caf50 100%);">
         <h5 class="modal-title">
           <i class="bi bi-person-plus me-2"></i>Selecionar Pessoa
         </h5>
@@ -1939,10 +1928,10 @@
       </div>
       <div class="modal-body">
         <div class="login-option text-center">
-          <i class="bi bi-eye text-primary mb-3" style="font-size: 3rem;"></i>
+          <i class="bi bi-eye mb-3" style="font-size: 3rem; color: #2e7d32;"></i>
           <h5 class="mb-3">Visualizar Escala</h5>
           <p class="text-muted mb-4">Veja a escala atual sem fazer alterações</p>
-          <button type="button" class="btn btn-primary btn-lg w-100 py-3" onclick="entrarComoVisualizador()">
+          <button type="button" class="btn btn-lg w-100 py-3" style="background: linear-gradient(135deg, #4caf50 0%, #2e7d32 100%); color: white; border: none;" onclick="entrarComoVisualizador()">
             <i class="bi bi-eye me-2"></i>Visualizar Escala
           </button>
         </div>
@@ -1969,7 +1958,7 @@
             <i class="bi bi-exclamation-triangle me-1"></i> PIN incorreto. Tente novamente.
           </div>
           
-          <button type="button" class="btn btn-outline-primary w-100 mt-2" onclick="verificarPin()">
+          <button type="button" class="btn w-100 mt-2" style="border: 2px solid #2e7d32; color: #2e7d32; background: white;" onmouseover="this.style.background='#2e7d32'; this.style.color='white';" onmouseout="this.style.background='white'; this.style.color='#2e7d32';" onclick="verificarPin()">
             <i class="bi bi-unlock me-2"></i>Acessar como Administrador
           </button>
         </div>
@@ -4202,7 +4191,7 @@ function mostrarModalConfirmacaoTroca() {
       <p><strong>Troca proposta:</strong></p>
       <div class="row">
         <div class="col-6">
-          <div class="card border-info mb-2">
+          <div class="card mb-2" style="border: 2px solid #26a69a;">
             <div class="card-body p-2">
               <h6 class="card-title mb-1">${selecaoTroca.primeiro.pessoa}</h6>
               <p class="card-text small mb-1">
@@ -4213,7 +4202,7 @@ function mostrarModalConfirmacaoTroca() {
           </div>
         </div>
         <div class="col-6">
-          <div class="card border-info mb-2">
+          <div class="card mb-2" style="border: 2px solid #26a69a;">
             <div class="card-body p-2">
               <h6 class="card-title mb-1">${selecaoTroca.segundo.pessoa}</h6>
               <p class="card-text small mb-1">
@@ -4665,7 +4654,7 @@ function mostrarDetalhesDia(dia) {
         <div class="area-title">
           <i class="bi bi-diagram-3"></i>
           <span>Divisão de Áreas</span>
-          ${trocasDia.length > 0 ? '<span class="badge bg-info ms-2">COM TROCAS</span>' : ''}
+          ${trocasDia.length > 0 ? '<span class="badge ms-2" style="background: linear-gradient(135deg, #26a69a 0%, #00897b 100%); color: white;">COM TROCAS</span>' : ''}
         </div>
         <div class="area-grid">
   `;
