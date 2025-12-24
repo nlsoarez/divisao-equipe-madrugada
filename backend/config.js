@@ -29,7 +29,8 @@ const JSONBIN_CONFIG = {
   // Bin específico para mensagens do Telegram (SEPARADO do bin da escala!)
   // Este bin armazena apenas: COP REDE INFORMA e Alertas
   // O bin da escala (693a8a43ae596e708f923822) armazena os calendários de trabalho
-  TELEGRAM_BIN_ID: process.env.TELEGRAM_BIN_ID || '693ce090ae596e708f966498'
+  // Se null, um novo bin será criado automaticamente com as chaves atuais
+  TELEGRAM_BIN_ID: process.env.TELEGRAM_BIN_ID || null
 };
 
 // Títulos de mensagens que serão processadas
