@@ -97,23 +97,25 @@ async function inicializarUserBot() {
 
 /**
  * Busca histórico de mensagens do grupo ao iniciar
+ * IMPORTANTE: Busca apenas a ÚLTIMA mensagem "COP REDE INFORMA"
+ * Alertas NÃO são carregados do histórico, apenas capturados em tempo real
  */
 async function buscarHistoricoInicial() {
   try {
     const limite = 100; // Buscar últimas 100 mensagens
-    console.log(`[UserBot] Buscando últimas ${limite} mensagens do grupo...`);
+    console.log(`[UserBot] Buscando última mensagem COP REDE INFORMA...`);
 
     const messages = await client.getMessages(parseInt(USERBOT_CONFIG.GROUP_ID), {
       limit: limite
     });
 
-    console.log(`[UserBot] ${messages.length} mensagens encontradas`);
+    console.log(`[UserBot] ${messages.length} mensagens encontradas no histórico`);
 
-    let copRedeProcessadas = 0;
-    let alertasProcessados = 0;
+    let copRedeEncontrada = null;
 
-    // Processar mensagens do mais antigo para o mais novo
-    for (const message of messages.reverse()) {
+    // Buscar do mais recente para o mais antigo
+    // Parar assim que encontrar a primeira "COP REDE INFORMA"
+    for (const message of messages) {
       if (!message.text) continue;
 
       const sender = await message.getSender();
@@ -136,21 +138,25 @@ async function buscarHistoricoInicial() {
 
       const resultado = processarMensagem(msgCompativel);
 
-      if (resultado) {
-        if (resultado.tipo === 'COP_REDE_INFORMA') {
-          await adicionarCopRedeInforma(resultado.dados);
-          copRedeProcessadas++;
-        } else if (resultado.tipo === 'NOVO_EVENTO') {
-          await adicionarAlerta(resultado.dados);
-          alertasProcessados++;
-        }
+      if (resultado && resultado.tipo === 'COP_REDE_INFORMA') {
+        // Encontrou! Salvar e parar de buscar
+        copRedeEncontrada = resultado.dados;
+        await adicionarCopRedeInforma(resultado.dados);
+        console.log('[UserBot] ✅ Última mensagem COP encontrada:', new Date(resultado.dados.dataMensagem).toLocaleString('pt-BR'));
+        break; // Parar após encontrar a primeira (mais recente)
       }
+      // IMPORTANTE: Ignorar alertas do histórico!
+      // Alertas só serão capturados em tempo real via handleNewMessage
     }
 
     console.log('[UserBot] ====================================');
-    console.log('[UserBot] ✅ HISTÓRICO PROCESSADO!');
-    console.log(`[UserBot] - COP Rede Informa: ${copRedeProcessadas} mensagens`);
-    console.log(`[UserBot] - Alertas: ${alertasProcessados} mensagens`);
+    if (copRedeEncontrada) {
+      console.log('[UserBot] ✅ HISTÓRICO PROCESSADO!');
+      console.log('[UserBot] - COP Rede Informa: 1 mensagem (mais recente)');
+      console.log('[UserBot] - Alertas: 0 (apenas em tempo real)');
+    } else {
+      console.log('[UserBot] ⚠️  Nenhuma mensagem COP REDE INFORMA encontrada');
+    }
     console.log('[UserBot] ====================================');
 
   } catch (error) {
