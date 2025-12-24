@@ -5150,6 +5150,7 @@ let telegramConectado = false;
 let autoRefreshInterval = null;
 const AUTO_REFRESH_MS = 10000; // 10 segundos
 let alertasAnteriores = []; // Para detectar novos alertas
+let primeiraCargatAlertas = true; // Flag para evitar tocar som na primeira carga
 let errosConsecutivos = 0; // Contador de erros para backoff
 let ultimoErroTimestamp = 0;
 
@@ -5208,21 +5209,31 @@ document.addEventListener('visibilitychange', function() {
 // Função para tocar alarme sonoro (funciona mesmo em background)
 function tocarAlarme() {
   try {
+    console.log('[Som] Iniciando alarme sonoro...');
+
     // Criar ou reutilizar AudioContext
     if (!audioContextGlobal) {
       audioContextGlobal = new (window.AudioContext || window.webkitAudioContext)();
+      console.log('[Som] AudioContext criado');
     }
+
+    console.log('[Som] Estado do AudioContext:', audioContextGlobal.state);
 
     // Tentar resumir se estiver suspenso
     if (audioContextGlobal.state === 'suspended') {
+      console.log('[Som] AudioContext suspenso, tentando resumir...');
       audioContextGlobal.resume().then(() => {
+        console.log('[Som] AudioContext resumido com sucesso');
         executarBeeps();
+      }).catch(err => {
+        console.error('[Som] Erro ao resumir AudioContext:', err);
       });
     } else {
       executarBeeps();
     }
 
     function executarBeeps() {
+      console.log('[Som] Executando sequência de beeps...');
       const ctx = audioContextGlobal;
       const now = ctx.currentTime;
 
@@ -5244,10 +5255,12 @@ function tocarAlarme() {
         osc.stop(startTime + duration);
       }
 
-      // Sequência de 3 beeps de alerta (som mais alto)
-      beep(now, 880, 0.3, 0.5);        // Beep 1
-      beep(now + 0.4, 880, 0.3, 0.5);  // Beep 2
-      beep(now + 0.8, 1100, 0.5, 0.6); // Beep 3 (mais agudo e longo)
+      // Sequência de 3 beeps de alerta (volume aumentado)
+      beep(now, 880, 0.3, 0.7);        // Beep 1 - volume aumentado
+      beep(now + 0.4, 880, 0.3, 0.7);  // Beep 2 - volume aumentado
+      beep(now + 0.8, 1100, 0.5, 0.8); // Beep 3 - mais agudo, longo e alto
+
+      console.log('[Som] Beeps programados com sucesso');
     }
 
     console.log('🔊 Alarme sonoro tocado!');
@@ -5271,6 +5284,31 @@ function tocarAlarme() {
         icon: '/favicon.ico'
       });
     }
+  }
+}
+
+// Função para mostrar notificação do navegador
+function mostrarNotificacao(titulo, mensagem) {
+  if ('Notification' in window && Notification.permission === 'granted') {
+    try {
+      new Notification(titulo, {
+        body: mensagem,
+        icon: '/favicon.ico',
+        tag: 'alerta-cop',
+        requireInteraction: false,
+        silent: false // Permitir som da notificação do sistema
+      });
+      console.log('📬 Notificação do navegador enviada');
+    } catch (error) {
+      console.error('Erro ao mostrar notificação:', error);
+    }
+  } else if ('Notification' in window && Notification.permission === 'default') {
+    // Tentar solicitar permissão
+    Notification.requestPermission().then(permission => {
+      if (permission === 'granted') {
+        mostrarNotificacao(titulo, mensagem);
+      }
+    });
   }
 }
 
@@ -5961,18 +5999,33 @@ async function carregarAlertas() {
     const data = await response.json();
     const novosAlertasRecebidos = data.dados || [];
 
-    // Detectar novos alertas (status 'novo' que não existiam antes)
-    if (alertasAnteriores.length > 0) {
+    console.log(`[Alertas] Recebidos ${novosAlertasRecebidos.length} alertas do servidor`);
+
+    // Detectar novos alertas (apenas após a primeira carga)
+    if (!primeiraCargatAlertas && novosAlertasRecebidos.length > 0) {
+      // Criar conjunto de IDs anteriores para comparação rápida
       const idsAnteriores = new Set(alertasAnteriores.map(a => a.id));
-      const alertasNovos = novosAlertasRecebidos.filter(a =>
-        a.status === 'novo' && !idsAnteriores.has(a.id)
-      );
+
+      // Filtrar alertas que são realmente novos (não existiam antes)
+      const alertasNovos = novosAlertasRecebidos.filter(a => !idsAnteriores.has(a.id));
+
+      console.log(`[Alertas] Detectados ${alertasNovos.length} novos alertas`);
 
       if (alertasNovos.length > 0) {
-        console.log(`🔔 ${alertasNovos.length} novo(s) alerta(s) detectado(s)!`);
+        console.log(`🔔 ${alertasNovos.length} novo(s) alerta(s) detectado(s)!`, alertasNovos);
         tocarAlarme();
         showToast(`🔔 ${alertasNovos.length} novo(s) alerta(s)!`, 'warning');
+
+        // Mostrar notificação do navegador também
+        mostrarNotificacao(`${alertasNovos.length} novo(s) alerta(s)!`,
+          alertasNovos[0].areaMapeada ? `Área: ${alertasNovos[0].areaMapeada}` : 'Novo alerta recebido');
       }
+    }
+
+    // Marcar primeira carga como concluída
+    if (primeiraCargatAlertas) {
+      primeiraCargatAlertas = false;
+      console.log('[Alertas] Primeira carga concluída - notificações ativadas');
     }
 
     // Atualizar lista de alertas
