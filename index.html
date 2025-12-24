@@ -1130,24 +1130,39 @@
     }
 
     .telegram-btn {
-      padding: 0.4rem 0.75rem;
+      padding: 0.5rem 0.85rem;
       border: none;
-      border-radius: 6px;
-      font-size: 0.8rem;
+      border-radius: 8px;
+      font-size: 0.85rem;
       cursor: pointer;
-      transition: all 0.2s;
+      transition: all 0.3s ease;
       display: inline-flex;
       align-items: center;
-      gap: 0.3rem;
+      justify-content: center;
+      gap: 0.4rem;
+      min-width: 36px;
+      min-height: 36px;
+      font-weight: 500;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    .telegram-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+    }
+
+    .telegram-btn:active {
+      transform: translateY(0);
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
     }
 
     .telegram-btn-primary {
-      background: #25D366;
+      background: linear-gradient(135deg, #25D366 0%, #20BD5C 100%);
       color: white;
     }
 
     .telegram-btn-primary:hover {
-      background: #128C7E;
+      background: linear-gradient(135deg, #20BD5C 0%, #128C7E 100%);
     }
 
     .telegram-btn-success {
@@ -1169,12 +1184,12 @@
     }
 
     .telegram-btn-danger {
-      background: var(--danger);
+      background: linear-gradient(135deg, #f44336 0%, #e53935 100%);
       color: white;
     }
 
     .telegram-btn-danger:hover {
-      background: #d32f2f;
+      background: linear-gradient(135deg, #e53935 0%, #d32f2f 100%);
     }
 
     .telegram-btn-outline {
@@ -1362,10 +1377,11 @@
       align-items: center;
       gap: 0.4rem;
       font-size: 0.75rem;
-      color: #4caf50;
-      background: rgba(76, 175, 80, 0.15);
+      color: white;
+      background: rgba(0, 0, 0, 0.15);
       padding: 0.25rem 0.6rem;
       border-radius: 12px;
+      font-weight: 500;
     }
 
     .auto-refresh-indicator .spinning {
@@ -1453,18 +1469,18 @@
     }
 
     .admin-nav-tab.telegram-tab-nav {
-      background: #f0f7ff;
-      color: #0088cc;
+      background: #D4F4DD;
+      color: #128C7E;
     }
 
     .admin-nav-tab.telegram-tab-nav:hover {
-      background: #e3f2fd;
+      background: #BEF0CC;
     }
 
     .admin-nav-tab.telegram-tab-nav.active {
-      background: linear-gradient(135deg, #0088cc 0%, #006699 100%);
+      background: linear-gradient(135deg, #25D366 0%, #128C7E 100%);
       color: white;
-      box-shadow: 0 2px 6px rgba(0, 136, 204, 0.3);
+      box-shadow: 0 2px 6px rgba(37, 211, 102, 0.3);
     }
 
     .admin-nav-tab .badge {
@@ -1680,9 +1696,6 @@
       <div id="copRedeEmpty" class="telegram-empty">
         <i class="bi bi-inbox"></i>
         <p>Nenhuma mensagem COP Rede Informa encontrada</p>
-        <button class="telegram-btn telegram-btn-primary" onclick="carregarCopRedeInforma()">
-          <i class="bi bi-arrow-clockwise"></i> Carregar mensagens
-        </button>
       </div>
 
       <!-- Info da última atualização -->
@@ -1702,12 +1715,12 @@
       </div>
 
       <!-- Barra de ações dos alertas -->
-      <div class="d-flex justify-content-between align-items-center mb-3">
-        <button class="telegram-btn telegram-btn-primary" onclick="carregarAlertas()">
-          <i class="bi bi-arrow-clockwise"></i> Atualizar
+      <div class="d-flex justify-content-end align-items-center mb-3 gap-2">
+        <button class="telegram-btn telegram-btn-primary" onclick="carregarAlertas()" title="Atualizar lista de alertas">
+          <i class="bi bi-arrow-clockwise"></i>
         </button>
-        <button class="telegram-btn telegram-btn-danger" onclick="excluirTodosAlertas()" id="btnExcluirTodosAlertas">
-          <i class="bi bi-trash"></i> Excluir Todos
+        <button class="telegram-btn telegram-btn-danger" onclick="excluirTodosAlertas()" id="btnExcluirTodosAlertas" title="Excluir todos os alertas">
+          <i class="bi bi-trash"></i>
         </button>
       </div>
 
@@ -1727,9 +1740,6 @@
                 <div class="telegram-empty">
                   <i class="bi bi-bell-slash"></i>
                   <p>Nenhum alerta encontrado</p>
-                  <button class="telegram-btn telegram-btn-primary" onclick="carregarAlertas()">
-                    <i class="bi bi-arrow-clockwise"></i> Carregar alertas
-                  </button>
                 </div>
               </td>
             </tr>
@@ -6003,9 +6013,6 @@ function atualizarTabelaAlertas(dados) {
           <div class="telegram-empty">
             <i class="bi bi-bell-slash"></i>
             <p>Nenhum alerta encontrado</p>
-            <button class="telegram-btn telegram-btn-primary" onclick="carregarAlertas()">
-              <i class="bi bi-arrow-clockwise"></i> Carregar alertas
-            </button>
           </div>
         </td>
       </tr>
