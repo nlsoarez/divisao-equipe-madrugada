@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Design System - Exemplo de Uso</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="css/design-system.css">
+</head>
+<body class="ds-reset ds-base ds-bg-gradient">
+    <div class="ds-container">
+
+        <!-- HEADER -->
+        <header class="ds-header">
+            <h1 class="ds-header-title">
+                <i class="fas fa-palette"></i> Design System - Exemplo
+            </h1>
+        </header>
+
+        <!-- CARD COM ACCORDION -->
+        <div class="ds-card ds-accordion ds-closed">
+            <div class="ds-accordion-header">
+                <h2 class="ds-card-title">
+                    <i class="fas fa-folder"></i> Seção Recolhível (Accordion)
+                </h2>
+                <i class="fas fa-chevron-down ds-accordion-icon"></i>
+            </div>
+            <div class="ds-accordion-content">
+                <p>Este conteúdo pode ser expandido ou recolhido.</p>
+                <div class="ds-list">
+                    <div class="ds-list-item ds-active">
+                        <div>
+                            <div class="ds-list-item-title">Item 1 (Ativo)</div>
+                            <div class="ds-list-item-subtitle">Descrição do item</div>
+                        </div>
+                        <button class="ds-btn ds-btn-danger ds-btn-sm">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                    <div class="ds-list-item">
+                        <div>
+                            <div class="ds-list-item-title">Item 2</div>
+                            <div class="ds-list-item-subtitle">Outra descrição</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- CARD FORMULÁRIO -->
+        <div class="ds-card">
+            <h2 class="ds-card-title">
+                <i class="fas fa-edit"></i> Formulário de Exemplo
+            </h2>
+
+            <!-- Campos em linha -->
+            <div class="ds-row">
+                <div class="ds-form-group">
+                    <label class="ds-label">Nome:</label>
+                    <input type="text" class="ds-input" placeholder="Digite seu nome">
+                </div>
+                <div class="ds-form-group">
+                    <label class="ds-label">E-mail:</label>
+                    <input type="email" class="ds-input" placeholder="seu@email.com">
+                </div>
+            </div>
+
+            <!-- Select -->
+            <div class="ds-row">
+                <div class="ds-form-group">
+                    <label class="ds-label">Categoria:</label>
+                    <select class="ds-select">
+                        <option value="">-- Selecione --</option>
+                        <option value="1">Opção 1</option>
+                        <option value="2">Opção 2</option>
+                        <option value="3">Opção 3</option>
+                    </select>
+                </div>
+                <div class="ds-form-group">
+                    <label class="ds-label">Status:</label>
+                    <select class="ds-select">
+                        <option value="">-- Selecione --</option>
+                        <option value="ativo">Ativo</option>
+                        <option value="inativo">Inativo</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Radio Inline com Label -->
+            <div class="ds-form-inline">
+                <label class="ds-label">Tipo de conta:</label>
+                <div class="ds-radio-group ds-inline">
+                    <div class="ds-radio-option">
+                        <input type="radio" id="pessoal" name="tipo" value="pessoal">
+                        <label for="pessoal">Pessoal</label>
+                    </div>
+                    <div class="ds-radio-option">
+                        <input type="radio" id="empresa" name="tipo" value="empresa">
+                        <label for="empresa">Empresa</label>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Checkbox Inline -->
+            <div class="ds-form-inline">
+                <label class="ds-label">Notificações:</label>
+                <div class="ds-checkbox-group ds-inline">
+                    <div class="ds-checkbox-option">
+                        <input type="checkbox" id="email_notif">
+                        <label for="email_notif">E-mail</label>
+                    </div>
+                    <div class="ds-checkbox-option">
+                        <input type="checkbox" id="sms_notif">
+                        <label for="sms_notif">SMS</label>
+                    </div>
+                    <div class="ds-checkbox-option">
+                        <input type="checkbox" id="push_notif">
+                        <label for="push_notif">Push</label>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Textarea -->
+            <div class="ds-form-group">
+                <label class="ds-label">Observações:</label>
+                <textarea class="ds-textarea" rows="3" placeholder="Digite suas observações..."></textarea>
+                <div class="ds-input-hint">Campo opcional</div>
+            </div>
+
+            <!-- Botões -->
+            <div class="ds-btn-group">
+                <button class="ds-btn ds-btn-secondary">
+                    <i class="fas fa-save"></i> Salvar Rascunho
+                </button>
+                <button class="ds-btn">
+                    <i class="fas fa-paper-plane"></i> Enviar
+                </button>
+            </div>
+        </div>
+
+        <!-- CARD BOTÕES -->
+        <div class="ds-card">
+            <h2 class="ds-card-title">
+                <i class="fas fa-mouse-pointer"></i> Variações de Botões
+            </h2>
+
+            <div class="ds-flex ds-flex-wrap ds-gap-md">
+                <button class="ds-btn">
+                    <i class="fas fa-check"></i> Primário
+                </button>
+                <button class="ds-btn ds-btn-secondary">
+                    <i class="fas fa-star"></i> Secundário
+                </button>
+                <button class="ds-btn ds-btn-danger">
+                    <i class="fas fa-trash"></i> Perigo
+                </button>
+                <button class="ds-btn ds-btn-icon">
+                    <i class="fas fa-search"></i>
+                </button>
+                <button class="ds-btn ds-btn-sm">
+                    <i class="fas fa-cog"></i> Pequeno
+                </button>
+            </div>
+        </div>
+
+        <!-- CARD OUTPUT -->
+        <div class="ds-card">
+            <h2 class="ds-card-title">
+                <i class="fas fa-code"></i> Área de Output
+            </h2>
+            <div class="ds-output">## EXEMPLO DE SAÍDA
+## CAMPO 1: VALOR 1
+## CAMPO 2: VALOR 2
+## CAMPO 3: VALOR 3
+
+Conteúdo formatado em fonte monoespaçada...</div>
+
+            <div class="ds-btn-group">
+                <button class="ds-btn ds-btn-secondary">
+                    <i class="fas fa-copy"></i> Copiar
+                </button>
+                <button class="ds-btn">
+                    <i class="fas fa-trash"></i> Limpar
+                </button>
+            </div>
+        </div>
+
+        <!-- FOOTER -->
+        <footer class="ds-footer">
+            <p class="ds-footer-signature">Design System - Tema Verde Profissional</p>
+        </footer>
+
+    </div>
+
+    <!-- POPUP EXEMPLO (clique no botão para mostrar) -->
+    <div id="popup" class="ds-popup-overlay ds-hidden">
+        <div class="ds-popup-card">
+            <div class="ds-popup-icon">✅</div>
+            <h3 class="ds-popup-title">Operação realizada!</h3>
+            <p class="ds-popup-text">Sua ação foi concluída com sucesso.</p>
+            <button class="ds-btn" onclick="document.getElementById('popup').classList.add('ds-hidden')">
+                OK
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // Accordion toggle
+        document.querySelectorAll('.ds-accordion-header').forEach(header => {
+            header.addEventListener('click', () => {
+                header.closest('.ds-accordion').classList.toggle('ds-closed');
+            });
+        });
+
+        // Mostrar popup de exemplo (adicione um botão com onclick para testar)
+        function showPopup() {
+            document.getElementById('popup').classList.remove('ds-hidden');
+        }
+    </script>
+</body>
+</html>
