@@ -1,0 +1,17 @@
+# Configuração Nixpacks para Railway
+# Projeto: COP REDE INFORMA - Divisão Equipe Madrugada
+
+[phases.setup]
+nixPkgs = ["nodejs_18"]
+
+[phases.install]
+cmds = ["cd backend && npm install"]
+
+[phases.build]
+cmds = []
+
+[start]
+cmd = "cd backend && npm start"
+
+[variables]
+NODE_ENV = "production"
