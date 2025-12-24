@@ -171,10 +171,21 @@ function estaRodando() {
   return isRunning;
 }
 
+/**
+ * Obtém status do UserBot
+ */
+function obterStatus() {
+  return {
+    conectado: isRunning,
+    client: client !== null
+  };
+}
+
 module.exports = {
   inicializarUserBot,
   pararUserBot,
-  estaRodando
+  estaRodando,
+  obterStatus
 };
 
 // Se executado diretamente
