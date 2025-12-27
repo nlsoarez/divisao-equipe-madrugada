@@ -483,6 +483,20 @@ function getBinId() {
   return telegramBinId;
 }
 
+/**
+ * Limpa completamente o cache local
+ * Força busca fresca do JSONBin na próxima requisição
+ */
+function limparCache() {
+  console.log('[Storage] Limpando cache local...');
+  cacheLocal = {
+    copRedeInforma: [],
+    alertas: [],
+    ultimaAtualizacao: null
+  };
+  console.log('[Storage] Cache limpo com sucesso');
+}
+
 module.exports = {
   carregarDados,
   salvarDados,
@@ -496,5 +510,6 @@ module.exports = {
   obterEstatisticas,
   setBinId,
   getBinId,
-  criarBin
+  criarBin,
+  limparCache
 };
