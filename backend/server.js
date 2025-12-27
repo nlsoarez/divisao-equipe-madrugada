@@ -512,6 +512,19 @@ app.post('/api/config/criar-bin', async (req, res) => {
   }
 });
 
+/**
+ * Limpar cache do backend
+ * Usado ao fazer login para garantir dados frescos
+ */
+app.post('/api/cache/limpar', async (req, res) => {
+  try {
+    storage.limparCache();
+    res.json({ sucesso: true, mensagem: 'Cache limpo com sucesso' });
+  } catch (error) {
+    res.status(500).json({ sucesso: false, erro: error.message });
+  }
+});
+
 // ============================================
 // INICIALIZAÇÃO DO SERVIDOR
 // ============================================

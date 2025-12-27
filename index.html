@@ -3087,16 +3087,18 @@ function verificarAutenticacao() {
   } else if (auth === 'admin') {
     iniciarComoAdmin();
     carregarDadosDaNuvem();
-    // Sincronizar e carregar dados do WhatsApp ao iniciar
-    setTimeout(() => {
+    // Limpar cache e carregar dados do WhatsApp ao iniciar
+    setTimeout(async () => {
+      await limparCacheBackend(); // Limpar cache primeiro para garantir dados frescos
       carregarCopRedeInforma(true); // Sincroniza com WhatsApp e carrega
       carregarAlertas();
     }, 1000);
   } else if (auth === 'viewer') {
     iniciarComoVisualizador();
     carregarDadosDaNuvem();
-    // Sincronizar e carregar dados do WhatsApp ao iniciar
-    setTimeout(() => {
+    // Limpar cache e carregar dados do WhatsApp ao iniciar
+    setTimeout(async () => {
+      await limparCacheBackend(); // Limpar cache primeiro para garantir dados frescos
       carregarCopRedeInforma(true); // Sincroniza com WhatsApp e carrega
       carregarAlertas();
     }, 1000);
@@ -3144,8 +3146,9 @@ function verificarPin() {
     // Iniciar como admin
     iniciarComoAdmin();
     carregarDadosDaNuvem();
-    // Sincronizar e carregar dados do WhatsApp ao iniciar
-    setTimeout(() => {
+    // Limpar cache e carregar dados do WhatsApp ao iniciar
+    setTimeout(async () => {
+      await limparCacheBackend(); // Limpar cache primeiro para garantir dados frescos
       carregarCopRedeInforma(true);
       carregarAlertas();
     }, 1000);
@@ -3177,8 +3180,9 @@ function entrarComoVisualizador() {
   // Iniciar como visualizador
   iniciarComoVisualizador();
   carregarDadosDaNuvem();
-  // Sincronizar e carregar dados do WhatsApp ao iniciar
-  setTimeout(() => {
+  // Limpar cache e carregar dados do WhatsApp ao iniciar
+  setTimeout(async () => {
+    await limparCacheBackend(); // Limpar cache primeiro para garantir dados frescos
     carregarCopRedeInforma(true);
     carregarAlertas();
   }, 1000);
@@ -5493,6 +5497,25 @@ function trocarAbasTelegram(abaId) {
 // ============================================
 // COP REDE INFORMA - Funções
 // ============================================
+
+/**
+ * Limpa o cache do backend para garantir dados frescos
+ * Deve ser chamado no login/inicialização
+ */
+async function limparCacheBackend() {
+  if (!backendUrl) return;
+
+  try {
+    console.log('[Cache] Limpando cache do backend...');
+    await fetch(`${backendUrl}/api/cache/limpar`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' }
+    });
+    console.log('[Cache] Cache do backend limpo com sucesso');
+  } catch (error) {
+    console.warn('[Cache] Erro ao limpar cache (continuando):', error.message);
+  }
+}
 
 // Função auxiliar para fetch com retry e tratamento de CORS
 async function fetchComRetry(url, opcoes = {}, maxRetries = 3) {
