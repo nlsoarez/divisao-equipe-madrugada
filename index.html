@@ -3087,20 +3087,20 @@ function verificarAutenticacao() {
   } else if (auth === 'admin') {
     iniciarComoAdmin();
     carregarDadosDaNuvem();
-    // Limpar cache e carregar dados do WhatsApp ao iniciar
+    // Limpar cache e carregar dados do Telegram ao iniciar
     setTimeout(async () => {
       await limparCacheBackend(); // Limpar cache primeiro para garantir dados frescos
-      carregarCopRedeInforma(true); // Sincroniza com WhatsApp e carrega
-      carregarAlertas();
+      await carregarCopRedeInforma(true); // Sincroniza com Telegram e carrega (aguardar conclusão)
+      await carregarAlertas();
     }, 1000);
   } else if (auth === 'viewer') {
     iniciarComoVisualizador();
     carregarDadosDaNuvem();
-    // Limpar cache e carregar dados do WhatsApp ao iniciar
+    // Limpar cache e carregar dados do Telegram ao iniciar
     setTimeout(async () => {
       await limparCacheBackend(); // Limpar cache primeiro para garantir dados frescos
-      carregarCopRedeInforma(true); // Sincroniza com WhatsApp e carrega
-      carregarAlertas();
+      await carregarCopRedeInforma(true); // Sincroniza com Telegram e carrega (aguardar conclusão)
+      await carregarAlertas();
     }, 1000);
   } else {
     setTimeout(() => {
@@ -3146,11 +3146,11 @@ function verificarPin() {
     // Iniciar como admin
     iniciarComoAdmin();
     carregarDadosDaNuvem();
-    // Limpar cache e carregar dados do WhatsApp ao iniciar
+    // Limpar cache e carregar dados do Telegram ao iniciar
     setTimeout(async () => {
       await limparCacheBackend(); // Limpar cache primeiro para garantir dados frescos
-      carregarCopRedeInforma(true);
-      carregarAlertas();
+      await carregarCopRedeInforma(true); // Sincroniza com Telegram e carrega (aguardar conclusão)
+      await carregarAlertas();
     }, 1000);
 
     showToast('✅ Acesso administrativo concedido!', 'success');
@@ -3180,11 +3180,11 @@ function entrarComoVisualizador() {
   // Iniciar como visualizador
   iniciarComoVisualizador();
   carregarDadosDaNuvem();
-  // Limpar cache e carregar dados do WhatsApp ao iniciar
+  // Limpar cache e carregar dados do Telegram ao iniciar
   setTimeout(async () => {
     await limparCacheBackend(); // Limpar cache primeiro para garantir dados frescos
-    carregarCopRedeInforma(true);
-    carregarAlertas();
+    await carregarCopRedeInforma(true); // Sincroniza com Telegram e carrega (aguardar conclusão)
+    await carregarAlertas();
   }, 1000);
 
   showToast('🔍 Modo de visualização ativado', 'info');
@@ -5373,8 +5373,8 @@ function trocarAbaAdmin(abaId) {
     if (!telegramConectado) {
       verificarConexaoBackend();
     } else {
-      // Se já conectado, apenas atualizar dados
-      carregarCopRedeInforma();
+      // Se já conectado, forçar atualização para garantir dados frescos
+      carregarCopRedeInforma(true);
       carregarAlertas();
     }
     iniciarAutoRefresh();
@@ -5453,8 +5453,9 @@ async function verificarConexaoBackend() {
 
       telegramConectado = true;
 
-      // Carregar dados automaticamente
-      carregarCopRedeInforma();
+      // Carregar dados automaticamente com forçar atualização
+      // para garantir dados frescos do JSONBin (não usar cache)
+      carregarCopRedeInforma(true);
       carregarAlertas();
       carregarEstatisticas();
 
