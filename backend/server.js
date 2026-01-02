@@ -140,21 +140,21 @@ app.post('/api/telegram/reiniciar', async (req, res) => {
 });
 
 /**
- * Sincronizar mensagens manualmente
+ * Sincronizar mensagens COP REDE INFORMA manualmente
  * Busca histórico de mensagens do Telegram e salva no JSONBin
+ * NOTA: Alertas (Novo Evento Detectado) são apenas em tempo real, não do histórico
  */
 app.post('/api/telegram/sincronizar', async (req, res) => {
   try {
     // Se UserBot está ativo, usar a função de buscar histórico
     const userbotStatus = userbot.obterStatus();
     if (userbotStatus && userbotStatus.conectado) {
-      console.log('[Telegram] Sincronizando via UserBot...');
+      console.log('[Telegram] Sincronizando COP REDE INFORMA via UserBot...');
       const resultado = await userbot.buscarHistorico(100);
       return res.json({
         sucesso: true,
-        mensagem: 'Histórico sincronizado via UserBot',
-        copRedeInforma: resultado.copRedeInforma || 0,
-        alertas: resultado.alertas || 0
+        mensagem: 'Histórico COP REDE INFORMA sincronizado via UserBot',
+        copRedeInforma: resultado.copRedeInforma || 0
       });
     }
 
