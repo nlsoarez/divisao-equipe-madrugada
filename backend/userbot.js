@@ -255,33 +255,37 @@ function obterStatus() {
 }
 
 /**
- * Busca histórico de mensagens do grupo sob demanda
- * Diferente de buscarHistoricoInicial(), esta função busca TODAS as mensagens COP REDE INFORMA
- * das últimas horas para garantir que nada foi perdido
+ * Busca histórico de mensagens COP REDE INFORMA do grupo sob demanda
+ * IMPORTANTE: Apenas COP REDE INFORMA é carregado do histórico
+ * Alertas (Novo Evento Detectado) são capturados APENAS em tempo real
  * @param {number} limite - Número de mensagens para buscar (padrão: 100)
- * @returns {Promise<{copRedeInforma: number, alertas: number}>} Contagem de mensagens processadas
+ * @returns {Promise<{copRedeInforma: number}>} Contagem de mensagens processadas
  */
 async function buscarHistorico(limite = 100) {
   if (!client || !isRunning) {
     console.log('[UserBot] Não conectado - não é possível buscar histórico');
-    return { copRedeInforma: 0, alertas: 0, erro: 'UserBot não conectado' };
+    return { copRedeInforma: 0, erro: 'UserBot não conectado' };
   }
 
   try {
     console.log('[UserBot] ====================================');
-    console.log(`[UserBot] 🔄 BUSCANDO HISTÓRICO (${limite} mensagens)...`);
+    console.log(`[UserBot] 🔄 BUSCANDO HISTÓRICO COP REDE INFORMA (${limite} mensagens)...`);
+    console.log('[UserBot] ⚠️  Alertas NÃO são carregados do histórico (apenas tempo real)');
     console.log('[UserBot] ====================================');
 
     const messages = await client.getMessages(parseInt(USERBOT_CONFIG.GROUP_ID), {
       limit: limite
     });
 
-    console.log(`[UserBot] ${messages.length} mensagens encontradas`);
+    console.log(`[UserBot] ${messages.length} mensagens encontradas no grupo`);
 
-    let contadores = { copRedeInforma: 0, alertas: 0 };
+    let contadores = { copRedeInforma: 0, ignorados: 0 };
 
     for (const message of messages) {
       if (!message.text) continue;
+
+      // Log para debug - mostrar primeira linha de cada mensagem
+      const primeiraLinha = message.text.split('\n')[0].substring(0, 50);
 
       try {
         const sender = await message.getSender();
@@ -308,9 +312,11 @@ async function buscarHistorico(limite = 100) {
           if (resultado.tipo === 'COP_REDE_INFORMA') {
             await adicionarCopRedeInforma(resultado.dados);
             contadores.copRedeInforma++;
+            console.log(`[UserBot] ✅ COP REDE INFORMA salvo de ${username}`);
           } else if (resultado.tipo === 'NOVO_EVENTO') {
-            await adicionarAlerta(resultado.dados);
-            contadores.alertas++;
+            // IGNORAR alertas do histórico - apenas em tempo real
+            contadores.ignorados++;
+            console.log(`[UserBot] ⏭️  Alerta ignorado (histórico): ${primeiraLinha}`);
           }
         }
       } catch (msgError) {
@@ -321,14 +327,14 @@ async function buscarHistorico(limite = 100) {
     console.log('[UserBot] ====================================');
     console.log('[UserBot] ✅ HISTÓRICO PROCESSADO!');
     console.log(`[UserBot] - COP Rede Informa: ${contadores.copRedeInforma}`);
-    console.log(`[UserBot] - Alertas: ${contadores.alertas}`);
+    console.log(`[UserBot] - Alertas ignorados: ${contadores.ignorados} (apenas tempo real)`);
     console.log('[UserBot] ====================================');
 
-    return contadores;
+    return { copRedeInforma: contadores.copRedeInforma };
 
   } catch (error) {
     console.error('[UserBot] ❌ Erro ao buscar histórico:', error.message);
-    return { copRedeInforma: 0, alertas: 0, erro: error.message };
+    return { copRedeInforma: 0, erro: error.message };
   }
 }
 
