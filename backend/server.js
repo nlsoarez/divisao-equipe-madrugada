@@ -141,23 +141,24 @@ app.post('/api/telegram/reiniciar', async (req, res) => {
 
 /**
  * Sincronizar mensagens manualmente
- * NOTA: Desabilitado quando UserBot está ativo para evitar conflitos de getUpdates
+ * Busca histórico de mensagens do Telegram e salva no JSONBin
  */
 app.post('/api/telegram/sincronizar', async (req, res) => {
   try {
-    // Se UserBot está ativo, não usar getUpdates (evita conflito)
+    // Se UserBot está ativo, usar a função de buscar histórico
     const userbotStatus = userbot.obterStatus();
     if (userbotStatus && userbotStatus.conectado) {
-      console.log('[Telegram] Sincronização manual desabilitada (UserBot ativo)');
+      console.log('[Telegram] Sincronizando via UserBot...');
+      const resultado = await userbot.buscarHistorico(100);
       return res.json({
         sucesso: true,
-        mensagem: 'UserBot já está monitorando - sincronização automática ativa',
-        mensagensProcessadas: 0,
-        dados: []
+        mensagem: 'Histórico sincronizado via UserBot',
+        copRedeInforma: resultado.copRedeInforma || 0,
+        alertas: resultado.alertas || 0
       });
     }
 
-    // Só usar getUpdates se UserBot não estiver ativo
+    // Fallback: usar Bot API se UserBot não estiver ativo
     const mensagens = await telegram.buscarMensagensRecentes(100);
     res.json({
       sucesso: true,

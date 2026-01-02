@@ -254,11 +254,90 @@ function obterStatus() {
   };
 }
 
+/**
+ * Busca histórico de mensagens do grupo sob demanda
+ * Diferente de buscarHistoricoInicial(), esta função busca TODAS as mensagens COP REDE INFORMA
+ * das últimas horas para garantir que nada foi perdido
+ * @param {number} limite - Número de mensagens para buscar (padrão: 100)
+ * @returns {Promise<{copRedeInforma: number, alertas: number}>} Contagem de mensagens processadas
+ */
+async function buscarHistorico(limite = 100) {
+  if (!client || !isRunning) {
+    console.log('[UserBot] Não conectado - não é possível buscar histórico');
+    return { copRedeInforma: 0, alertas: 0, erro: 'UserBot não conectado' };
+  }
+
+  try {
+    console.log('[UserBot] ====================================');
+    console.log(`[UserBot] 🔄 BUSCANDO HISTÓRICO (${limite} mensagens)...`);
+    console.log('[UserBot] ====================================');
+
+    const messages = await client.getMessages(parseInt(USERBOT_CONFIG.GROUP_ID), {
+      limit: limite
+    });
+
+    console.log(`[UserBot] ${messages.length} mensagens encontradas`);
+
+    let contadores = { copRedeInforma: 0, alertas: 0 };
+
+    for (const message of messages) {
+      if (!message.text) continue;
+
+      try {
+        const sender = await message.getSender();
+        const isBot = sender?.bot === true;
+        const username = sender?.username || 'desconhecido';
+
+        // Criar objeto compatível com o parser
+        const msgCompativel = {
+          message_id: message.id,
+          date: message.date,
+          text: message.text,
+          from: {
+            username: username,
+            is_bot: isBot
+          },
+          chat: {
+            id: message.chatId?.toString()
+          }
+        };
+
+        const resultado = processarMensagem(msgCompativel);
+
+        if (resultado) {
+          if (resultado.tipo === 'COP_REDE_INFORMA') {
+            await adicionarCopRedeInforma(resultado.dados);
+            contadores.copRedeInforma++;
+          } else if (resultado.tipo === 'NOVO_EVENTO') {
+            await adicionarAlerta(resultado.dados);
+            contadores.alertas++;
+          }
+        }
+      } catch (msgError) {
+        console.warn('[UserBot] Erro ao processar mensagem:', msgError.message);
+      }
+    }
+
+    console.log('[UserBot] ====================================');
+    console.log('[UserBot] ✅ HISTÓRICO PROCESSADO!');
+    console.log(`[UserBot] - COP Rede Informa: ${contadores.copRedeInforma}`);
+    console.log(`[UserBot] - Alertas: ${contadores.alertas}`);
+    console.log('[UserBot] ====================================');
+
+    return contadores;
+
+  } catch (error) {
+    console.error('[UserBot] ❌ Erro ao buscar histórico:', error.message);
+    return { copRedeInforma: 0, alertas: 0, erro: error.message };
+  }
+}
+
 module.exports = {
   inicializarUserBot,
   pararUserBot,
   estaRodando,
-  obterStatus
+  obterStatus,
+  buscarHistorico
 };
 
 // Se executado diretamente
