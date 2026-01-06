@@ -214,11 +214,22 @@ async function buscarHistorico(limite = 100) {
       }
     }
 
-    console.log(`[WhatsApp] ${messages.length} mensagens encontradas`);
+    console.log(`[WhatsApp] ${messages.length} mensagens encontradas (antes do filtro)`);
+
+    // IMPORTANTE: Filtrar mensagens pelo grupo correto
+    // A Evolution API pode retornar mensagens de todos os grupos
+    if (EVOLUTION_CONFIG.SOURCE_CHAT_ID) {
+      const mensagensAntesDoFiltro = messages.length;
+      messages = messages.filter(m => {
+        const remoteJid = m.key?.remoteJid || m.remoteJid;
+        return remoteJid === EVOLUTION_CONFIG.SOURCE_CHAT_ID;
+      });
+      console.log(`[WhatsApp] ${messages.length} mensagens do grupo correto (filtradas de ${mensagensAntesDoFiltro})`);
+    }
 
     if (messages.length === 0) {
-      console.log('[WhatsApp] Nenhuma mensagem encontrada');
-      return { copRedeInforma: 0, erro: 'Nenhuma mensagem encontrada' };
+      console.log('[WhatsApp] Nenhuma mensagem encontrada do grupo especificado');
+      return { copRedeInforma: 0, erro: 'Nenhuma mensagem do grupo especificado' };
     }
 
     let contadores = { copRedeInforma: 0, ignorados: 0 };

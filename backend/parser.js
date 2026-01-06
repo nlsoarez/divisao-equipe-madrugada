@@ -314,11 +314,22 @@ function extrairSecaoLista(texto, secao) {
 function parseCopRedeInforma(texto, dataMensagem, messageId) {
   // Debug: mostrar texto completo para entender o formato
   console.log('[Parser] ========== PARSING COP REDE INFORMA ==========');
-  console.log('[Parser] Texto completo (primeiros 500 chars):');
-  console.log(texto.substring(0, 500));
+  console.log('[Parser] Texto completo (primeiros 800 chars):');
+  console.log(texto.substring(0, 800));
   console.log('[Parser] ================================================');
 
-  // Extrair seções do resumo
+  // Detectar tipo de formato
+  const temFormatoEmoji = texto.includes('🔴') || texto.includes('📝') || texto.includes('⚠') ||
+                          texto.includes('🕒') || texto.includes('💥') || texto.includes('📜');
+
+  if (temFormatoEmoji) {
+    // NOVO FORMATO: Com emojis (WhatsApp)
+    console.log('[Parser] Detectado formato com emojis (WhatsApp)');
+    return parseCopRedeInformaEmoji(texto, dataMensagem, messageId);
+  }
+
+  // FORMATO ANTIGO: Com seções MERCADO/TIPO/NATUREZA/SINTOMA/GRUPO
+  console.log('[Parser] Tentando formato antigo com seções');
   const mercado = extrairSecaoLista(texto, 'MERCADO');
   const tipo = extrairSecaoLista(texto, 'TIPO');
   const natureza = extrairSecaoLista(texto, 'NATUREZA');
@@ -351,14 +362,12 @@ function parseCopRedeInforma(texto, dataMensagem, messageId) {
   return {
     id: `cop_${messageId}_${Date.now()}`,
     messageId,
-    // Campos para o frontend
     dataRecebimento: dataMensagem.toISOString(),
     empresa: 'Resumo COP',
     grupo: grupo?.itens ? Object.keys(grupo.itens).join(', ') : null,
     areaMapeada: areasAfetadas.length > 0 ? areasAfetadas.join(', ') : null,
     sigla: null,
     descricao: descricaoPartes.join('\n') || null,
-    // Dados detalhados do resumo
     resumo: {
       mercado: mercado?.itens || {},
       tipo: tipo?.itens || {},
@@ -369,6 +378,135 @@ function parseCopRedeInforma(texto, dataMensagem, messageId) {
     },
     areasAfetadas,
     totalEventos: totalGeral,
+    mensagemOriginal: texto,
+    origem: 'COP_REDE_INFORMA',
+    processadoEm: new Date().toISOString()
+  };
+}
+
+/**
+ * Parser para formato COP REDE INFORMA com emojis (WhatsApp)
+ * Formato:
+ * COP REDE INFORMA:
+ * 🔴 TITULO DO EVENTO
+ * 📝REC/RAL (Referência): XXX
+ * ⚠Grupo: CLUSTER XX
+ * 🕒Horário de Abertura: dd/mm/aaaa - HH:MM
+ * 🌎Cidade: NOME
+ * ⏳Horário de Recebimento: dd/mm/aaaa - HH:MM
+ * 💥Impacto: REC X RAL Y
+ * 📜Status: TEXTO
+ */
+function parseCopRedeInformaEmoji(texto, dataMensagem, messageId) {
+  console.log('[Parser] Parsing formato emoji...');
+
+  // Extrair campos com emojis
+  const extrairCampoEmoji = (emoji, nomesCampo) => {
+    // nomesCampo pode ser string ou array de strings
+    const nomes = Array.isArray(nomesCampo) ? nomesCampo : [nomesCampo];
+
+    for (const nome of nomes) {
+      // Tenta encontrar "emoji + nome + : + valor" ou "emoji + nome + valor"
+      const regexComDoisPontos = new RegExp(`${emoji}\\s*${nome}[:\\s]+(.+?)(?:\\n|$)`, 'i');
+      const matchComDoisPontos = texto.match(regexComDoisPontos);
+      if (matchComDoisPontos) {
+        return matchComDoisPontos[1].trim();
+      }
+    }
+
+    // Tenta apenas com emoji no início da linha
+    const regexSoEmoji = new RegExp(`${emoji}\\s*(.+?)(?:\\n|$)`, 'i');
+    const matchSoEmoji = texto.match(regexSoEmoji);
+    if (matchSoEmoji) {
+      return matchSoEmoji[1].trim();
+    }
+
+    return null;
+  };
+
+  // Extrair título (linha após COP REDE INFORMA ou com emoji 🔴)
+  let titulo = extrairCampoEmoji('🔴', '');
+  if (!titulo) {
+    const linhas = texto.split('\n');
+    for (let i = 0; i < linhas.length; i++) {
+      if (linhas[i].includes('COP REDE INFORMA') && i + 1 < linhas.length) {
+        titulo = linhas[i + 1].replace(/^[🔴🟠🟡🟢⚪\s*]+/, '').trim();
+        break;
+      }
+    }
+  }
+
+  // Extrair campos específicos
+  const recRal = extrairCampoEmoji('📝', ['REC/RAL', 'RAL', 'REC']);
+  const grupo = extrairCampoEmoji('⚠', ['Grupo', 'Cluster']);
+  const horarioAbertura = extrairCampoEmoji('🕒', ['Horário de Abertura', 'Horario de Abertura', 'Abertura']);
+  const cidade = extrairCampoEmoji('🌎', ['Cidade', 'Local']);
+  const horarioRecebimento = extrairCampoEmoji('⏳', ['Horário de Recebimento', 'Recebimento']);
+  const designacao = extrairCampoEmoji('✍', ['Designação', 'Designacao']);
+  const motivoPrejuizo = extrairCampoEmoji('✍', ['Motivo do Prejuízo', 'Motivo', 'Prejuízo']);
+  const impacto = extrairCampoEmoji('💥', ['Impacto']);
+  const status = extrairCampoEmoji('📜', ['Status']);
+
+  // Mapear grupo para área
+  const { areaPainel } = mapearGrupoParaArea(grupo);
+
+  // Extrair valores de impacto (REC X RAL Y)
+  let impactoRec = 0, impactoRal = 0;
+  if (impacto) {
+    const matchRec = impacto.match(/REC\s*(\d+)/i);
+    const matchRal = impacto.match(/RAL\s*(\d+)/i);
+    if (matchRec) impactoRec = parseInt(matchRec[1]);
+    if (matchRal) impactoRal = parseInt(matchRal[1]);
+  }
+
+  // Criar descrição
+  const descricaoPartes = [];
+  if (titulo) descricaoPartes.push(titulo);
+  if (status) descricaoPartes.push(`Status: ${status}`);
+  if (impacto) descricaoPartes.push(`Impacto: ${impacto}`);
+
+  console.log('[Parser] Campos extraídos:');
+  console.log(`  - Título: ${titulo}`);
+  console.log(`  - Grupo: ${grupo}`);
+  console.log(`  - Cidade: ${cidade}`);
+  console.log(`  - Impacto: ${impacto} (REC: ${impactoRec}, RAL: ${impactoRal})`);
+  console.log(`  - Status: ${status}`);
+
+  return {
+    id: `cop_${messageId}_${Date.now()}`,
+    messageId,
+    dataRecebimento: dataMensagem.toISOString(),
+    empresa: 'COP REDE',
+    grupo: grupo || null,
+    areaMapeada: areaPainel || grupo || null,
+    sigla: recRal || null,
+    descricao: descricaoPartes.join(' | ') || titulo || null,
+    // Dados específicos do formato emoji
+    detalhes: {
+      titulo,
+      recRal,
+      grupo,
+      horarioAbertura,
+      cidade,
+      horarioRecebimento,
+      designacao,
+      motivoPrejuizo,
+      impacto,
+      impactoRec,
+      impactoRal,
+      status
+    },
+    // Para compatibilidade com frontend
+    resumo: {
+      mercado: cidade ? { [cidade]: 1 } : {},
+      tipo: titulo ? { [titulo.substring(0, 50)]: 1 } : {},
+      natureza: {},
+      sintoma: {},
+      grupo: grupo ? { [grupo]: 1 } : {},
+      totalGeral: impactoRec + impactoRal || 1
+    },
+    areasAfetadas: areaPainel ? [areaPainel] : [],
+    totalEventos: impactoRec + impactoRal || 1,
     mensagemOriginal: texto,
     origem: 'COP_REDE_INFORMA',
     processadoEm: new Date().toISOString()
