@@ -244,6 +244,12 @@ function extrairSecaoLista(texto, secao) {
  * @returns {object} Objeto com campos extraídos
  */
 function parseCopRedeInforma(texto, dataMensagem, messageId) {
+  // Debug: mostrar texto completo para entender o formato
+  console.log('[Parser] ========== PARSING COP REDE INFORMA ==========');
+  console.log('[Parser] Texto completo (primeiros 500 chars):');
+  console.log(texto.substring(0, 500));
+  console.log('[Parser] ================================================');
+
   // Extrair seções do resumo
   const mercado = extrairSecaoLista(texto, 'MERCADO');
   const tipo = extrairSecaoLista(texto, 'TIPO');
