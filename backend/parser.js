@@ -161,8 +161,10 @@ function mapearGrupoParaArea(grupo) {
 
 /**
  * Extrai seções do formato de lista do COP REDE INFORMA
- * Formato: SECAO:\n- item1: valor1\n- item2: valor2
- * Também suporta formato markdown: **SECAO:**\n- item1: valor1
+ * Suporta múltiplos formatos:
+ * - **SECAO:**\n- item: valor (markdown bold)
+ * - ## SECAO\n- item: valor (markdown heading)
+ * - SECAO:\n- item: valor (plain text)
  * @param {string} texto - Texto completo
  * @param {string} secao - Nome da seção
  * @returns {object} Objeto com itens e valores
@@ -175,14 +177,11 @@ function extrairSecaoLista(texto, secao) {
   let conteudo = null;
 
   // Método 1: Busca por seção markdown **SECAO:**
-  // Encontra a posição inicial da seção
-  const regexInicio = new RegExp(`\\*\\*${secao}:\\*\\*`, 'i');
-  const matchInicio = texto.match(regexInicio);
+  const regexBold = new RegExp(`\\*\\*${secao}:\\*\\*`, 'i');
+  const matchBold = texto.match(regexBold);
 
-  if (matchInicio) {
-    const posInicio = texto.indexOf(matchInicio[0]) + matchInicio[0].length;
-
-    // Encontra a próxima seção markdown ou usa o fim do texto
+  if (matchBold) {
+    const posInicio = texto.indexOf(matchBold[0]) + matchBold[0].length;
     const restoTexto = texto.substring(posInicio);
     const regexProximaSecao = /\n\*\*[A-ZÁÉÍÓÚÂÊÎÔÛÃÕÇ][A-ZÁÉÍÓÚÂÊÎÔÛÃÕÇA-Z\s/]*:\*\*/i;
     const matchProxima = restoTexto.match(regexProximaSecao);
@@ -190,19 +189,70 @@ function extrairSecaoLista(texto, secao) {
     if (matchProxima) {
       conteudo = restoTexto.substring(0, matchProxima.index);
     } else {
-      // GRUPO é a última seção - pega todo o resto
       conteudo = restoTexto;
     }
-    console.log(`[Parser] Encontrado com markdown, conteúdo tem ${conteudo?.length || 0} chars`);
+    console.log(`[Parser] Encontrado com markdown bold, conteúdo tem ${conteudo?.length || 0} chars`);
   }
 
-  // Método 2: Busca sem markdown
+  // Método 2: Busca por markdown heading ## SECAO ou ### SECAO
   if (!conteudo) {
-    const regexSemMd = new RegExp(`${secao}:\\s*\\n([\\s\\S]*?)(?=\\n[A-ZÁÉÍÓÚ]+:|$)`, 'i');
+    const regexHeading = new RegExp(`#+\\s*${secao}:?\\s*\\n`, 'i');
+    const matchHeading = texto.match(regexHeading);
+
+    if (matchHeading) {
+      const posInicio = texto.indexOf(matchHeading[0]) + matchHeading[0].length;
+      const restoTexto = texto.substring(posInicio);
+      // Encontra próxima seção (heading ou bold)
+      const regexProxima = /\n(?:#+\s*[A-ZÁÉÍÓÚ]|\*\*[A-ZÁÉÍÓÚ])/i;
+      const matchProxima = restoTexto.match(regexProxima);
+
+      if (matchProxima) {
+        conteudo = restoTexto.substring(0, matchProxima.index);
+      } else {
+        conteudo = restoTexto;
+      }
+      console.log(`[Parser] Encontrado com markdown heading, conteúdo tem ${conteudo?.length || 0} chars`);
+    }
+  }
+
+  // Método 3: Busca plain text SECAO:
+  if (!conteudo) {
+    const regexSemMd = new RegExp(`^${secao}:\\s*\\n([\\s\\S]*?)(?=\\n[A-ZÁÉÍÓÚ]+:|$)`, 'im');
     const match = texto.match(regexSemMd);
     if (match) {
       conteudo = match[1];
-      console.log(`[Parser] Encontrado sem markdown, conteúdo tem ${conteudo?.length || 0} chars`);
+      console.log(`[Parser] Encontrado plain text, conteúdo tem ${conteudo?.length || 0} chars`);
+    }
+  }
+
+  // Método 4: Busca por linha que começa com SECAO (sem dois pontos)
+  if (!conteudo) {
+    const linhas = texto.split('\n');
+    let inicioSecao = -1;
+
+    for (let i = 0; i < linhas.length; i++) {
+      const linhaLimpa = linhas[i].replace(/[#*]/g, '').trim().toUpperCase();
+      if (linhaLimpa === secao || linhaLimpa === secao + ':') {
+        inicioSecao = i + 1;
+        break;
+      }
+    }
+
+    if (inicioSecao > 0 && inicioSecao < linhas.length) {
+      const linhasSecao = [];
+      for (let i = inicioSecao; i < linhas.length; i++) {
+        const linha = linhas[i];
+        // Para quando encontra outra seção
+        const linhaLimpa = linha.replace(/[#*]/g, '').trim().toUpperCase();
+        if (linhaLimpa.match(/^[A-ZÁÉÍÓÚ]+:?$/) && !linha.trim().startsWith('-')) {
+          break;
+        }
+        linhasSecao.push(linha);
+      }
+      if (linhasSecao.length > 0) {
+        conteudo = linhasSecao.join('\n');
+        console.log(`[Parser] Encontrado por linha, conteúdo tem ${conteudo?.length || 0} chars`);
+      }
     }
   }
 
@@ -211,16 +261,34 @@ function extrairSecaoLista(texto, secao) {
     return null;
   }
 
-  // Processa linhas que começam com "-"
-  const linhas = conteudo.split('\n').filter(l => l.trim().startsWith('-'));
-  console.log(`[Parser] Seção ${secao}: encontradas ${linhas.length} linhas com "-"`);
+  // Processa linhas que começam com "-" ou "•" ou números
+  const linhas = conteudo.split('\n').filter(l => {
+    const trimmed = l.trim();
+    return trimmed.startsWith('-') || trimmed.startsWith('•') || trimmed.match(/^\d+\./);
+  });
+  console.log(`[Parser] Seção ${secao}: encontradas ${linhas.length} linhas com itens`);
 
   const itens = {};
   let total = 0;
 
   for (const linha of linhas) {
-    // Captura "- Nome do Item: 123" (aceita espaços extras e variações)
-    const itemMatch = linha.match(/^-\s*(.+?):\s*(\d+)\s*$/);
+    // Captura múltiplos formatos:
+    // "- Nome do Item: 123"
+    // "• Nome do Item: 123"
+    // "1. Nome do Item: 123"
+    // "- Nome do Item - 123"
+    let itemMatch = linha.match(/^[-•]\s*(.+?):\s*(\d+)\s*$/);
+    if (!itemMatch) {
+      itemMatch = linha.match(/^\d+\.\s*(.+?):\s*(\d+)\s*$/);
+    }
+    if (!itemMatch) {
+      itemMatch = linha.match(/^[-•]\s*(.+?)\s*-\s*(\d+)\s*$/);
+    }
+    // Tenta formato "- Nome do Item (123)"
+    if (!itemMatch) {
+      itemMatch = linha.match(/^[-•]\s*(.+?)\s*\((\d+)\)\s*$/);
+    }
+
     if (itemMatch) {
       const nomeItem = itemMatch[1].trim();
       const valor = parseInt(itemMatch[2]);
@@ -244,6 +312,12 @@ function extrairSecaoLista(texto, secao) {
  * @returns {object} Objeto com campos extraídos
  */
 function parseCopRedeInforma(texto, dataMensagem, messageId) {
+  // Debug: mostrar texto completo para entender o formato
+  console.log('[Parser] ========== PARSING COP REDE INFORMA ==========');
+  console.log('[Parser] Texto completo (primeiros 500 chars):');
+  console.log(texto.substring(0, 500));
+  console.log('[Parser] ================================================');
+
   // Extrair seções do resumo
   const mercado = extrairSecaoLista(texto, 'MERCADO');
   const tipo = extrairSecaoLista(texto, 'TIPO');
