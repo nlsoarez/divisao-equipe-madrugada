@@ -7,10 +7,11 @@ const express = require('express');
 const cors = require('cors');
 require('dotenv').config();
 
-const { SERVER_CONFIG, USERBOT_CONFIG } = require('./config');
+const { SERVER_CONFIG, USERBOT_CONFIG, EVOLUTION_CONFIG } = require('./config');
 const telegram = require('./telegram');
 const storage = require('./storage');
 const userbot = require('./userbot');
+const whatsapp = require('./whatsapp');
 
 const app = express();
 
@@ -39,6 +40,7 @@ app.get('/health', (req, res) => {
   res.json({
     status: 'ok',
     timestamp: new Date().toISOString(),
+    whatsapp: whatsapp.obterStatus(),
     telegram: telegram.obterEstatisticas()
   });
 });
@@ -48,6 +50,7 @@ app.get('/api/health', (req, res) => {
   res.json({
     status: 'ok',
     timestamp: new Date().toISOString(),
+    whatsapp: whatsapp.obterStatus(),
     telegram: telegram.obterEstatisticas()
   });
 });
@@ -141,27 +144,50 @@ app.post('/api/telegram/reiniciar', async (req, res) => {
 
 /**
  * Sincronizar mensagens COP REDE INFORMA manualmente
- * Busca histórico de mensagens do Telegram e salva no JSONBin
+ * Prioridade: 1) WhatsApp (Evolution API) 2) Telegram UserBot 3) Telegram Bot
  * NOTA: Alertas (Novo Evento Detectado) são apenas em tempo real, não do histórico
  */
 app.post('/api/telegram/sincronizar', async (req, res) => {
   try {
-    // Se UserBot está ativo, usar a função de buscar histórico
+    // PRIORIDADE 1: Tentar WhatsApp (Evolution API)
+    const whatsappStatus = whatsapp.obterStatus();
+    if (EVOLUTION_CONFIG.API_KEY && EVOLUTION_CONFIG.INSTANCE_NAME) {
+      console.log('[Sync] Tentando sincronizar via WhatsApp (Evolution API)...');
+      try {
+        const resultado = await whatsapp.buscarHistorico(100);
+        if (!resultado.erro) {
+          return res.json({
+            sucesso: true,
+            fonte: 'whatsapp',
+            mensagem: 'Histórico COP REDE INFORMA sincronizado via WhatsApp',
+            copRedeInforma: resultado.copRedeInforma || 0
+          });
+        }
+        console.log('[Sync] WhatsApp falhou:', resultado.erro);
+      } catch (whatsappError) {
+        console.log('[Sync] Erro no WhatsApp:', whatsappError.message);
+      }
+    }
+
+    // PRIORIDADE 2: Tentar Telegram UserBot
     const userbotStatus = userbot.obterStatus();
     if (userbotStatus && userbotStatus.conectado) {
-      console.log('[Telegram] Sincronizando COP REDE INFORMA via UserBot...');
+      console.log('[Sync] Sincronizando COP REDE INFORMA via Telegram UserBot...');
       const resultado = await userbot.buscarHistorico(100);
       return res.json({
         sucesso: true,
-        mensagem: 'Histórico COP REDE INFORMA sincronizado via UserBot',
+        fonte: 'telegram-userbot',
+        mensagem: 'Histórico COP REDE INFORMA sincronizado via Telegram UserBot',
         copRedeInforma: resultado.copRedeInforma || 0
       });
     }
 
-    // Fallback: usar Bot API se UserBot não estiver ativo
+    // PRIORIDADE 3: Fallback para Telegram Bot API
+    console.log('[Sync] Tentando Telegram Bot API...');
     const mensagens = await telegram.buscarMensagensRecentes(100);
     res.json({
       sucesso: true,
+      fonte: 'telegram-bot',
       mensagensProcessadas: mensagens.length,
       dados: mensagens
     });
@@ -177,6 +203,105 @@ app.get('/api/telegram/diagnostico', async (req, res) => {
   try {
     const resultado = await telegram.diagnosticar();
     res.json(resultado);
+  } catch (error) {
+    res.status(500).json({ sucesso: false, erro: error.message });
+  }
+});
+
+// ============================================
+// ROTAS DO WHATSAPP (Evolution API)
+// ============================================
+
+/**
+ * Status da conexão WhatsApp
+ */
+app.get('/api/whatsapp/status', async (req, res) => {
+  try {
+    const status = await whatsapp.verificarConexao();
+    res.json({
+      sucesso: true,
+      ...status
+    });
+  } catch (error) {
+    res.status(500).json({ sucesso: false, erro: error.message });
+  }
+});
+
+/**
+ * Listar chats do WhatsApp (para descobrir o ID do grupo)
+ */
+app.get('/api/whatsapp/chats', async (req, res) => {
+  try {
+    const chats = await whatsapp.listarChats();
+    res.json({
+      sucesso: true,
+      total: Array.isArray(chats) ? chats.length : 0,
+      chats: chats
+    });
+  } catch (error) {
+    res.status(500).json({ sucesso: false, erro: error.message });
+  }
+});
+
+/**
+ * Sincronizar histórico do WhatsApp
+ */
+app.post('/api/whatsapp/sincronizar', async (req, res) => {
+  try {
+    const limite = req.body.limite || 100;
+    const resultado = await whatsapp.buscarHistorico(limite);
+    res.json({
+      sucesso: !resultado.erro,
+      ...resultado
+    });
+  } catch (error) {
+    res.status(500).json({ sucesso: false, erro: error.message });
+  }
+});
+
+/**
+ * Webhook da Evolution API para receber mensagens em tempo real
+ * Configure este URL na Evolution API: POST /api/whatsapp/webhook
+ */
+app.post('/api/whatsapp/webhook', async (req, res) => {
+  try {
+    console.log('[WhatsApp Webhook] Recebido:', JSON.stringify(req.body).substring(0, 200));
+
+    // Verificar se é evento de mensagem
+    const event = req.body.event || req.body.type;
+    if (event !== 'messages.upsert' && event !== 'MESSAGES_UPSERT') {
+      console.log('[WhatsApp Webhook] Ignorando evento:', event);
+      return res.json({ sucesso: true, ignorado: true });
+    }
+
+    const resultado = await whatsapp.processarWebhook(req.body);
+
+    res.json({
+      sucesso: true,
+      processado: resultado !== null,
+      tipo: resultado?.tipo || null
+    });
+  } catch (error) {
+    console.error('[WhatsApp Webhook] Erro:', error.message);
+    res.status(500).json({ sucesso: false, erro: error.message });
+  }
+});
+
+/**
+ * Configurar webhook na Evolution API
+ */
+app.post('/api/whatsapp/configurar-webhook', async (req, res) => {
+  try {
+    const { webhookUrl } = req.body;
+    if (!webhookUrl) {
+      return res.status(400).json({ sucesso: false, erro: 'webhookUrl é obrigatório' });
+    }
+
+    const resultado = await whatsapp.configurarWebhook(webhookUrl);
+    res.json({
+      sucesso: true,
+      resultado
+    });
   } catch (error) {
     res.status(500).json({ sucesso: false, erro: error.message });
   }
@@ -538,46 +663,61 @@ app.listen(SERVER_CONFIG.PORT, async () => {
   console.log(`CORS permitido: ${SERVER_CONFIG.CORS_ORIGIN}`);
   console.log('');
 
-  // Verificar se temos session do UserBot configurada
-  if (USERBOT_CONFIG.SESSION) {
-    console.log('📱 Iniciando UserBot (conta pessoal)...');
-    console.log('   Isso permite ler mensagens de outros bots!');
+  // PRIORIDADE 1: Verificar WhatsApp (Evolution API)
+  if (EVOLUTION_CONFIG.API_KEY && EVOLUTION_CONFIG.INSTANCE_NAME) {
+    console.log('📱 Verificando WhatsApp (Evolution API)...');
+    console.log(`   Instância: ${EVOLUTION_CONFIG.INSTANCE_NAME}`);
     try {
-      await userbot.inicializarUserBot();
-      console.log('✅ UserBot ativo e monitorando grupo');
-    } catch (error) {
-      console.error('❌ Erro ao iniciar UserBot:', error.message);
-      console.log('   Tentando iniciar Bot API como fallback...');
-      try {
-        await telegram.inicializar(true);
-        console.log('✅ Bot Telegram (fallback) ativo');
-      } catch (err) {
-        console.error('❌ Erro no fallback:', err.message);
+      const status = await whatsapp.verificarConexao();
+      if (status.conectado) {
+        console.log('✅ WhatsApp conectado!');
+        console.log('   Configure o webhook para receber mensagens em tempo real:');
+        console.log(`   POST /api/whatsapp/webhook`);
+        if (!EVOLUTION_CONFIG.SOURCE_CHAT_ID) {
+          console.log('   ⚠️  Configure EVOLUTION_SOURCE_CHAT_ID para filtrar mensagens');
+          console.log('   Use GET /api/whatsapp/chats para ver os chats disponíveis');
+        }
+      } else {
+        console.log('⚠️  WhatsApp não conectado:', status.estado || status.erro);
       }
+    } catch (error) {
+      console.log('⚠️  Erro ao verificar WhatsApp:', error.message);
     }
   } else {
-    // Sem session, usar bot normal (não vai receber msgs de bots)
-    console.log('⚠️  UserBot não configurado (sem TELEGRAM_SESSION)');
-    console.log('   Iniciando Bot API normal...');
+    console.log('ℹ️  WhatsApp não configurado (sem EVOLUTION_API_KEY)');
+  }
+
+  console.log('');
+
+  // PRIORIDADE 2: Telegram UserBot (fallback)
+  if (USERBOT_CONFIG.SESSION) {
+    console.log('📱 Iniciando Telegram UserBot (fallback)...');
     try {
-      await telegram.inicializar(true);
-      console.log('✅ Bot Telegram ativo');
-      console.log('   ⚠️  AVISO: Não vai receber mensagens de outros bots!');
+      await userbot.inicializarUserBot();
+      console.log('✅ Telegram UserBot ativo');
     } catch (error) {
-      console.error('❌ Erro ao iniciar bot:', error.message);
+      console.error('❌ Erro ao iniciar UserBot:', error.message);
     }
+  } else {
+    console.log('ℹ️  Telegram UserBot não configurado');
   }
 
   console.log('');
   console.log('Endpoints disponíveis:');
   console.log('  GET  /health');
   console.log('  GET  /api/estatisticas');
+  console.log('');
+  console.log('  WhatsApp (Evolution API):');
+  console.log('  GET  /api/whatsapp/status');
+  console.log('  GET  /api/whatsapp/chats');
+  console.log('  POST /api/whatsapp/sincronizar');
+  console.log('  POST /api/whatsapp/webhook');
+  console.log('');
+  console.log('  Telegram (legado):');
   console.log('  GET  /api/telegram/status');
-  console.log('  GET  /api/telegram/diagnostico');
-  console.log('  POST /api/telegram/iniciar');
-  console.log('  POST /api/telegram/parar');
-  console.log('  POST /api/telegram/reiniciar');
   console.log('  POST /api/telegram/sincronizar');
+  console.log('');
+  console.log('  Dados:');
   console.log('  GET  /api/cop-rede-informa');
   console.log('  GET  /api/alertas');
   console.log('============================================');
