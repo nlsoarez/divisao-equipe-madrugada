@@ -113,7 +113,18 @@ async function buscarHistorico(limite = 100) {
     // Evolution API v2 - tentar diferentes endpoints
     let messages = [];
 
-    // Método 1: chat/findMessages com body diferente
+    // Função auxiliar para extrair mensagens do resultado
+    const extractMessages = (result) => {
+      if (Array.isArray(result)) return result;
+      if (result.messages?.records) return result.messages.records; // Evolution API v2 format
+      if (result.messages && Array.isArray(result.messages)) return result.messages;
+      if (result.data?.records) return result.data.records;
+      if (result.data && Array.isArray(result.data)) return result.data;
+      if (result.records) return result.records;
+      return [];
+    };
+
+    // Método 1: chat/findMessages
     try {
       console.log('[WhatsApp] Tentando endpoint chat/findMessages...');
       const result = await evolutionRequest(
@@ -129,7 +140,8 @@ async function buscarHistorico(limite = 100) {
       if (result.instance) {
         console.log('[WhatsApp] Endpoint retornou status da instância, tentando outro formato...');
       } else {
-        messages = Array.isArray(result) ? result : (result.messages || result.data || []);
+        messages = extractMessages(result);
+        console.log(`[WhatsApp] Extraídas ${messages.length} mensagens do resultado`);
       }
     } catch (e1) {
       console.log('[WhatsApp] chat/findMessages falhou:', e1.message);
@@ -148,7 +160,8 @@ async function buscarHistorico(limite = 100) {
           }
         );
         if (!result.instance) {
-          messages = Array.isArray(result) ? result : (result.messages || result.data || []);
+          messages = extractMessages(result);
+          console.log(`[WhatsApp] Extraídas ${messages.length} mensagens do resultado`);
         }
       } catch (e2) {
         console.log('[WhatsApp] message/findMessages falhou:', e2.message);
@@ -168,7 +181,8 @@ async function buscarHistorico(limite = 100) {
           }
         );
         if (!result.instance) {
-          messages = Array.isArray(result) ? result : (result.messages || result.data || []);
+          messages = extractMessages(result);
+          console.log(`[WhatsApp] Extraídas ${messages.length} mensagens do resultado`);
         }
       } catch (e3) {
         console.log('[WhatsApp] remoteJid falhou:', e3.message);
@@ -186,8 +200,8 @@ async function buscarHistorico(limite = 100) {
             limit: limite
           }
         );
-        if (!result.instance && (Array.isArray(result) || result.messages || result.data)) {
-          const allMessages = Array.isArray(result) ? result : (result.messages || result.data || []);
+        if (!result.instance) {
+          const allMessages = extractMessages(result);
           // Filtrar pelo chat ID
           messages = allMessages.filter(m =>
             m.key?.remoteJid === EVOLUTION_CONFIG.SOURCE_CHAT_ID ||
