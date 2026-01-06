@@ -5,7 +5,16 @@
 
 require('dotenv').config();
 
-// Configurações do Telegram Bot API
+// Configurações da Evolution API (WhatsApp)
+const EVOLUTION_CONFIG = {
+  API_URL: process.env.EVOLUTION_API_URL || 'https://evolution-api-production-b976.up.railway.app',
+  API_KEY: process.env.EVOLUTION_API_KEY || 'B1E0A9BC4BFF-4586-B06F-42011477C6B5',
+  INSTANCE_NAME: process.env.EVOLUTION_INSTANCE_NAME || 'Cop Rede',
+  // Número do grupo ou contato de onde vêm as mensagens (formato: 5511999999999@g.us para grupos)
+  SOURCE_CHAT_ID: process.env.EVOLUTION_SOURCE_CHAT_ID || null
+};
+
+// Configurações do Telegram Bot API (legado - mantido para compatibilidade)
 const TELEGRAM_CONFIG = {
   BOT_TOKEN: process.env.TELEGRAM_BOT_TOKEN || '8450919829:AAFbu6mgwWSj_SCSryS0e-6FHRGQvkHrVRM',
   GROUP_ID: process.env.TELEGRAM_GROUP_ID || '-1003217044000', // Grupos têm ID negativo
@@ -145,6 +154,7 @@ const SERVER_CONFIG = {
 };
 
 module.exports = {
+  EVOLUTION_CONFIG,
   TELEGRAM_CONFIG,
   USERBOT_CONFIG,
   JSONBIN_CONFIG,
