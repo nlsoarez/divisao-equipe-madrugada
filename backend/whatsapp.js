@@ -113,43 +113,90 @@ async function buscarHistorico(limite = 100) {
     // Evolution API v2 - tentar diferentes endpoints
     let messages = [];
 
+    // Método 1: chat/findMessages com body diferente
     try {
-      // Método 1: findMessages
-      console.log('[WhatsApp] Tentando endpoint findMessages...');
+      console.log('[WhatsApp] Tentando endpoint chat/findMessages...');
       const result = await evolutionRequest(
         `/chat/findMessages/${encodeURIComponent(EVOLUTION_CONFIG.INSTANCE_NAME)}`,
         'POST',
         {
-          where: {
-            key: {
-              remoteJid: EVOLUTION_CONFIG.SOURCE_CHAT_ID
-            }
-          },
+          number: EVOLUTION_CONFIG.SOURCE_CHAT_ID,
           limit: limite
         }
       );
-      messages = Array.isArray(result) ? result : (result.messages || result.data || []);
-    } catch (e1) {
-      console.log('[WhatsApp] findMessages falhou:', e1.message);
 
+      // Verificar se retornou mensagens ou status da instância
+      if (result.instance) {
+        console.log('[WhatsApp] Endpoint retornou status da instância, tentando outro formato...');
+      } else {
+        messages = Array.isArray(result) ? result : (result.messages || result.data || []);
+      }
+    } catch (e1) {
+      console.log('[WhatsApp] chat/findMessages falhou:', e1.message);
+    }
+
+    // Método 2: message/findMessages
+    if (messages.length === 0) {
       try {
-        // Método 2: message/findMessages
         console.log('[WhatsApp] Tentando endpoint message/findMessages...');
         const result = await evolutionRequest(
           `/message/findMessages/${encodeURIComponent(EVOLUTION_CONFIG.INSTANCE_NAME)}`,
           'POST',
           {
-            where: {
-              key: {
-                remoteJid: EVOLUTION_CONFIG.SOURCE_CHAT_ID
-              }
-            },
+            number: EVOLUTION_CONFIG.SOURCE_CHAT_ID,
             limit: limite
           }
         );
-        messages = Array.isArray(result) ? result : (result.messages || result.data || []);
+        if (!result.instance) {
+          messages = Array.isArray(result) ? result : (result.messages || result.data || []);
+        }
       } catch (e2) {
         console.log('[WhatsApp] message/findMessages falhou:', e2.message);
+      }
+    }
+
+    // Método 3: chat/findMessages com remoteJid no body
+    if (messages.length === 0) {
+      try {
+        console.log('[WhatsApp] Tentando com remoteJid...');
+        const result = await evolutionRequest(
+          `/chat/findMessages/${encodeURIComponent(EVOLUTION_CONFIG.INSTANCE_NAME)}`,
+          'POST',
+          {
+            remoteJid: EVOLUTION_CONFIG.SOURCE_CHAT_ID,
+            limit: limite
+          }
+        );
+        if (!result.instance) {
+          messages = Array.isArray(result) ? result : (result.messages || result.data || []);
+        }
+      } catch (e3) {
+        console.log('[WhatsApp] remoteJid falhou:', e3.message);
+      }
+    }
+
+    // Método 4: Listar todas mensagens e filtrar
+    if (messages.length === 0) {
+      try {
+        console.log('[WhatsApp] Tentando listar todas mensagens...');
+        const result = await evolutionRequest(
+          `/chat/findMessages/${encodeURIComponent(EVOLUTION_CONFIG.INSTANCE_NAME)}`,
+          'POST',
+          {
+            limit: limite
+          }
+        );
+        if (!result.instance && (Array.isArray(result) || result.messages || result.data)) {
+          const allMessages = Array.isArray(result) ? result : (result.messages || result.data || []);
+          // Filtrar pelo chat ID
+          messages = allMessages.filter(m =>
+            m.key?.remoteJid === EVOLUTION_CONFIG.SOURCE_CHAT_ID ||
+            m.remoteJid === EVOLUTION_CONFIG.SOURCE_CHAT_ID
+          );
+          console.log(`[WhatsApp] Filtradas ${messages.length} de ${allMessages.length} mensagens`);
+        }
+      } catch (e4) {
+        console.log('[WhatsApp] Listar todas falhou:', e4.message);
       }
     }
 
