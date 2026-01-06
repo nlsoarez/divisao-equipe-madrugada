@@ -16,6 +16,8 @@ let instanceInfo = null;
 async function evolutionRequest(endpoint, method = 'GET', body = null) {
   const url = `${EVOLUTION_CONFIG.API_URL}${endpoint}`;
 
+  console.log(`[WhatsApp] Request: ${method} ${url}`);
+
   const options = {
     method,
     headers: {
@@ -26,16 +28,24 @@ async function evolutionRequest(endpoint, method = 'GET', body = null) {
 
   if (body) {
     options.body = JSON.stringify(body);
+    console.log(`[WhatsApp] Body:`, JSON.stringify(body).substring(0, 200));
   }
 
   const response = await fetch(url, options);
+  const responseText = await response.text();
+
+  console.log(`[WhatsApp] Response status: ${response.status}`);
+  console.log(`[WhatsApp] Response:`, responseText.substring(0, 300));
 
   if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`Evolution API error: ${response.status} - ${errorText}`);
+    throw new Error(`Evolution API error: ${response.status} - ${responseText}`);
   }
 
-  return response.json();
+  try {
+    return JSON.parse(responseText);
+  } catch {
+    return responseText;
+  }
 }
 
 /**
@@ -52,13 +62,15 @@ async function verificarConexao() {
     );
 
     instanceInfo = result;
-    isConnected = result.instance?.state === 'open';
+    const state = result?.instance?.state || result?.state || result;
+    isConnected = state === 'open' || state === 'connected';
 
-    console.log('[WhatsApp] Status:', result.instance?.state || 'desconhecido');
+    console.log('[WhatsApp] Estado:', state);
+    console.log('[WhatsApp] Conectado:', isConnected);
 
     return {
       conectado: isConnected,
-      estado: result.instance?.state,
+      estado: state,
       dados: result
     };
 
@@ -75,15 +87,14 @@ async function verificarConexao() {
 /**
  * Busca histórico de mensagens do chat
  * IMPORTANTE: Apenas COP REDE INFORMA é carregado do histórico
- * Alertas (Novo Evento Detectado) são capturados APENAS em tempo real via webhook
  * @param {number} limite - Número de mensagens para buscar
  * @returns {Promise<{copRedeInforma: number}>}
  */
 async function buscarHistorico(limite = 100) {
   try {
     console.log('[WhatsApp] ====================================');
-    console.log(`[WhatsApp] BUSCANDO HISTÓRICO COP REDE INFORMA (${limite} mensagens)...`);
-    console.log('[WhatsApp] Alertas NÃO são carregados do histórico (apenas webhook)');
+    console.log(`[WhatsApp] BUSCANDO HISTÓRICO (${limite} mensagens)...`);
+    console.log('[WhatsApp] SOURCE_CHAT_ID:', EVOLUTION_CONFIG.SOURCE_CHAT_ID);
     console.log('[WhatsApp] ====================================');
 
     // Verificar conexão primeiro
@@ -93,64 +104,83 @@ async function buscarHistorico(limite = 100) {
       return { copRedeInforma: 0, erro: 'WhatsApp não conectado' };
     }
 
-    // Se não tem SOURCE_CHAT_ID configurado, tentar buscar chats
+    // Se não tem SOURCE_CHAT_ID configurado
     if (!EVOLUTION_CONFIG.SOURCE_CHAT_ID) {
       console.log('[WhatsApp] SOURCE_CHAT_ID não configurado');
-      console.log('[WhatsApp] Configure a variável EVOLUTION_SOURCE_CHAT_ID com o ID do grupo/contato');
-
-      // Listar chats para ajudar a identificar
-      try {
-        const chats = await evolutionRequest(
-          `/chat/findChats/${encodeURIComponent(EVOLUTION_CONFIG.INSTANCE_NAME)}`
-        );
-        console.log('[WhatsApp] Chats disponíveis:');
-        if (Array.isArray(chats)) {
-          chats.slice(0, 10).forEach(chat => {
-            console.log(`  - ${chat.id}: ${chat.name || chat.pushName || 'Sem nome'}`);
-          });
-        }
-      } catch (e) {
-        console.log('[WhatsApp] Não foi possível listar chats:', e.message);
-      }
-
       return { copRedeInforma: 0, erro: 'SOURCE_CHAT_ID não configurado' };
     }
 
-    // Buscar mensagens do chat específico
-    const messages = await evolutionRequest(
-      `/chat/findMessages/${encodeURIComponent(EVOLUTION_CONFIG.INSTANCE_NAME)}`,
-      'POST',
-      {
-        where: {
-          key: {
-            remoteJid: EVOLUTION_CONFIG.SOURCE_CHAT_ID
-          }
-        },
-        limit: limite
-      }
-    );
+    // Evolution API v2 - tentar diferentes endpoints
+    let messages = [];
 
-    const messageList = Array.isArray(messages) ? messages : (messages.messages || []);
-    console.log(`[WhatsApp] ${messageList.length} mensagens encontradas`);
+    try {
+      // Método 1: findMessages
+      console.log('[WhatsApp] Tentando endpoint findMessages...');
+      const result = await evolutionRequest(
+        `/chat/findMessages/${encodeURIComponent(EVOLUTION_CONFIG.INSTANCE_NAME)}`,
+        'POST',
+        {
+          where: {
+            key: {
+              remoteJid: EVOLUTION_CONFIG.SOURCE_CHAT_ID
+            }
+          },
+          limit: limite
+        }
+      );
+      messages = Array.isArray(result) ? result : (result.messages || result.data || []);
+    } catch (e1) {
+      console.log('[WhatsApp] findMessages falhou:', e1.message);
+
+      try {
+        // Método 2: message/findMessages
+        console.log('[WhatsApp] Tentando endpoint message/findMessages...');
+        const result = await evolutionRequest(
+          `/message/findMessages/${encodeURIComponent(EVOLUTION_CONFIG.INSTANCE_NAME)}`,
+          'POST',
+          {
+            where: {
+              key: {
+                remoteJid: EVOLUTION_CONFIG.SOURCE_CHAT_ID
+              }
+            },
+            limit: limite
+          }
+        );
+        messages = Array.isArray(result) ? result : (result.messages || result.data || []);
+      } catch (e2) {
+        console.log('[WhatsApp] message/findMessages falhou:', e2.message);
+      }
+    }
+
+    console.log(`[WhatsApp] ${messages.length} mensagens encontradas`);
+
+    if (messages.length === 0) {
+      console.log('[WhatsApp] Nenhuma mensagem encontrada');
+      return { copRedeInforma: 0, erro: 'Nenhuma mensagem encontrada' };
+    }
 
     let contadores = { copRedeInforma: 0, ignorados: 0 };
 
-    for (const msg of messageList) {
-      // Extrair texto da mensagem
+    for (const msg of messages) {
+      // Extrair texto - diferentes formatos
       const texto = msg.message?.conversation ||
                     msg.message?.extendedTextMessage?.text ||
                     msg.message?.text ||
+                    msg.body ||
+                    msg.text ||
+                    msg.content ||
                     null;
 
       if (!texto) continue;
 
       const primeiraLinha = texto.split('\n')[0].substring(0, 50);
+      console.log(`[WhatsApp] Processando: ${primeiraLinha}...`);
 
       try {
-        // Criar objeto compatível com o parser
         const msgCompativel = {
-          message_id: msg.key?.id || msg.id,
-          date: Math.floor(new Date(msg.messageTimestamp * 1000 || msg.timestamp).getTime() / 1000),
+          message_id: msg.key?.id || msg.id || Date.now().toString(),
+          date: Math.floor((msg.messageTimestamp || msg.timestamp || Date.now() / 1000)),
           text: texto,
           from: {
             username: msg.pushName || msg.key?.participant || 'WhatsApp',
@@ -167,11 +197,10 @@ async function buscarHistorico(limite = 100) {
           if (resultado.tipo === 'COP_REDE_INFORMA') {
             await adicionarCopRedeInforma(resultado.dados);
             contadores.copRedeInforma++;
-            console.log(`[WhatsApp] COP REDE INFORMA salvo`);
+            console.log(`[WhatsApp] ✅ COP REDE INFORMA salvo`);
           } else if (resultado.tipo === 'NOVO_EVENTO') {
-            // IGNORAR alertas do histórico - apenas em tempo real via webhook
             contadores.ignorados++;
-            console.log(`[WhatsApp] Alerta ignorado (histórico): ${primeiraLinha}`);
+            console.log(`[WhatsApp] ⏭️ Alerta ignorado (histórico)`);
           }
         }
       } catch (msgError) {
@@ -180,7 +209,7 @@ async function buscarHistorico(limite = 100) {
     }
 
     console.log('[WhatsApp] ====================================');
-    console.log('[WhatsApp] HISTÓRICO PROCESSADO!');
+    console.log('[WhatsApp] ✅ HISTÓRICO PROCESSADO!');
     console.log(`[WhatsApp] - COP Rede Informa: ${contadores.copRedeInforma}`);
     console.log(`[WhatsApp] - Alertas ignorados: ${contadores.ignorados}`);
     console.log('[WhatsApp] ====================================');
@@ -188,26 +217,22 @@ async function buscarHistorico(limite = 100) {
     return { copRedeInforma: contadores.copRedeInforma };
 
   } catch (error) {
-    console.error('[WhatsApp] Erro ao buscar histórico:', error.message);
+    console.error('[WhatsApp] ❌ Erro ao buscar histórico:', error.message);
     return { copRedeInforma: 0, erro: error.message };
   }
 }
 
 /**
  * Processa mensagem recebida via webhook
- * Esta função é chamada quando a Evolution API envia uma mensagem via webhook
- * @param {object} webhookData - Dados do webhook da Evolution API
  */
 async function processarWebhook(webhookData) {
   try {
     console.log('[WhatsApp] =====================================');
     console.log('[WhatsApp] MENSAGEM RECEBIDA VIA WEBHOOK');
 
-    // Extrair dados da mensagem (formato Evolution API v2)
     const data = webhookData.data || webhookData;
     const message = data.message || data;
 
-    // Extrair texto
     const texto = message?.conversation ||
                   message?.extendedTextMessage?.text ||
                   data?.body ||
@@ -222,27 +247,20 @@ async function processarWebhook(webhookData) {
     console.log('[WhatsApp] De:', remetente);
     console.log('[WhatsApp] Texto:', texto.substring(0, 80));
 
-    // Verificar se é do chat correto (se configurado)
     if (EVOLUTION_CONFIG.SOURCE_CHAT_ID) {
       const chatId = data.key?.remoteJid;
       if (chatId !== EVOLUTION_CONFIG.SOURCE_CHAT_ID) {
-        console.log('[WhatsApp] Ignorando - chat diferente do configurado');
+        console.log('[WhatsApp] Ignorando - chat diferente');
         return null;
       }
     }
 
-    // Criar objeto compatível com o parser
     const msgCompativel = {
       message_id: data.key?.id || Date.now().toString(),
       date: Math.floor(Date.now() / 1000),
       text: texto,
-      from: {
-        username: remetente,
-        is_bot: false
-      },
-      chat: {
-        id: data.key?.remoteJid || 'whatsapp'
-      }
+      from: { username: remetente, is_bot: false },
+      chat: { id: data.key?.remoteJid || 'whatsapp' }
     };
 
     const resultado = processarMensagem(msgCompativel);
@@ -254,27 +272,25 @@ async function processarWebhook(webhookData) {
 
     console.log('[WhatsApp] Tipo:', resultado.tipo);
 
-    // Salvar no storage
     if (resultado.tipo === 'COP_REDE_INFORMA') {
       await adicionarCopRedeInforma(resultado.dados);
-      console.log('[WhatsApp] COP REDE INFORMA salvo!');
+      console.log('[WhatsApp] ✅ COP REDE INFORMA salvo!');
     } else if (resultado.tipo === 'NOVO_EVENTO') {
       await adicionarAlerta(resultado.dados);
-      console.log('[WhatsApp] Alerta salvo!');
+      console.log('[WhatsApp] ✅ Alerta salvo!');
     }
 
     console.log('[WhatsApp] =====================================');
     return resultado;
 
   } catch (error) {
-    console.error('[WhatsApp] Erro ao processar webhook:', error.message);
+    console.error('[WhatsApp] Erro webhook:', error.message);
     return null;
   }
 }
 
 /**
- * Configura o webhook na Evolution API para receber mensagens
- * @param {string} webhookUrl - URL do seu servidor para receber webhooks
+ * Configura webhook na Evolution API
  */
 async function configurarWebhook(webhookUrl) {
   try {
@@ -287,13 +303,11 @@ async function configurarWebhook(webhookUrl) {
         url: webhookUrl,
         webhook_by_events: false,
         webhook_base64: false,
-        events: [
-          'MESSAGES_UPSERT'  // Evento de nova mensagem
-        ]
+        events: ['MESSAGES_UPSERT']
       }
     );
 
-    console.log('[WhatsApp] Webhook configurado:', result);
+    console.log('[WhatsApp] Webhook configurado');
     return result;
 
   } catch (error) {
@@ -303,7 +317,7 @@ async function configurarWebhook(webhookUrl) {
 }
 
 /**
- * Lista grupos/chats disponíveis
+ * Lista chats disponíveis
  */
 async function listarChats() {
   try {
@@ -318,7 +332,7 @@ async function listarChats() {
 }
 
 /**
- * Obtém status da conexão
+ * Obtém status
  */
 function obterStatus() {
   return {
