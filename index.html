@@ -5613,10 +5613,14 @@ async function carregarCopRedeInforma(forcarAtualizacao = false) {
   }
 }
 
-// Mapeamento de áreas do Telegram para áreas da escala
-// Cada área do Telegram pode mapear para múltiplas áreas da escala (depende de quantas pessoas trabalham)
+// Mapeamento de áreas da volumetria para áreas da escala
+// A volumetria usa: CO/NO/NE, MG/ES/BA, RIO
+// A escala usa: CO/NO, RIO, NE/BA, MG
 const MAPEAMENTO_AREAS_TELEGRAM = {
   'RIO': ['RIO'],
+  'MG/ES/BA': ['MG', 'NE/BA', 'MG/ES', 'BA/MG/ES', 'MG/ES/BA'],
+  'CO/NO/NE': ['CO/NO', 'NE', 'CO/NO/NE'],
+  // Manter compatibilidade com áreas antigas
   'NE/BA': ['NE/BA', 'BA/MG/ES', 'CO/NO/NE', 'MG/ES/BA'],
   'CO/NO': ['CO/NO', 'CO/NO/NE'],
   'MG': ['MG', 'MG/ES', 'BA/MG/ES', 'MG/ES/BA']
