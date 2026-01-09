@@ -71,50 +71,54 @@ const CONFIG = {
   // - Cada área tem uma lista de prioridade de funcionários
   // - RIO_DUPLO indica que o RIO deve ter 2 pessoas (usa RIO e _RIO_2)
   //
+  // PRIORIDADES:
+  // - RIO: THIAGO e ALAN sempre têm prioridade no Rio
+  // - NE/BA: MARISTELA tem prioridade
+  // - MG: RAISSA tem prioridade
   PRIORIDADES: {
     2: {
       RIO_DUPLO: false,
       areas: {
         'CO/NO': ['CRISTIANE', 'MARISTELLA', 'LEONARDO', 'RAISSA', 'THIAGO', 'ALAN'],
-        'RIO': ['ALAN', 'THIAGO', 'MARISTELLA', 'RAISSA', 'LEONARDO', 'CRISTIANE']
+        'RIO': ['THIAGO', 'ALAN', 'MARISTELLA', 'RAISSA', 'LEONARDO', 'CRISTIANE']
       }
     },
     3: {
       RIO_DUPLO: false,
       areas: {
-        'CO/NO/NE': ['CRISTIANE', 'MARISTELLA', 'RAISSA', 'LEONARDO', 'THIAGO', 'ALAN'],
-        'MG/ES/BA': ['LEONARDO', 'RAISSA', 'CRISTIANE', 'ALAN', 'THIAGO', 'MARISTELLA'],
-        'RIO': ['ALAN', 'THIAGO', 'MARISTELLA', 'RAISSA', 'CRISTIANE', 'LEONARDO']
+        'CO/NO/NE': ['CRISTIANE', 'MARISTELLA', 'LEONARDO', 'RAISSA', 'THIAGO', 'ALAN'],
+        'MG/ES/BA': ['RAISSA', 'MARISTELLA', 'LEONARDO', 'CRISTIANE', 'ALAN', 'THIAGO'],
+        'RIO': ['THIAGO', 'ALAN', 'MARISTELLA', 'RAISSA', 'CRISTIANE', 'LEONARDO']
       }
     },
     4: {
       RIO_DUPLO: false,
       areas: {
-        'CO/NO': ['CRISTIANE', 'MARISTELLA', 'RAISSA', 'LEONARDO', 'THIAGO', 'ALAN'],
-        'NE/BA': ['RAISSA', 'MARISTELLA', 'CRISTIANE', 'LEONARDO', 'THIAGO', 'ALAN'],
-        'MG': ['LEONARDO', 'RAISSA', 'CRISTIANE', 'ALAN', 'THIAGO', 'MARISTELLA'],
-        'RIO': ['ALAN', 'THIAGO', 'MARISTELLA', 'RAISSA', 'CRISTIANE', 'LEONARDO']
+        'CO/NO': ['CRISTIANE', 'LEONARDO', 'RAISSA', 'MARISTELLA', 'THIAGO', 'ALAN'],
+        'NE/BA': ['MARISTELLA', 'RAISSA', 'CRISTIANE', 'LEONARDO', 'THIAGO', 'ALAN'],
+        'MG': ['RAISSA', 'LEONARDO', 'CRISTIANE', 'MARISTELLA', 'ALAN', 'THIAGO'],
+        'RIO': ['THIAGO', 'ALAN', 'MARISTELLA', 'RAISSA', 'CRISTIANE', 'LEONARDO']
       }
     },
     5: {
       RIO_DUPLO: true, // RIO recebe 2 pessoas
       areas: {
-        'CO/NO': ['CRISTIANE', 'MARISTELLA', 'RAISSA', 'LEONARDO', 'THIAGO', 'ALAN'],
-        'NE/BA': ['RAISSA', 'MARISTELLA', 'CRISTIANE', 'LEONARDO', 'THIAGO', 'ALAN'],
-        'MG': ['LEONARDO', 'RAISSA', 'CRISTIANE', 'ALAN', 'THIAGO', 'MARISTELLA'],
-        'RIO': ['ALAN', 'THIAGO', 'MARISTELLA', 'RAISSA', 'CRISTIANE', 'LEONARDO'],
-        '_RIO_2': ['THIAGO', 'ALAN', 'MARISTELLA', 'RAISSA', 'CRISTIANE', 'LEONARDO']
+        'CO/NO': ['CRISTIANE', 'LEONARDO', 'RAISSA', 'MARISTELLA', 'THIAGO', 'ALAN'],
+        'NE/BA': ['MARISTELLA', 'RAISSA', 'CRISTIANE', 'LEONARDO', 'THIAGO', 'ALAN'],
+        'MG': ['RAISSA', 'LEONARDO', 'CRISTIANE', 'MARISTELLA', 'ALAN', 'THIAGO'],
+        'RIO': ['THIAGO', 'ALAN', 'MARISTELLA', 'RAISSA', 'CRISTIANE', 'LEONARDO'],
+        '_RIO_2': ['ALAN', 'THIAGO', 'MARISTELLA', 'RAISSA', 'CRISTIANE', 'LEONARDO']
       }
     },
     6: {
       RIO_DUPLO: true, // RIO recebe 2 pessoas
       areas: {
-        'CO/NO': ['CRISTIANE', 'MARISTELLA', 'RAISSA', 'LEONARDO', 'THIAGO', 'ALAN'],
+        'CO/NO': ['CRISTIANE', 'LEONARDO', 'RAISSA', 'MARISTELLA', 'THIAGO', 'ALAN'],
         'NE/BA': ['MARISTELLA', 'RAISSA', 'CRISTIANE', 'LEONARDO', 'THIAGO', 'ALAN'],
-        'MG': ['LEONARDO', 'RAISSA', 'CRISTIANE', 'ALAN', 'THIAGO', 'MARISTELLA'],
-        'RIO': ['ALAN', 'THIAGO', 'MARISTELLA', 'RAISSA', 'CRISTIANE', 'LEONARDO'],
-        '_RIO_2': ['THIAGO', 'ALAN', 'MARISTELLA', 'RAISSA', 'CRISTIANE', 'LEONARDO'],
-        'SIR/APOIO': ['RAISSA', 'MARISTELLA', 'CRISTIANE', 'THIAGO', 'LEONARDO', 'ALAN']
+        'MG': ['RAISSA', 'LEONARDO', 'CRISTIANE', 'MARISTELLA', 'ALAN', 'THIAGO'],
+        'RIO': ['THIAGO', 'ALAN', 'MARISTELLA', 'RAISSA', 'CRISTIANE', 'LEONARDO'],
+        '_RIO_2': ['ALAN', 'THIAGO', 'MARISTELLA', 'RAISSA', 'CRISTIANE', 'LEONARDO'],
+        'SIR/APOIO': ['CRISTIANE', 'LEONARDO', 'RAISSA', 'MARISTELLA', 'THIAGO', 'ALAN']
       }
     }
   },
