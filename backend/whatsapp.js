@@ -216,6 +216,12 @@ async function buscarHistorico(limite = 100) {
 
     console.log(`[WhatsApp] ${messages.length} mensagens encontradas (antes do filtro)`);
 
+    // Log dos grupos únicos nas mensagens para debug
+    const gruposUnicos = [...new Set(messages.map(m => m.key?.remoteJid || m.remoteJid).filter(Boolean))];
+    console.log(`[WhatsApp] Grupos encontrados nas mensagens:`);
+    gruposUnicos.forEach(g => console.log(`[WhatsApp]   - ${g}`));
+    console.log(`[WhatsApp] Buscando grupo: ${EVOLUTION_CONFIG.SOURCE_CHAT_ID}`);
+
     // IMPORTANTE: Filtrar mensagens pelo grupo correto
     // A Evolution API pode retornar mensagens de todos os grupos
     if (EVOLUTION_CONFIG.SOURCE_CHAT_ID) {
