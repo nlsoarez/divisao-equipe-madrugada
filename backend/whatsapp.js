@@ -124,19 +124,22 @@ async function buscarHistorico(limite = 100) {
       return [];
     };
 
-    // Método 1: chat/findMessages
+    // Método 1: chat/findMessages com where clause
     try {
-      console.log('[WhatsApp] Tentando endpoint chat/findMessages...');
+      console.log('[WhatsApp] Tentando endpoint chat/findMessages com where...');
       const result = await evolutionRequest(
         `/chat/findMessages/${encodeURIComponent(EVOLUTION_CONFIG.INSTANCE_NAME)}`,
         'POST',
         {
-          number: EVOLUTION_CONFIG.SOURCE_CHAT_ID,
+          where: {
+            key: {
+              remoteJid: EVOLUTION_CONFIG.SOURCE_CHAT_ID
+            }
+          },
           limit: limite
         }
       );
 
-      // Verificar se retornou mensagens ou status da instância
       if (result.instance) {
         console.log('[WhatsApp] Endpoint retornou status da instância, tentando outro formato...');
       } else {
@@ -144,7 +147,29 @@ async function buscarHistorico(limite = 100) {
         console.log(`[WhatsApp] Extraídas ${messages.length} mensagens do resultado`);
       }
     } catch (e1) {
-      console.log('[WhatsApp] chat/findMessages falhou:', e1.message);
+      console.log('[WhatsApp] chat/findMessages com where falhou:', e1.message);
+    }
+
+    // Método 1b: chat/findMessages com number
+    if (messages.length === 0) {
+      try {
+        console.log('[WhatsApp] Tentando endpoint chat/findMessages com number...');
+        const result = await evolutionRequest(
+          `/chat/findMessages/${encodeURIComponent(EVOLUTION_CONFIG.INSTANCE_NAME)}`,
+          'POST',
+          {
+            number: EVOLUTION_CONFIG.SOURCE_CHAT_ID,
+            limit: limite
+          }
+        );
+
+        if (!result.instance) {
+          messages = extractMessages(result);
+          console.log(`[WhatsApp] Extraídas ${messages.length} mensagens do resultado`);
+        }
+      } catch (e1b) {
+        console.log('[WhatsApp] chat/findMessages com number falhou:', e1b.message);
+      }
     }
 
     // Método 2: message/findMessages
@@ -189,15 +214,15 @@ async function buscarHistorico(limite = 100) {
       }
     }
 
-    // Método 4: Listar todas mensagens e filtrar
+    // Método 4: Listar todas mensagens com limite maior e filtrar
     if (messages.length === 0) {
       try {
-        console.log('[WhatsApp] Tentando listar todas mensagens...');
+        console.log('[WhatsApp] Tentando listar todas mensagens (limite 500)...');
         const result = await evolutionRequest(
           `/chat/findMessages/${encodeURIComponent(EVOLUTION_CONFIG.INSTANCE_NAME)}`,
           'POST',
           {
-            limit: limite
+            limit: 500 // Buscar mais mensagens para ter mais chances de encontrar o grupo
           }
         );
         if (!result.instance) {
@@ -211,6 +236,36 @@ async function buscarHistorico(limite = 100) {
         }
       } catch (e4) {
         console.log('[WhatsApp] Listar todas falhou:', e4.message);
+      }
+    }
+
+    // Método 5: Buscar usando page para pegar mensagens mais antigas
+    if (messages.length === 0) {
+      try {
+        console.log('[WhatsApp] Tentando buscar com paginação...');
+        for (let page = 1; page <= 5 && messages.length === 0; page++) {
+          const result = await evolutionRequest(
+            `/chat/findMessages/${encodeURIComponent(EVOLUTION_CONFIG.INSTANCE_NAME)}`,
+            'POST',
+            {
+              page: page,
+              limit: 100
+            }
+          );
+          if (!result.instance) {
+            const pageMessages = extractMessages(result);
+            const filtered = pageMessages.filter(m =>
+              m.key?.remoteJid === EVOLUTION_CONFIG.SOURCE_CHAT_ID ||
+              m.remoteJid === EVOLUTION_CONFIG.SOURCE_CHAT_ID
+            );
+            if (filtered.length > 0) {
+              messages = filtered;
+              console.log(`[WhatsApp] Encontradas ${filtered.length} mensagens na página ${page}`);
+            }
+          }
+        }
+      } catch (e5) {
+        console.log('[WhatsApp] Paginação falhou:', e5.message);
       }
     }
 
