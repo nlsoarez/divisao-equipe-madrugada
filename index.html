@@ -5648,16 +5648,18 @@ async function carregarCopRedeInforma(forcarAtualizacao = false) {
 }
 
 // Mapeamento de áreas da volumetria para áreas da escala
-// A volumetria usa: CO/NO/NE, MG/ES/BA, RIO
-// A escala usa: CO/NO, RIO, NE/BA, MG
+// A volumetria varia conforme número de pessoas:
+// - 4+ pessoas: CO/NO, NE/BA, MG, RIO
+// - 3 pessoas: CO/NO/NE, MG/ES/BA, RIO
+// - 2 pessoas: CO/NO, RIO
 const MAPEAMENTO_AREAS_TELEGRAM = {
   'RIO': ['RIO'],
-  'MG/ES/BA': ['MG', 'NE/BA', 'MG/ES', 'BA/MG/ES', 'MG/ES/BA'],
-  'CO/NO/NE': ['CO/NO', 'NE', 'CO/NO/NE'],
-  // Manter compatibilidade com áreas antigas
-  'NE/BA': ['NE/BA', 'BA/MG/ES', 'CO/NO/NE', 'MG/ES/BA'],
-  'CO/NO': ['CO/NO', 'CO/NO/NE'],
-  'MG': ['MG', 'MG/ES', 'BA/MG/ES', 'MG/ES/BA']
+  'MG': ['MG'],
+  'NE/BA': ['NE/BA'],
+  'CO/NO': ['CO/NO'],
+  // Compatibilidade com 3 pessoas
+  'MG/ES/BA': ['MG', 'NE/BA', 'MG/ES/BA'],
+  'CO/NO/NE': ['CO/NO', 'NE/BA', 'CO/NO/NE']
 };
 
 // Função para obter o dia da escala considerando que a madrugada só vira às 07h
@@ -5922,11 +5924,15 @@ function verDetalhesCopRedeResumo() {
 }
 
 // Mapear grupo do Telegram/WhatsApp para área do frontend
-// Áreas fixas: CO/NO/NE, MG/ES/BA, RIO
+// Áreas variam conforme número de pessoas trabalhando:
+// - 4+ pessoas: CO/NO, NE/BA, MG, RIO
+// - 3 pessoas: CO/NO/NE, MG/ES/BA, RIO
+// - 2 pessoas: CO/NO, RIO
 function mapearGrupoParaAreaFrontend(grupo, numPessoas = null) {
   if (!grupo) return null;
 
   const grupoLower = grupo.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  const num = numPessoas || 4; // Padrão 4 pessoas
 
   // RIO - Rio de Janeiro (inclui cluster "Rio / Espírito Santo")
   // IMPORTANTE: Verificar "rio" primeiro, pois "Rio / Espírito Santo" contém "rio"
@@ -5934,18 +5940,46 @@ function mapearGrupoParaAreaFrontend(grupo, numPessoas = null) {
     return 'RIO';
   }
 
-  // MG/ES/BA - Minas Gerais, Espírito Santo (isolado), Bahia/Sergipe
-  if (grupoLower.includes('minas') || grupoLower.includes('mg') ||
-      grupoLower.includes('espirito santo') || grupoLower.includes('espírito santo') || grupoLower.includes(' es') ||
-      grupoLower.includes('bahia') || grupoLower.includes('sergipe') || grupoLower.includes(' ba') || grupoLower.includes(' se')) {
-    return 'MG/ES/BA';
-  }
+  // Para 4+ pessoas: áreas separadas CO/NO, NE/BA, MG
+  if (num >= 4) {
+    // MG - Minas Gerais
+    if (grupoLower.includes('minas') || grupoLower.includes('mg') ||
+        grupoLower.includes('espirito santo') || grupoLower.includes('espírito santo') || grupoLower.includes(' es')) {
+      return 'MG';
+    }
 
-  // CO/NO/NE - Centro-Oeste, Norte, Nordeste
-  if (grupoLower.includes('centro') || grupoLower.includes('oeste') || grupoLower.includes(' co') ||
-      grupoLower.includes('norte') || grupoLower.includes(' no') ||
-      grupoLower.includes('nordeste') || grupoLower.includes(' ne')) {
-    return 'CO/NO/NE';
+    // NE/BA - Bahia/Sergipe e Nordeste
+    if (grupoLower.includes('bahia') || grupoLower.includes('sergipe') || grupoLower.includes(' ba') || grupoLower.includes(' se') ||
+        grupoLower.includes('nordeste') || grupoLower.includes(' ne')) {
+      return 'NE/BA';
+    }
+
+    // CO/NO - Centro-Oeste e Norte
+    if (grupoLower.includes('centro') || grupoLower.includes('oeste') || grupoLower.includes(' co') ||
+        grupoLower.includes('norte') || grupoLower.includes(' no')) {
+      return 'CO/NO';
+    }
+  }
+  // Para 3 pessoas: áreas agrupadas
+  else if (num === 3) {
+    // MG/ES/BA - Minas Gerais, Espírito Santo, Bahia/Sergipe
+    if (grupoLower.includes('minas') || grupoLower.includes('mg') ||
+        grupoLower.includes('espirito santo') || grupoLower.includes('espírito santo') || grupoLower.includes(' es') ||
+        grupoLower.includes('bahia') || grupoLower.includes('sergipe') || grupoLower.includes(' ba') || grupoLower.includes(' se')) {
+      return 'MG/ES/BA';
+    }
+
+    // CO/NO/NE - Centro-Oeste, Norte, Nordeste
+    if (grupoLower.includes('centro') || grupoLower.includes('oeste') || grupoLower.includes(' co') ||
+        grupoLower.includes('norte') || grupoLower.includes(' no') ||
+        grupoLower.includes('nordeste') || grupoLower.includes(' ne')) {
+      return 'CO/NO/NE';
+    }
+  }
+  // Para 2 pessoas: CO/NO e RIO
+  else {
+    // CO/NO - Tudo que não é RIO
+    return 'CO/NO';
   }
 
   return grupo; // Retornar original se não encontrar mapeamento
