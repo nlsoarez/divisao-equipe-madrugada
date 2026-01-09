@@ -2374,10 +2374,14 @@ function carregarCalendarioAtivo() {
   if (calDados && calDados.dadosOriginais) {
     dadosPlanilha = calDados.dadosPlanilha || [];
     dadosOriginais = calDados.dadosOriginais || {};
-    dadosProcessados = JSON.parse(JSON.stringify(dadosOriginais));
     mesSelecionado = calDados.mes ?? new Date().getMonth();
     anoSelecionado = calDados.ano ?? new Date().getFullYear();
     trocasRegistradas = calDados.trocas || [];
+
+    // Recalcular divisões usando prioridades atuais do CONFIG
+    recalcularDivisoesOriginais();
+
+    dadosProcessados = JSON.parse(JSON.stringify(dadosOriginais));
 
     // Atualizar selects
     const mesSelect = document.getElementById('mesSelect');
@@ -2978,6 +2982,10 @@ function processarDadosCarregados(dados) {
 
   if (mesSelect) mesSelect.value = mesSelecionado;
   if (anoSelect) anoSelect.value = anoSelecionado;
+
+  // Recalcular divisões usando prioridades atuais do CONFIG
+  // Isso garante que as prioridades de RIO (Thiago/Alan), MG (Raissa) e NE/BA (Maristela) sejam aplicadas
+  recalcularDivisoesOriginais();
 
   dadosProcessados = JSON.parse(JSON.stringify(dadosOriginais));
   aplicarTrocasAosDados();
@@ -4046,6 +4054,32 @@ function calcularDivisaoPorNumero(num, trabalhandoHoje) {
   }
 
   return divisao;
+}
+
+// Função para recalcular todas as divisões em dadosOriginais
+// usando as prioridades atuais do CONFIG
+function recalcularDivisoesOriginais() {
+  if (!dadosOriginais || Object.keys(dadosOriginais).length === 0) {
+    console.log('⚠️ Nenhum dado para recalcular divisões');
+    return;
+  }
+
+  console.log('🔄 Recalculando divisões com prioridades atuais...');
+
+  Object.keys(dadosOriginais).forEach(dia => {
+    const dadosDia = dadosOriginais[dia];
+
+    if (dadosDia && dadosDia.trabalhando && dadosDia.trabalhando.length > 0) {
+      const novaDivisao = calcularDivisaoPorNumero(dadosDia.numPessoas || dadosDia.trabalhando.length, dadosDia.trabalhando);
+
+      if (Object.keys(novaDivisao).length > 0) {
+        dadosOriginais[dia].divisao = novaDivisao;
+        console.log(`   📅 Dia ${dia}: ${dadosDia.trabalhando.length} pessoas - ${JSON.stringify(novaDivisao)}`);
+      }
+    }
+  });
+
+  console.log('✅ Divisões recalculadas com sucesso!');
 }
 
 // ============================================
