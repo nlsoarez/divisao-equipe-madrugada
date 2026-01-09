@@ -539,25 +539,29 @@ function parseCopRedeInformaEmoji(texto, dataMensagem, messageId) {
 function parseCopRedeInformaResumo(texto, dataMensagem, messageId) {
   console.log('[Parser] Parsing formato resumo com emojis...');
 
+  // Remover marcadores de bold (*) e itálico (_) para facilitar o parsing
+  const textoLimpo = texto.replace(/\*([^*]+)\*/g, '$1').replace(/_([^_]+)_/g, '$1');
+  console.log('[Parser] Texto limpo (sem bold/italic):', textoLimpo.substring(0, 300));
+
   /**
    * Extrai uma seção do formato com emoji no cabeçalho
    * @param {string} nomeSecao - Nome da seção (ex: 'MERCADO', 'GRUPO')
    */
   const extrairSecaoEmoji = (nomeSecao) => {
     // Procura por padrões como "🏢 MERCADO:", "📍 GRUPO / CLUSTER:", etc.
-    const regexSecao = new RegExp(`[📊🏢📂🍃🔍📍🗓️]+\\s*${nomeSecao}[^:]*:?\\s*\\n`, 'i');
-    const matchSecao = texto.match(regexSecao);
+    const regexSecao = new RegExp(`[📊🏢📂🍃🔍📍🗓️🚨]+\\s*${nomeSecao}[^:\\n]*:\\s*\\n`, 'i');
+    const matchSecao = textoLimpo.match(regexSecao);
 
     if (!matchSecao) {
       console.log(`[Parser] Seção ${nomeSecao} não encontrada`);
       return null;
     }
 
-    const posInicio = texto.indexOf(matchSecao[0]) + matchSecao[0].length;
-    const restoTexto = texto.substring(posInicio);
+    const posInicio = textoLimpo.indexOf(matchSecao[0]) + matchSecao[0].length;
+    const restoTexto = textoLimpo.substring(posInicio);
 
-    // Encontra a próxima seção (linha com emoji de seção)
-    const regexProxima = /\n[📊🏢📂🍃🔍📍🗓️────]+\s*[A-ZÁÉÍÓÚ]/;
+    // Encontra a próxima seção (linha com emoji de seção ou linha de separação)
+    const regexProxima = /\n[📊🏢📂🍃🔍📍🗓️🚨────]+\s*[A-ZÁÉÍÓÚ]/;
     const matchProxima = restoTexto.match(regexProxima);
 
     let conteudo;
@@ -575,13 +579,11 @@ function parseCopRedeInformaResumo(texto, dataMensagem, messageId) {
 
     const linhas = conteudo.split('\n');
     for (const linha of linhas) {
-      // Remove emojis do início e tenta extrair "nome: valor"
-      // Aceita formatos: "☕ Minas Gerais: 12" ou "🔹 residencial: 47"
       const linhaLimpa = linha.trim();
       if (!linhaLimpa) continue;
 
       // Remove emojis do início da linha
-      const semEmoji = linhaLimpa.replace(/^[^\w\s]+\s*/, '').trim();
+      const semEmoji = linhaLimpa.replace(/^[^\w\sÀ-ÿ]+\s*/, '').trim();
 
       // Tenta extrair "nome: valor"
       const match = semEmoji.match(/^(.+?):\s*(\d+)\s*$/);
@@ -597,8 +599,8 @@ function parseCopRedeInformaResumo(texto, dataMensagem, messageId) {
     return { itens, total };
   };
 
-  // Extrair data de geração
-  const matchData = texto.match(/🗓️\s*Gerado em:\s*(\d{2}\/\d{2}\/\d{4})\s*às?\s*(\d{2}:\d{2})/i);
+  // Extrair data de geração (pode ter _itálico_ ou *bold*)
+  const matchData = textoLimpo.match(/🗓️\s*Gerado em:\s*(\d{2}\/\d{2}\/\d{4})\s*às?\s*(\d{2}:\d{2})/i);
   const dataGeracao = matchData ? `${matchData[1]} ${matchData[2]}` : null;
   console.log(`[Parser] Data de geração: ${dataGeracao}`);
 
