@@ -5766,8 +5766,10 @@ function atualizarTabelaCopRede(dados) {
   console.log(`[COP] Dia ${diaMensagem}: ${numPessoasHoje} pessoas trabalhando`);
 
   if (ultimaMensagem.resumo && ultimaMensagem.resumo.grupo) {
+    console.log('[COP] Grupos encontrados:', ultimaMensagem.resumo.grupo);
     for (const [grupoNome, quantidade] of Object.entries(ultimaMensagem.resumo.grupo)) {
       const areaKey = mapearGrupoParaAreaFrontend(grupoNome, numPessoasHoje);
+      console.log(`[COP] Mapeando grupo "${grupoNome}" -> área "${areaKey}" (${numPessoasHoje} pessoas)`);
       if (!resumoPorArea[areaKey]) {
         resumoPorArea[areaKey] = { volume: 0, responsavel: '-' };
       }
@@ -5777,12 +5779,17 @@ function atualizarTabelaCopRede(dados) {
       }
     }
   } else if (ultimaMensagem.areaMapeada) {
+    console.log('[COP] Usando areaMapeada:', ultimaMensagem.areaMapeada);
     const areaKey = mapearGrupoParaAreaFrontend(ultimaMensagem.areaMapeada, numPessoasHoje);
     resumoPorArea[areaKey] = {
       volume: extrairVolumeDaMensagem(ultimaMensagem),
       responsavel: obterResponsavelPorArea(areaKey, ultimaMensagem.dataRecebimento)
     };
+  } else {
+    console.log('[COP] Nenhum grupo ou areaMapeada encontrado na mensagem:', ultimaMensagem);
   }
+
+  console.log('[COP] Resumo por área calculado:', resumoPorArea);
 
   // Função para obter a classe de cor baseada na quantidade
   // 0-19: verde (OK), 20-29: amarelo (atenção), 30+: vermelho (crítico)
