@@ -319,17 +319,28 @@ function parseCopRedeInforma(texto, dataMensagem, messageId) {
   console.log('[Parser] ================================================');
 
   // Detectar tipo de formato
-  const temFormatoEmoji = texto.includes('🔴') || texto.includes('📝') || texto.includes('⚠') ||
-                          texto.includes('🕒') || texto.includes('💥') || texto.includes('📜');
+  // Formato 1: Resumo com seções (📊 COP REDE INFORMA 📊 + 🏢 MERCADO + 📍 GRUPO)
+  const temFormatoResumo = texto.includes('📊') || texto.includes('🏢') || texto.includes('📍') ||
+                           texto.includes('📂') || texto.includes('🍃') || texto.includes('🔍');
 
-  if (temFormatoEmoji) {
-    // NOVO FORMATO: Com emojis (WhatsApp)
-    console.log('[Parser] Detectado formato com emojis (WhatsApp)');
+  // Formato 2: Incidente individual (🔴 + 📝 + ⚠ + 💥)
+  const temFormatoIncidente = texto.includes('🔴') || texto.includes('📝') ||
+                              (texto.includes('⚠') && texto.includes('Grupo:'));
+
+  if (temFormatoResumo) {
+    // FORMATO RESUMO: Com seções MERCADO/TIPO/NATUREZA/SINTOMA/GRUPO com emojis
+    console.log('[Parser] Detectado formato resumo com emojis');
+    return parseCopRedeInformaResumo(texto, dataMensagem, messageId);
+  }
+
+  if (temFormatoIncidente) {
+    // FORMATO INCIDENTE: Com emojis de incidente individual
+    console.log('[Parser] Detectado formato incidente com emojis');
     return parseCopRedeInformaEmoji(texto, dataMensagem, messageId);
   }
 
-  // FORMATO ANTIGO: Com seções MERCADO/TIPO/NATUREZA/SINTOMA/GRUPO
-  console.log('[Parser] Tentando formato antigo com seções');
+  // FORMATO ANTIGO: Com seções plain text
+  console.log('[Parser] Tentando formato antigo com seções plain text');
   const mercado = extrairSecaoLista(texto, 'MERCADO');
   const tipo = extrairSecaoLista(texto, 'TIPO');
   const natureza = extrairSecaoLista(texto, 'NATUREZA');
@@ -507,6 +518,148 @@ function parseCopRedeInformaEmoji(texto, dataMensagem, messageId) {
     },
     areasAfetadas: areaPainel ? [areaPainel] : [],
     totalEventos: impactoRec + impactoRal || 1,
+    mensagemOriginal: texto,
+    origem: 'COP_REDE_INFORMA',
+    processadoEm: new Date().toISOString()
+  };
+}
+
+/**
+ * Parser para formato COP REDE INFORMA resumo com emojis
+ * Formato:
+ * 📊 COP REDE INFORMA 📊
+ * 🗓️ Gerado em: dd/mm/aaaa às HH:MM
+ * 🏢 MERCADO:
+ * 🔹 residencial: 47
+ * 📂 TIPO:
+ * 📡 OTG HFC Fibra: 4
+ * 📍 GRUPO / CLUSTER:
+ * ☕ Minas Gerais: 12
+ */
+function parseCopRedeInformaResumo(texto, dataMensagem, messageId) {
+  console.log('[Parser] Parsing formato resumo com emojis...');
+
+  /**
+   * Extrai uma seção do formato com emoji no cabeçalho
+   * @param {string} nomeSecao - Nome da seção (ex: 'MERCADO', 'GRUPO')
+   */
+  const extrairSecaoEmoji = (nomeSecao) => {
+    // Procura por padrões como "🏢 MERCADO:", "📍 GRUPO / CLUSTER:", etc.
+    const regexSecao = new RegExp(`[📊🏢📂🍃🔍📍🗓️]+\\s*${nomeSecao}[^:]*:?\\s*\\n`, 'i');
+    const matchSecao = texto.match(regexSecao);
+
+    if (!matchSecao) {
+      console.log(`[Parser] Seção ${nomeSecao} não encontrada`);
+      return null;
+    }
+
+    const posInicio = texto.indexOf(matchSecao[0]) + matchSecao[0].length;
+    const restoTexto = texto.substring(posInicio);
+
+    // Encontra a próxima seção (linha com emoji de seção)
+    const regexProxima = /\n[📊🏢📂🍃🔍📍🗓️────]+\s*[A-ZÁÉÍÓÚ]/;
+    const matchProxima = restoTexto.match(regexProxima);
+
+    let conteudo;
+    if (matchProxima) {
+      conteudo = restoTexto.substring(0, matchProxima.index);
+    } else {
+      conteudo = restoTexto;
+    }
+
+    console.log(`[Parser] Seção ${nomeSecao} encontrada, ${conteudo.length} chars`);
+
+    // Extrair itens - cada linha com emoji seguido de "nome: valor"
+    const itens = {};
+    let total = 0;
+
+    const linhas = conteudo.split('\n');
+    for (const linha of linhas) {
+      // Remove emojis do início e tenta extrair "nome: valor"
+      // Aceita formatos: "☕ Minas Gerais: 12" ou "🔹 residencial: 47"
+      const linhaLimpa = linha.trim();
+      if (!linhaLimpa) continue;
+
+      // Remove emojis do início da linha
+      const semEmoji = linhaLimpa.replace(/^[^\w\s]+\s*/, '').trim();
+
+      // Tenta extrair "nome: valor"
+      const match = semEmoji.match(/^(.+?):\s*(\d+)\s*$/);
+      if (match) {
+        const nome = match[1].trim();
+        const valor = parseInt(match[2]);
+        itens[nome] = valor;
+        total += valor;
+        console.log(`[Parser]   -> ${nome}: ${valor}`);
+      }
+    }
+
+    return { itens, total };
+  };
+
+  // Extrair data de geração
+  const matchData = texto.match(/🗓️\s*Gerado em:\s*(\d{2}\/\d{2}\/\d{4})\s*às?\s*(\d{2}:\d{2})/i);
+  const dataGeracao = matchData ? `${matchData[1]} ${matchData[2]}` : null;
+  console.log(`[Parser] Data de geração: ${dataGeracao}`);
+
+  // Extrair seções
+  const mercado = extrairSecaoEmoji('MERCADO');
+  const tipo = extrairSecaoEmoji('TIPO');
+  const natureza = extrairSecaoEmoji('NATUREZA');
+  const sintoma = extrairSecaoEmoji('SINTOMA');
+  const grupo = extrairSecaoEmoji('GRUPO');
+
+  // Calcular total geral
+  const totalGeral = grupo?.total || mercado?.total || tipo?.total || 0;
+
+  // Identificar áreas afetadas e calcular volume por área
+  const areasAfetadas = [];
+  const volumePorArea = {};
+
+  if (grupo?.itens) {
+    for (const [grupoNome, quantidade] of Object.entries(grupo.itens)) {
+      const { areaPainel } = mapearGrupoParaArea(grupoNome);
+      if (areaPainel) {
+        if (!areasAfetadas.includes(areaPainel)) {
+          areasAfetadas.push(areaPainel);
+        }
+        volumePorArea[areaPainel] = (volumePorArea[areaPainel] || 0) + quantidade;
+      }
+    }
+  }
+
+  console.log('[Parser] Volume por área:', volumePorArea);
+
+  // Criar descrição resumida
+  const descricaoPartes = [];
+  if (tipo?.itens) {
+    descricaoPartes.push('Tipos: ' + Object.entries(tipo.itens).map(([k, v]) => `${k} (${v})`).join(', '));
+  }
+  if (sintoma?.itens) {
+    descricaoPartes.push('Sintomas: ' + Object.entries(sintoma.itens).map(([k, v]) => `${k} (${v})`).join(', '));
+  }
+
+  return {
+    id: `cop_${messageId}_${Date.now()}`,
+    messageId,
+    dataRecebimento: dataMensagem.toISOString(),
+    dataGeracao,
+    empresa: 'Resumo COP',
+    grupo: grupo?.itens ? Object.keys(grupo.itens).join(', ') : null,
+    areaMapeada: areasAfetadas.length > 0 ? areasAfetadas.join(', ') : null,
+    sigla: null,
+    descricao: descricaoPartes.join('\n') || null,
+    resumo: {
+      mercado: mercado?.itens || {},
+      tipo: tipo?.itens || {},
+      natureza: natureza?.itens || {},
+      sintoma: sintoma?.itens || {},
+      grupo: grupo?.itens || {},
+      totalGeral
+    },
+    volumePorArea,
+    areasAfetadas,
+    totalEventos: totalGeral,
     mensagemOriginal: texto,
     origem: 'COP_REDE_INFORMA',
     processadoEm: new Date().toISOString()

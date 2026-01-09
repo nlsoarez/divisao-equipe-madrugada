@@ -5883,52 +5883,31 @@ function verDetalhesCopRedeResumo() {
   modal.show();
 }
 
-// Mapear grupo do Telegram para área do frontend
-// Considera o número de pessoas trabalhando para usar as áreas combinadas corretas
+// Mapear grupo do Telegram/WhatsApp para área do frontend
+// Áreas fixas: CO/NO/NE, MG/ES/BA, RIO
 function mapearGrupoParaAreaFrontend(grupo, numPessoas = null) {
   if (!grupo) return null;
 
   const grupoLower = grupo.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
 
-  // Determinar número de pessoas trabalhando hoje se não fornecido
-  if (numPessoas === null) {
-    const hoje = new Date();
-    const dia = obterDiaEscalaMadrugada(hoje);
-    if (dadosOriginais && dadosOriginais[dia]) {
-      numPessoas = dadosOriginais[dia].numPessoas || 4;
-    } else {
-      numPessoas = 4; // padrão
-    }
-  }
-
-  // Para 3 pessoas, usar áreas combinadas
-  if (numPessoas === 3) {
-    if (grupoLower.includes('rio') || grupoLower.includes('espirito santo') || grupoLower.includes('espírito santo')) {
-      return 'RIO';
-    }
-    // CO/NO e NE/BA vão para CO/NO/NE
-    if (grupoLower.includes('centro') || grupoLower.includes('norte') || grupoLower.includes('nordeste') ||
-        grupoLower.includes('bahia') || grupoLower.includes('sergipe')) {
-      return 'CO/NO/NE';
-    }
-    // MG vai para MG/ES/BA
-    if (grupoLower.includes('minas') || grupoLower.includes('mg')) {
-      return 'MG/ES/BA';
-    }
-  }
-
-  // Para outras quantidades, usar mapeamento padrão
-  if (grupoLower.includes('rio') || grupoLower.includes('espirito santo') || grupoLower.includes('espírito santo')) {
+  // RIO - Rio de Janeiro (inclui cluster "Rio / Espírito Santo")
+  // IMPORTANTE: Verificar "rio" primeiro, pois "Rio / Espírito Santo" contém "rio"
+  if (grupoLower.includes('rio')) {
     return 'RIO';
   }
-  if (grupoLower.includes('bahia') || grupoLower.includes('sergipe')) {
-    return 'NE/BA';
+
+  // MG/ES/BA - Minas Gerais, Espírito Santo (isolado), Bahia/Sergipe
+  if (grupoLower.includes('minas') || grupoLower.includes('mg') ||
+      grupoLower.includes('espirito santo') || grupoLower.includes('espírito santo') || grupoLower.includes(' es') ||
+      grupoLower.includes('bahia') || grupoLower.includes('sergipe') || grupoLower.includes(' ba') || grupoLower.includes(' se')) {
+    return 'MG/ES/BA';
   }
-  if (grupoLower.includes('centro') || grupoLower.includes('norte') || grupoLower.includes('nordeste')) {
-    return 'CO/NO';
-  }
-  if (grupoLower.includes('minas') || grupoLower.includes('mg')) {
-    return 'MG';
+
+  // CO/NO/NE - Centro-Oeste, Norte, Nordeste
+  if (grupoLower.includes('centro') || grupoLower.includes('oeste') || grupoLower.includes(' co') ||
+      grupoLower.includes('norte') || grupoLower.includes(' no') ||
+      grupoLower.includes('nordeste') || grupoLower.includes(' ne')) {
+    return 'CO/NO/NE';
   }
 
   return grupo; // Retornar original se não encontrar mapeamento
