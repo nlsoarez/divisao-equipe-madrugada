@@ -84,28 +84,46 @@
       background: white;
       border-radius: var(--ds-border-radius-lg, 8px);
       padding: 0.75rem 1rem;
-      margin: 0.75rem 15px 1.5rem 15px;
+      margin: 0.75rem auto 1.5rem auto;
       max-width: calc(1200px - 30px);
+      width: calc(100% - 30px);
       box-shadow: 0 4px 12px rgba(0,0,0,0.1);
       display: flex;
-      justify-content: flex-end;
+      justify-content: center;
       gap: 0.75rem;
       align-items: center;
       border-left: 4px solid var(--warning);
+      position: relative;
+    }
+
+    .admin-controls .buttons-group {
+      position: absolute;
+      right: 1rem;
+      display: flex;
+      gap: 0.5rem;
     }
 
     .user-controls {
       background: white;
       border-radius: var(--ds-border-radius-lg, 8px);
       padding: 0.75rem 1rem;
-      margin: 0.75rem 15px 1.5rem 15px;
+      margin: 0.75rem auto 1.5rem auto;
       max-width: calc(1200px - 30px);
+      width: calc(100% - 30px);
       box-shadow: 0 4px 12px rgba(0,0,0,0.1);
       display: flex;
-      justify-content: flex-end;
+      justify-content: center;
       gap: 0.75rem;
       align-items: center;
       border-left: 4px solid var(--primary);
+      position: relative;
+    }
+
+    .user-controls .buttons-group {
+      position: absolute;
+      right: 1rem;
+      display: flex;
+      gap: 0.5rem;
     }
     
     .refresh-btn {
@@ -1864,26 +1882,27 @@
     <i class="bi bi-shield-check"></i>
     <span>Modo administrador</span>
   </div>
-  
-  <!-- Botão Upload Admin - abre painel de gerenciamento de calendários -->
-  <button class="refresh-btn upload-admin" id="btnUploadAdmin" title="Gerenciar calendários e uploads">
-    <i class="bi bi-cloud-arrow-up"></i>
-  </button>
+  <div class="buttons-group">
+    <!-- Botão Upload Admin - abre painel de gerenciamento de calendários -->
+    <button class="refresh-btn upload-admin" id="btnUploadAdmin" title="Gerenciar calendários e uploads">
+      <i class="bi bi-cloud-arrow-up"></i>
+    </button>
 
-  <!-- Botão Excluir Planilha -->
-  <button class="refresh-btn delete-admin" onclick="excluirPlanilha()" title="Excluir planilha da nuvem">
-    <i class="bi bi-trash3"></i>
-  </button>
+    <!-- Botão Excluir Planilha -->
+    <button class="refresh-btn delete-admin" onclick="excluirPlanilha()" title="Excluir planilha da nuvem">
+      <i class="bi bi-trash3"></i>
+    </button>
 
-  <!-- Botão Refresh -->
-  <button class="refresh-btn" onclick="location.reload()" title="Recarregar página">
-    <i class="bi bi-arrow-clockwise"></i>
-  </button>
+    <!-- Botão Refresh -->
+    <button class="refresh-btn" onclick="location.reload()" title="Recarregar página">
+      <i class="bi bi-arrow-clockwise"></i>
+    </button>
 
-  <!-- Botão Logout Admin -->
-  <button class="refresh-btn logout-admin" onclick="logoutAdmin()" title="Sair do modo admin">
-    <i class="bi bi-person-x"></i>
-  </button>
+    <!-- Botão Logout Admin -->
+    <button class="refresh-btn logout-admin" onclick="logoutAdmin()" title="Sair do modo admin">
+      <i class="bi bi-person-x"></i>
+    </button>
+  </div>
 </div>
 
 <!-- Controles Usuário (aparece apenas para visualizadores) -->
@@ -1892,24 +1911,29 @@
     <i class="bi bi-eye"></i>
     <span>Modo visualização</span>
   </div>
+  <div class="buttons-group">
+    <button class="refresh-btn" onclick="location.reload()" title="Recarregar página">
+      <i class="bi bi-arrow-clockwise"></i>
+    </button>
 
-  <button class="refresh-btn" onclick="location.reload()" title="Recarregar página">
-    <i class="bi bi-arrow-clockwise"></i>
-  </button>
-
-  <!-- Botão Logout Viewer -->
-  <button class="refresh-btn logout-viewer" onclick="logoutViewer()" title="Sair do modo visualização">
-    <i class="bi bi-box-arrow-right"></i>
-  </button>
+    <!-- Botão Logout Viewer -->
+    <button class="refresh-btn logout-viewer" onclick="logoutViewer()" title="Sair do modo visualização">
+      <i class="bi bi-box-arrow-right"></i>
+    </button>
+  </div>
 </div>
 
 <div class="main-container">
 
-  <!-- Navegação de Abas Admin -->
+  <!-- Navegação de Abas -->
   <div class="admin-nav-tabs" id="adminNavTabs">
-    <button class="admin-nav-tab active" data-admin-tab="divisao" onclick="trocarAbaAdmin('divisao')">
-      <i class="bi bi-calendar3"></i>
-      Escalas
+    <button class="admin-nav-tab active" data-admin-tab="residencial" onclick="trocarAbaAdmin('residencial')">
+      <i class="bi bi-house"></i>
+      Residencial
+    </button>
+    <button class="admin-nav-tab" data-admin-tab="empresarial" onclick="trocarAbaAdmin('empresarial')">
+      <i class="bi bi-building"></i>
+      Empresarial
     </button>
     <button class="admin-nav-tab telegram-tab-nav" data-admin-tab="telegram" onclick="trocarAbaAdmin('telegram')">
       <i class="bi bi-whatsapp"></i>
@@ -1917,22 +1941,17 @@
     </button>
   </div>
 
-  <!-- Conteúdo da Aba Divisão de Tarefas -->
-  <div class="admin-tab-content active" id="tabDivisao">
+  <!-- Conteúdo da Aba Residencial -->
+  <div class="admin-tab-content active" id="tabResidencial">
 
-  <!-- Painel de Gerenciamento de Calendários (somente Admin) -->
-  <div class="config-accordion" id="calendarioPanel" style="display: none;">
-    <div class="config-header collapsed" data-bs-toggle="collapse" data-bs-target="#calendarioPanelBody">
-      <span><i class="bi bi-calendar2-range me-2"></i>Gerenciar escalas</span>
+  <!-- Painel de Gerenciamento Escala Residencial (somente Admin) -->
+  <div class="config-accordion" id="calendarioPanelResidencial" style="display: none;">
+    <div class="config-header collapsed" data-bs-toggle="collapse" data-bs-target="#calendarioPanelBodyResidencial">
+      <span><i class="bi bi-house me-2"></i>Gerenciar escala residencial</span>
       <i class="bi bi-chevron-down"></i>
     </div>
-    <div id="calendarioPanelBody" class="collapse">
+    <div id="calendarioPanelBodyResidencial" class="collapse">
       <div class="config-body">
-        <p class="mb-3 text-muted" style="font-size: 0.85rem;">
-          Faça upload das planilhas para cada tipo de escala e escolha qual será exibida para os usuários.
-        </p>
-
-        <!-- Escala Residencial -->
         <div class="calendario-item mb-3 p-3" style="background: #f8f9fa; border-radius: 8px; border-left: 4px solid #4caf50;">
           <div class="d-flex justify-content-between align-items-center mb-2">
             <strong><i class="bi bi-house me-2"></i>Escala residencial</strong>
@@ -1947,8 +1966,26 @@
           <span class="text-muted small d-block mt-2" id="cal1Info">Nenhuma planilha carregada</span>
           <small class="text-muted">Nome do arquivo define o mês (ex: Janeiro 2025.xlsx)</small>
         </div>
+        <button class="btn btn-success btn-sm mt-2" onclick="salvarConfiguracaoCalendarios()">
+          <i class="bi bi-cloud-arrow-up me-1"></i>Salvar e publicar
+        </button>
+      </div>
+    </div>
+  </div>
 
-        <!-- Escala Empresarial -->
+  </div><!-- Fim tabResidencial -->
+
+  <!-- Conteúdo da Aba Empresarial -->
+  <div class="admin-tab-content" id="tabEmpresarial">
+
+  <!-- Painel de Gerenciamento Escala Empresarial (somente Admin) -->
+  <div class="config-accordion" id="calendarioPanelEmpresarial" style="display: none;">
+    <div class="config-header collapsed" data-bs-toggle="collapse" data-bs-target="#calendarioPanelBodyEmpresarial">
+      <span><i class="bi bi-building me-2"></i>Gerenciar escala empresarial</span>
+      <i class="bi bi-chevron-down"></i>
+    </div>
+    <div id="calendarioPanelBodyEmpresarial" class="collapse">
+      <div class="config-body">
         <div class="calendario-item mb-3 p-3" style="background: #f8f9fa; border-radius: 8px; border-left: 4px solid #1976d2;">
           <div class="d-flex justify-content-between align-items-center mb-2">
             <strong><i class="bi bi-building me-2"></i>Escala empresarial</strong>
@@ -1961,31 +1998,16 @@
             <input type="file" id="fileInputCal2" accept=".xlsx,.xls,.csv" style="display: none;" onchange="uploadCalendario(2, this)">
           </div>
           <span class="text-muted small d-block mt-2" id="cal2Info">Nenhuma planilha carregada</span>
-          <small class="text-muted">Nome do arquivo define o mês (ex: Fevereiro 2025.xlsx)</small>
+          <small class="text-muted">Nome do arquivo define o mês (ex: Janeiro 2025.xlsx)</small>
         </div>
-
-        <!-- Seleção do Calendário Ativo -->
-        <div class="mt-3 p-3" style="background: #e8f5e9; border-radius: 8px;">
-          <label class="form-label fw-bold"><i class="bi bi-eye me-2"></i>Escala visível para usuários:</label>
-          <div class="d-flex gap-3">
-            <div class="form-check">
-              <input class="form-check-input" type="radio" name="calendarioAtivo" id="radioCalendario1" value="calendario1" checked onchange="alterarCalendarioAtivo('calendario1')">
-              <label class="form-check-label" for="radioCalendario1"><i class="bi bi-house me-1"></i>Residencial</label>
-            </div>
-            <div class="form-check">
-              <input class="form-check-input" type="radio" name="calendarioAtivo" id="radioCalendario2" value="calendario2" onchange="alterarCalendarioAtivo('calendario2')">
-              <label class="form-check-label" for="radioCalendario2"><i class="bi bi-building me-1"></i>Empresarial</label>
-            </div>
-          </div>
-          <button class="btn btn-success btn-sm mt-2" onclick="salvarConfiguracaoCalendarios()">
-            <i class="bi bi-cloud-arrow-up me-1"></i>Salvar e publicar
-          </button>
-        </div>
+        <button class="btn btn-primary btn-sm mt-2" onclick="salvarConfiguracaoCalendarios()">
+          <i class="bi bi-cloud-arrow-up me-1"></i>Salvar e publicar
+        </button>
       </div>
     </div>
   </div>
 
-  </div><!-- Fim tabDivisao -->
+  </div><!-- Fim tabEmpresarial -->
 
   <!-- Conteúdo da Aba WhatsApp -->
   <div class="admin-tab-content" id="tabTelegram">
@@ -3645,6 +3667,12 @@ function entrarComoVisualizador(tipo = 'residencial') {
   // Iniciar como visualizador
   iniciarComoVisualizador();
   carregarDadosDaNuvem();
+
+  // Ativar a aba correspondente após carregar
+  setTimeout(() => {
+    trocarAbaAdmin(tipo);
+  }, 100);
+
   // Limpar cache e carregar dados do Telegram ao iniciar
   setTimeout(async () => {
     await limparCacheBackend(); // Limpar cache primeiro para garantir dados frescos
@@ -3670,13 +3698,21 @@ function iniciarComoAdmin() {
   const btnAgendarTrocas = document.getElementById('btnAgendarTrocas');
   if (btnAgendarTrocas) btnAgendarTrocas.style.display = 'inline-flex';
 
-  // Mostrar navegação de abas do admin (incluindo WhatsApp)
+  // Mostrar navegação de abas
   const adminNavTabs = document.getElementById('adminNavTabs');
   if (adminNavTabs) adminNavTabs.classList.add('show');
 
-  // Mostrar painel de gerenciamento de calendários
-  const calendarioPanel = document.getElementById('calendarioPanel');
-  if (calendarioPanel) calendarioPanel.style.display = 'block';
+  // Mostrar painel de gerenciamento baseado no calendário ativo
+  const calendarioPanelResidencial = document.getElementById('calendarioPanelResidencial');
+  const calendarioPanelEmpresarial = document.getElementById('calendarioPanelEmpresarial');
+
+  if (calendarioAtivo === 'calendario1') {
+    if (calendarioPanelResidencial) calendarioPanelResidencial.style.display = 'block';
+    if (calendarioPanelEmpresarial) calendarioPanelEmpresarial.style.display = 'none';
+  } else {
+    if (calendarioPanelResidencial) calendarioPanelResidencial.style.display = 'none';
+    if (calendarioPanelEmpresarial) calendarioPanelEmpresarial.style.display = 'block';
+  }
 
   showToast('👑 Modo administrador ativado', 'warning');
 }
@@ -3724,6 +3760,16 @@ function iniciarComoVisualizador() {
 
   // Desativar modo de troca
   modoTroca = false;
+
+  // Mostrar navegação de abas para visualizadores também
+  const adminNavTabs = document.getElementById('adminNavTabs');
+  if (adminNavTabs) adminNavTabs.classList.add('show');
+
+  // Esconder painéis de gerenciamento (somente admin)
+  const calendarioPanelResidencial = document.getElementById('calendarioPanelResidencial');
+  const calendarioPanelEmpresarial = document.getElementById('calendarioPanelEmpresarial');
+  if (calendarioPanelResidencial) calendarioPanelResidencial.style.display = 'none';
+  if (calendarioPanelEmpresarial) calendarioPanelEmpresarial.style.display = 'none';
 
   showToast('👁️ Modo visualização ativado', 'info');
 }
@@ -6140,36 +6186,62 @@ function trocarAbaAdmin(abaId) {
   if (tabBtn) tabBtn.classList.add('active');
 
   // Obter elementos das abas
-  const tabDivisao = document.getElementById('tabDivisao');
+  const tabResidencial = document.getElementById('tabResidencial');
+  const tabEmpresarial = document.getElementById('tabEmpresarial');
   const tabTelegram = document.getElementById('tabTelegram');
   const calendarSection = document.getElementById('calendarSection');
-  const configAccordion = document.getElementById('configAccordion');
-  const calendarioPanel = document.getElementById('calendarioPanel');
+  const calendarioPanelResidencial = document.getElementById('calendarioPanelResidencial');
+  const calendarioPanelEmpresarial = document.getElementById('calendarioPanelEmpresarial');
   const telegramPanel = document.getElementById('telegramPanel');
 
+  // Parar auto-refresh quando sair da aba Telegram
+  if (abaId !== 'telegram') {
+    pararAutoRefresh();
+  }
+
   // Ativar conteúdo correspondente
-  if (abaId === 'divisao') {
-    // Mostrar aba Divisão
-    if (tabDivisao) tabDivisao.classList.add('active');
+  if (abaId === 'residencial') {
+    // Mostrar aba Residencial
+    if (tabResidencial) tabResidencial.classList.add('active');
 
-    // Mostrar conteúdo de divisão de tarefas
+    // Alternar para calendário residencial
+    calendarioAtivo = 'calendario1';
+    localStorage.setItem('escala_tipo_selecionado', 'residencial');
+
+    // Mostrar conteúdo
     if (calendarSection) calendarSection.style.display = 'block';
-    if (configAccordion) configAccordion.style.display = 'block';
-    if (calendarioPanel) calendarioPanel.style.display = 'block';
-
-    // Ocultar conteúdo do Telegram
+    if (calendarioPanelResidencial) calendarioPanelResidencial.style.display = isAdmin ? 'block' : 'none';
+    if (calendarioPanelEmpresarial) calendarioPanelEmpresarial.style.display = 'none';
     if (telegramPanel) telegramPanel.style.display = 'none';
 
-    // Parar auto-refresh quando sair da aba Telegram
-    pararAutoRefresh();
+    // Atualizar calendário
+    carregarCalendarioAtivo();
+
+  } else if (abaId === 'empresarial') {
+    // Mostrar aba Empresarial
+    if (tabEmpresarial) tabEmpresarial.classList.add('active');
+
+    // Alternar para calendário empresarial
+    calendarioAtivo = 'calendario2';
+    localStorage.setItem('escala_tipo_selecionado', 'empresarial');
+
+    // Mostrar conteúdo
+    if (calendarSection) calendarSection.style.display = 'block';
+    if (calendarioPanelResidencial) calendarioPanelResidencial.style.display = 'none';
+    if (calendarioPanelEmpresarial) calendarioPanelEmpresarial.style.display = isAdmin ? 'block' : 'none';
+    if (telegramPanel) telegramPanel.style.display = 'none';
+
+    // Atualizar calendário
+    carregarCalendarioAtivo();
+
   } else if (abaId === 'telegram') {
     // Mostrar aba Telegram
     if (tabTelegram) tabTelegram.classList.add('active');
 
-    // Ocultar conteúdo de divisão de tarefas
+    // Ocultar calendários
     if (calendarSection) calendarSection.style.display = 'none';
-    if (configAccordion) configAccordion.style.display = 'none';
-    if (calendarioPanel) calendarioPanel.style.display = 'none';
+    if (calendarioPanelResidencial) calendarioPanelResidencial.style.display = 'none';
+    if (calendarioPanelEmpresarial) calendarioPanelEmpresarial.style.display = 'none';
 
     // Mostrar conteúdo do Telegram
     if (telegramPanel) telegramPanel.style.display = 'block';
