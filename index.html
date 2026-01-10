@@ -565,6 +565,23 @@
       display: grid;
       gap: 0.75rem;
     }
+
+    .edit-divisao-form .area-edit-item {
+      background: #f8f9fa;
+      padding: 0.75rem;
+      border-radius: 6px;
+      border: 1px solid #e0e0e0;
+    }
+
+    .edit-divisao-form .form-label {
+      margin-bottom: 0.25rem;
+      color: var(--primary-dark);
+      font-size: 0.85rem;
+    }
+
+    .edit-divisao-form .form-select {
+      border-color: var(--primary-color);
+    }
     
     .area-item {
       display: flex;
@@ -4693,10 +4710,11 @@ function mostrarDetalhesDia(dia) {
           <i class="bi bi-diagram-3"></i>
           <span>Divisão de Áreas</span>
           ${trocasDia.length > 0 ? '<span class="badge ms-2" style="background: linear-gradient(135deg, #26a69a 0%, #00897b 100%); color: white;">COM TROCAS</span>' : ''}
+          ${isAdmin ? `<button class="btn btn-sm btn-outline-primary ms-auto" onclick="editarDivisaoAreas(${dia})" title="Editar divisão de áreas"><i class="bi bi-pencil"></i></button>` : ''}
         </div>
-        <div class="area-grid">
+        <div class="area-grid" id="areaGrid-${dia}">
   `;
-  
+
   if (Object.keys(dadosDia.divisao).length > 0) {
     // Ordenar as entradas alfabeticamente pelo primeiro nome da pessoa
     const entradasOrdenadas = Object.entries(dadosDia.divisao)
@@ -4828,6 +4846,126 @@ function mostrarDetalhesDia(dia) {
   
   modalContent.innerHTML = html;
   modal.show();
+}
+
+// ============================================
+// EDIÇÃO MANUAL DE DIVISÃO DE ÁREAS
+// ============================================
+
+function editarDivisaoAreas(dia) {
+  const dadosDia = getDadosDiaComTrocas(dia);
+  if (!dadosDia || !isAdmin) return;
+
+  const areaGrid = document.getElementById(`areaGrid-${dia}`);
+  if (!areaGrid) return;
+
+  // Lista de funcionários que estão trabalhando no dia
+  const funcionariosDisponiveis = dadosDia.trabalhando || [];
+
+  // Criar HTML do formulário de edição
+  let formHtml = '<form id="formEditarDivisao" class="edit-divisao-form">';
+
+  Object.entries(dadosDia.divisao).forEach(([area, pessoaAtual]) => {
+    formHtml += `
+      <div class="area-edit-item mb-2">
+        <label class="form-label fw-bold">${area}</label>
+        <select class="form-select form-select-sm" name="area-${area.replace(/\//g, '_')}" data-area="${area}">
+          <option value="">-- Selecione --</option>
+    `;
+
+    funcionariosDisponiveis.forEach(func => {
+      const primeiroNome = obterPrimeiroNome(func);
+      const selected = func === pessoaAtual || primeiroNome === pessoaAtual ? 'selected' : '';
+      formHtml += `<option value="${func}" ${selected}>${primeiroNome}</option>`;
+    });
+
+    formHtml += `
+        </select>
+      </div>
+    `;
+  });
+
+  formHtml += `
+    <div class="mt-3 d-flex gap-2">
+      <button type="button" class="btn btn-success btn-sm" onclick="salvarDivisaoAreas(${dia})">
+        <i class="bi bi-check"></i> Salvar
+      </button>
+      <button type="button" class="btn btn-secondary btn-sm" onclick="mostrarDetalhesDia(${dia})">
+        <i class="bi bi-x"></i> Cancelar
+      </button>
+      <button type="button" class="btn btn-warning btn-sm" onclick="recalcularDivisaoAutomatica(${dia})">
+        <i class="bi bi-arrow-clockwise"></i> Recalcular
+      </button>
+    </div>
+  </form>`;
+
+  areaGrid.innerHTML = formHtml;
+}
+
+function salvarDivisaoAreas(dia) {
+  const form = document.getElementById('formEditarDivisao');
+  if (!form) return;
+
+  const selects = form.querySelectorAll('select');
+  const novaDivisao = {};
+
+  selects.forEach(select => {
+    const area = select.dataset.area;
+    const pessoa = select.value;
+    if (area && pessoa) {
+      novaDivisao[area] = pessoa;
+    }
+  });
+
+  // Atualizar dados
+  if (dadosOriginais[dia]) {
+    dadosOriginais[dia].divisao = novaDivisao;
+  }
+  if (dadosProcessados[dia]) {
+    dadosProcessados[dia].divisao = novaDivisao;
+  }
+
+  // Salvar na nuvem
+  salvarDadosNaNuvem().then(() => {
+    showToast('✅ Divisão de áreas atualizada!', 'success');
+    atualizarCalendario();
+
+    // Fechar modal e reabrir com dados atualizados
+    const modal = bootstrap.Modal.getInstance(document.getElementById('dayModal'));
+    if (modal) modal.hide();
+
+    setTimeout(() => mostrarDetalhesDia(dia), 300);
+  }).catch(error => {
+    console.error('Erro ao salvar:', error);
+    showToast('❌ Erro ao salvar alterações', 'danger');
+  });
+}
+
+function recalcularDivisaoAutomatica(dia) {
+  const dadosDia = dadosOriginais[dia];
+  if (!dadosDia || !dadosDia.trabalhando) return;
+
+  // Recalcular usando a função existente
+  const novaDivisao = calcularDivisaoPorNumero(dadosDia.numPessoas || dadosDia.trabalhando.length, dadosDia.trabalhando);
+
+  // Atualizar dados
+  dadosOriginais[dia].divisao = novaDivisao;
+  dadosProcessados[dia].divisao = novaDivisao;
+
+  // Salvar na nuvem
+  salvarDadosNaNuvem().then(() => {
+    showToast('✅ Divisão recalculada automaticamente!', 'success');
+    atualizarCalendario();
+
+    // Fechar modal e reabrir com dados atualizados
+    const modal = bootstrap.Modal.getInstance(document.getElementById('dayModal'));
+    if (modal) modal.hide();
+
+    setTimeout(() => mostrarDetalhesDia(dia), 300);
+  }).catch(error => {
+    console.error('Erro ao salvar:', error);
+    showToast('❌ Erro ao salvar alterações', 'danger');
+  });
 }
 
 // ============================================
@@ -5649,17 +5787,23 @@ async function carregarCopRedeInforma(forcarAtualizacao = false) {
 
 // Mapeamento de áreas da volumetria para áreas da escala
 // A volumetria varia conforme número de pessoas:
-// - 4+ pessoas: CO/NO, NE/BA, MG, RIO
-// - 3 pessoas: CO/NO/NE, MG/ES/BA, RIO
-// - 2 pessoas: CO/NO, RIO
+// - 2 pessoas: CO/NO/NE/BA/MG + RIO/ES
+// - 3 pessoas: CO/NO/NE + MG/ES/BA + RIO
+// - 4 pessoas: CO/NO + NE/BA + MG/ES + RIO
+// - 5+ pessoas: CO/NO + NE/BA + MG + RIO
 const MAPEAMENTO_AREAS_TELEGRAM = {
+  // Áreas diretas
   'RIO': ['RIO'],
+  'RIO/ES': ['RIO/ES', 'RIO'],
   'MG': ['MG'],
+  'MG/ES': ['MG/ES', 'MG'],
   'NE/BA': ['NE/BA'],
   'CO/NO': ['CO/NO'],
-  // Compatibilidade com 3 pessoas
-  'MG/ES/BA': ['MG', 'NE/BA', 'MG/ES/BA'],
-  'CO/NO/NE': ['CO/NO', 'NE/BA', 'CO/NO/NE']
+  // Áreas agrupadas (3 pessoas)
+  'MG/ES/BA': ['MG/ES/BA', 'MG/ES', 'MG', 'NE/BA'],
+  'CO/NO/NE': ['CO/NO/NE', 'CO/NO', 'NE/BA'],
+  // Áreas agrupadas (2 pessoas)
+  'CO/NO/NE/BA/MG': ['CO/NO/NE/BA/MG', 'CO/NO/NE', 'CO/NO', 'NE/BA', 'MG/ES/BA', 'MG/ES', 'MG']
 };
 
 // Função para obter o dia da escala considerando que a madrugada só vira às 07h
@@ -5932,64 +6076,79 @@ function verDetalhesCopRedeResumo() {
 
 // Mapear grupo do Telegram/WhatsApp para área do frontend
 // Áreas variam conforme número de pessoas trabalhando:
-// - 4+ pessoas: CO/NO, NE/BA, MG, RIO
-// - 3 pessoas: CO/NO/NE, MG/ES/BA, RIO
-// - 2 pessoas: CO/NO, RIO
+// - 2 pessoas: CO/NO/NE/BA/MG + RIO/ES
+// - 3 pessoas: CO/NO/NE + MG/ES/BA + RIO
+// - 4 pessoas: CO/NO + NE/BA + MG/ES + RIO
+// - 5+ pessoas: CO/NO + NE/BA + MG + RIO (com RIO duplo)
 function mapearGrupoParaAreaFrontend(grupo, numPessoas = null) {
   if (!grupo) return null;
 
   const grupoLower = grupo.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
   const num = numPessoas || 4; // Padrão 4 pessoas
 
-  // RIO - Rio de Janeiro (inclui cluster "Rio / Espírito Santo")
-  // IMPORTANTE: Verificar "rio" primeiro, pois "Rio / Espírito Santo" contém "rio"
-  if (grupoLower.includes('rio')) {
-    return 'RIO';
+  // Para 2 pessoas: CO/NO/NE/BA/MG + RIO/ES
+  if (num === 2) {
+    // RIO/ES - Rio de Janeiro e Espírito Santo
+    if (grupoLower.includes('rio') || grupoLower.includes('espirito santo') || grupoLower.includes('espírito santo') || grupoLower.includes(' es')) {
+      return 'RIO/ES';
+    }
+    // CO/NO/NE/BA/MG - Todas as outras regiões
+    return 'CO/NO/NE/BA/MG';
   }
 
-  // Para 4+ pessoas: áreas separadas CO/NO, NE/BA, MG
-  if (num >= 4) {
-    // MG - Minas Gerais
-    if (grupoLower.includes('minas') || grupoLower.includes('mg') ||
-        grupoLower.includes('espirito santo') || grupoLower.includes('espírito santo') || grupoLower.includes(' es')) {
-      return 'MG';
+  // Para 3 pessoas: CO/NO/NE + MG/ES/BA + RIO
+  if (num === 3) {
+    // RIO - Rio de Janeiro
+    if (grupoLower.includes('rio')) {
+      return 'RIO';
     }
-
-    // NE/BA - Bahia/Sergipe e Nordeste
-    if (grupoLower.includes('bahia') || grupoLower.includes('sergipe') || grupoLower.includes(' ba') || grupoLower.includes(' se') ||
-        grupoLower.includes('nordeste') || grupoLower.includes(' ne')) {
-      return 'NE/BA';
-    }
-
-    // CO/NO - Centro-Oeste e Norte
-    if (grupoLower.includes('centro') || grupoLower.includes('oeste') || grupoLower.includes(' co') ||
-        grupoLower.includes('norte') || grupoLower.includes(' no')) {
-      return 'CO/NO';
-    }
-  }
-  // Para 3 pessoas: áreas agrupadas
-  else if (num === 3) {
     // MG/ES/BA - Minas Gerais, Espírito Santo, Bahia/Sergipe
     if (grupoLower.includes('minas') || grupoLower.includes('mg') ||
         grupoLower.includes('espirito santo') || grupoLower.includes('espírito santo') || grupoLower.includes(' es') ||
         grupoLower.includes('bahia') || grupoLower.includes('sergipe') || grupoLower.includes(' ba') || grupoLower.includes(' se')) {
       return 'MG/ES/BA';
     }
-
     // CO/NO/NE - Centro-Oeste, Norte, Nordeste
-    if (grupoLower.includes('centro') || grupoLower.includes('oeste') || grupoLower.includes(' co') ||
-        grupoLower.includes('norte') || grupoLower.includes(' no') ||
-        grupoLower.includes('nordeste') || grupoLower.includes(' ne')) {
-      return 'CO/NO/NE';
-    }
+    return 'CO/NO/NE';
   }
-  // Para 2 pessoas: CO/NO e RIO
-  else {
-    // CO/NO - Tudo que não é RIO
+
+  // Para 4 pessoas: CO/NO + NE/BA + MG/ES + RIO
+  if (num === 4) {
+    // RIO - Rio de Janeiro
+    if (grupoLower.includes('rio')) {
+      return 'RIO';
+    }
+    // MG/ES - Minas Gerais e Espírito Santo
+    if (grupoLower.includes('minas') || grupoLower.includes('mg') ||
+        grupoLower.includes('espirito santo') || grupoLower.includes('espírito santo') || grupoLower.includes(' es')) {
+      return 'MG/ES';
+    }
+    // NE/BA - Bahia/Sergipe e Nordeste
+    if (grupoLower.includes('bahia') || grupoLower.includes('sergipe') || grupoLower.includes(' ba') || grupoLower.includes(' se') ||
+        grupoLower.includes('nordeste') || grupoLower.includes(' ne')) {
+      return 'NE/BA';
+    }
+    // CO/NO - Centro-Oeste e Norte
     return 'CO/NO';
   }
 
-  return grupo; // Retornar original se não encontrar mapeamento
+  // Para 5+ pessoas: CO/NO + NE/BA + MG + RIO (com RIO duplo)
+  // RIO - Rio de Janeiro
+  if (grupoLower.includes('rio')) {
+    return 'RIO';
+  }
+  // MG - Minas Gerais e Espírito Santo
+  if (grupoLower.includes('minas') || grupoLower.includes('mg') ||
+      grupoLower.includes('espirito santo') || grupoLower.includes('espírito santo') || grupoLower.includes(' es')) {
+    return 'MG';
+  }
+  // NE/BA - Bahia/Sergipe e Nordeste
+  if (grupoLower.includes('bahia') || grupoLower.includes('sergipe') || grupoLower.includes(' ba') || grupoLower.includes(' se') ||
+      grupoLower.includes('nordeste') || grupoLower.includes(' ne')) {
+    return 'NE/BA';
+  }
+  // CO/NO - Centro-Oeste e Norte
+  return 'CO/NO';
 }
 
 function filtrarCopRedeInforma() {
