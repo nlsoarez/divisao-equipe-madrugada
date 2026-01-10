@@ -16,8 +16,6 @@ let instanceInfo = null;
 async function evolutionRequest(endpoint, method = 'GET', body = null) {
   const url = `${EVOLUTION_CONFIG.API_URL}${endpoint}`;
 
-  console.log(`[WhatsApp] Request: ${method} ${url}`);
-
   const options = {
     method,
     headers: {
@@ -28,17 +26,13 @@ async function evolutionRequest(endpoint, method = 'GET', body = null) {
 
   if (body) {
     options.body = JSON.stringify(body);
-    console.log(`[WhatsApp] Body:`, JSON.stringify(body).substring(0, 200));
   }
 
   const response = await fetch(url, options);
   const responseText = await response.text();
 
-  console.log(`[WhatsApp] Response status: ${response.status}`);
-  console.log(`[WhatsApp] Response:`, responseText.substring(0, 300));
-
   if (!response.ok) {
-    throw new Error(`Evolution API error: ${response.status} - ${responseText}`);
+    throw new Error(`Evolution API error: ${response.status}`);
   }
 
   try {
@@ -53,10 +47,6 @@ async function evolutionRequest(endpoint, method = 'GET', body = null) {
  */
 async function verificarConexao() {
   try {
-    console.log('[WhatsApp] Verificando conexão com Evolution API...');
-    console.log('[WhatsApp] URL:', EVOLUTION_CONFIG.API_URL);
-    console.log('[WhatsApp] Instância:', EVOLUTION_CONFIG.INSTANCE_NAME);
-
     const result = await evolutionRequest(
       `/instance/connectionState/${encodeURIComponent(EVOLUTION_CONFIG.INSTANCE_NAME)}`
     );
@@ -65,9 +55,6 @@ async function verificarConexao() {
     const state = result?.instance?.state || result?.state || result;
     isConnected = state === 'open' || state === 'connected';
 
-    console.log('[WhatsApp] Estado:', state);
-    console.log('[WhatsApp] Conectado:', isConnected);
-
     return {
       conectado: isConnected,
       estado: state,
@@ -75,7 +62,7 @@ async function verificarConexao() {
     };
 
   } catch (error) {
-    console.error('[WhatsApp] Erro ao verificar conexão:', error.message);
+    console.error('[WhatsApp] Erro conexão:', error.message);
     isConnected = false;
     return {
       conectado: false,
@@ -92,31 +79,22 @@ async function verificarConexao() {
  */
 async function buscarHistorico(limite = 100) {
   try {
-    console.log('[WhatsApp] ====================================');
-    console.log(`[WhatsApp] BUSCANDO HISTÓRICO (${limite} mensagens)...`);
-    console.log('[WhatsApp] SOURCE_CHAT_ID:', EVOLUTION_CONFIG.SOURCE_CHAT_ID);
-    console.log('[WhatsApp] ====================================');
-
     // Verificar conexão primeiro
     const status = await verificarConexao();
     if (!status.conectado) {
-      console.log('[WhatsApp] Não conectado - não é possível buscar histórico');
       return { copRedeInforma: 0, erro: 'WhatsApp não conectado' };
     }
 
-    // Se não tem SOURCE_CHAT_ID configurado
     if (!EVOLUTION_CONFIG.SOURCE_CHAT_ID) {
-      console.log('[WhatsApp] SOURCE_CHAT_ID não configurado');
       return { copRedeInforma: 0, erro: 'SOURCE_CHAT_ID não configurado' };
     }
 
-    // Evolution API v2 - tentar diferentes endpoints
     let messages = [];
 
     // Função auxiliar para extrair mensagens do resultado
     const extractMessages = (result) => {
       if (Array.isArray(result)) return result;
-      if (result.messages?.records) return result.messages.records; // Evolution API v2 format
+      if (result.messages?.records) return result.messages.records;
       if (result.messages && Array.isArray(result.messages)) return result.messages;
       if (result.data?.records) return result.data.records;
       if (result.data && Array.isArray(result.data)) return result.data;
@@ -126,7 +104,6 @@ async function buscarHistorico(limite = 100) {
 
     // Método 1: chat/findMessages com where clause
     try {
-      console.log('[WhatsApp] Tentando endpoint chat/findMessages com where...');
       const result = await evolutionRequest(
         `/chat/findMessages/${encodeURIComponent(EVOLUTION_CONFIG.INSTANCE_NAME)}`,
         'POST',
@@ -140,20 +117,16 @@ async function buscarHistorico(limite = 100) {
         }
       );
 
-      if (result.instance) {
-        console.log('[WhatsApp] Endpoint retornou status da instância, tentando outro formato...');
-      } else {
+      if (!result.instance) {
         messages = extractMessages(result);
-        console.log(`[WhatsApp] Extraídas ${messages.length} mensagens do resultado`);
       }
     } catch (e1) {
-      console.log('[WhatsApp] chat/findMessages com where falhou:', e1.message);
+      // Silently try next method
     }
 
-    // Método 1b: chat/findMessages com number
+    // Método 2: chat/findMessages com number
     if (messages.length === 0) {
       try {
-        console.log('[WhatsApp] Tentando endpoint chat/findMessages com number...');
         const result = await evolutionRequest(
           `/chat/findMessages/${encodeURIComponent(EVOLUTION_CONFIG.INSTANCE_NAME)}`,
           'POST',
@@ -165,138 +138,47 @@ async function buscarHistorico(limite = 100) {
 
         if (!result.instance) {
           messages = extractMessages(result);
-          console.log(`[WhatsApp] Extraídas ${messages.length} mensagens do resultado`);
         }
-      } catch (e1b) {
-        console.log('[WhatsApp] chat/findMessages com number falhou:', e1b.message);
+      } catch (e) {
+        // Silently try next method
       }
     }
 
-    // Método 2: message/findMessages
+    // Método 3: Listar todas e filtrar
     if (messages.length === 0) {
       try {
-        console.log('[WhatsApp] Tentando endpoint message/findMessages...');
-        const result = await evolutionRequest(
-          `/message/findMessages/${encodeURIComponent(EVOLUTION_CONFIG.INSTANCE_NAME)}`,
-          'POST',
-          {
-            number: EVOLUTION_CONFIG.SOURCE_CHAT_ID,
-            limit: limite
-          }
-        );
-        if (!result.instance) {
-          messages = extractMessages(result);
-          console.log(`[WhatsApp] Extraídas ${messages.length} mensagens do resultado`);
-        }
-      } catch (e2) {
-        console.log('[WhatsApp] message/findMessages falhou:', e2.message);
-      }
-    }
-
-    // Método 3: chat/findMessages com remoteJid no body
-    if (messages.length === 0) {
-      try {
-        console.log('[WhatsApp] Tentando com remoteJid...');
         const result = await evolutionRequest(
           `/chat/findMessages/${encodeURIComponent(EVOLUTION_CONFIG.INSTANCE_NAME)}`,
           'POST',
-          {
-            remoteJid: EVOLUTION_CONFIG.SOURCE_CHAT_ID,
-            limit: limite
-          }
-        );
-        if (!result.instance) {
-          messages = extractMessages(result);
-          console.log(`[WhatsApp] Extraídas ${messages.length} mensagens do resultado`);
-        }
-      } catch (e3) {
-        console.log('[WhatsApp] remoteJid falhou:', e3.message);
-      }
-    }
-
-    // Método 4: Listar todas mensagens com limite maior e filtrar
-    if (messages.length === 0) {
-      try {
-        console.log('[WhatsApp] Tentando listar todas mensagens (limite 500)...');
-        const result = await evolutionRequest(
-          `/chat/findMessages/${encodeURIComponent(EVOLUTION_CONFIG.INSTANCE_NAME)}`,
-          'POST',
-          {
-            limit: 500 // Buscar mais mensagens para ter mais chances de encontrar o grupo
-          }
+          { limit: 300 }
         );
         if (!result.instance) {
           const allMessages = extractMessages(result);
-          // Filtrar pelo chat ID
           messages = allMessages.filter(m =>
             m.key?.remoteJid === EVOLUTION_CONFIG.SOURCE_CHAT_ID ||
             m.remoteJid === EVOLUTION_CONFIG.SOURCE_CHAT_ID
           );
-          console.log(`[WhatsApp] Filtradas ${messages.length} de ${allMessages.length} mensagens`);
         }
-      } catch (e4) {
-        console.log('[WhatsApp] Listar todas falhou:', e4.message);
+      } catch (e) {
+        // Silently continue
       }
     }
 
-    // Método 5: Buscar usando page para pegar mensagens mais antigas
-    if (messages.length === 0) {
-      try {
-        console.log('[WhatsApp] Tentando buscar com paginação...');
-        for (let page = 1; page <= 5 && messages.length === 0; page++) {
-          const result = await evolutionRequest(
-            `/chat/findMessages/${encodeURIComponent(EVOLUTION_CONFIG.INSTANCE_NAME)}`,
-            'POST',
-            {
-              page: page,
-              limit: 100
-            }
-          );
-          if (!result.instance) {
-            const pageMessages = extractMessages(result);
-            const filtered = pageMessages.filter(m =>
-              m.key?.remoteJid === EVOLUTION_CONFIG.SOURCE_CHAT_ID ||
-              m.remoteJid === EVOLUTION_CONFIG.SOURCE_CHAT_ID
-            );
-            if (filtered.length > 0) {
-              messages = filtered;
-              console.log(`[WhatsApp] Encontradas ${filtered.length} mensagens na página ${page}`);
-            }
-          }
-        }
-      } catch (e5) {
-        console.log('[WhatsApp] Paginação falhou:', e5.message);
-      }
-    }
-
-    console.log(`[WhatsApp] ${messages.length} mensagens encontradas (antes do filtro)`);
-
-    // Log dos grupos únicos nas mensagens para debug
-    const gruposUnicos = [...new Set(messages.map(m => m.key?.remoteJid || m.remoteJid).filter(Boolean))];
-    console.log(`[WhatsApp] Grupos encontrados nas mensagens:`);
-    gruposUnicos.forEach(g => console.log(`[WhatsApp]   - ${g}`));
-    console.log(`[WhatsApp] Buscando grupo: ${EVOLUTION_CONFIG.SOURCE_CHAT_ID}`);
-
-    // IMPORTANTE: Filtrar mensagens pelo grupo correto
-    // A Evolution API pode retornar mensagens de todos os grupos
-    if (EVOLUTION_CONFIG.SOURCE_CHAT_ID) {
-      const mensagensAntesDoFiltro = messages.length;
+    // Filtrar pelo grupo correto
+    if (EVOLUTION_CONFIG.SOURCE_CHAT_ID && messages.length > 0) {
       messages = messages.filter(m => {
         const remoteJid = m.key?.remoteJid || m.remoteJid;
         return remoteJid === EVOLUTION_CONFIG.SOURCE_CHAT_ID;
       });
-      console.log(`[WhatsApp] ${messages.length} mensagens do grupo correto (filtradas de ${mensagensAntesDoFiltro})`);
     }
 
     if (messages.length === 0) {
-      console.log('[WhatsApp] Nenhuma mensagem encontrada do grupo especificado');
-      return { copRedeInforma: 0, erro: 'Nenhuma mensagem do grupo especificado' };
+      return { copRedeInforma: 0, erro: 'Nenhuma mensagem do grupo' };
     }
 
     let contadores = { copRedeInforma: 0, ignorados: 0 };
 
     for (const msg of messages) {
-      // Extrair texto - diferentes formatos
       const texto = msg.message?.conversation ||
                     msg.message?.extendedTextMessage?.text ||
                     msg.message?.text ||
@@ -306,9 +188,6 @@ async function buscarHistorico(limite = 100) {
                     null;
 
       if (!texto) continue;
-
-      const primeiraLinha = texto.split('\n')[0].substring(0, 50);
-      console.log(`[WhatsApp] Processando: ${primeiraLinha}...`);
 
       try {
         const msgCompativel = {
@@ -330,29 +209,23 @@ async function buscarHistorico(limite = 100) {
           if (resultado.tipo === 'COP_REDE_INFORMA') {
             await adicionarCopRedeInforma(resultado.dados);
             contadores.copRedeInforma++;
-            console.log(`[WhatsApp] ✅ COP REDE INFORMA salvo`);
           } else if (resultado.tipo === 'NOVO_EVENTO') {
             // Alertas NÃO são salvos do histórico - apenas em tempo real via webhook
             contadores.ignorados++;
-            console.log(`[WhatsApp] ⏭️ Alerta ignorado (histórico) - alertas só são capturados em tempo real`);
           }
         }
       } catch (msgError) {
-        console.warn('[WhatsApp] Erro ao processar mensagem:', msgError.message);
+        // Skip message on error
       }
     }
 
-    console.log('[WhatsApp] ====================================');
-    console.log('[WhatsApp] ✅ HISTÓRICO PROCESSADO!');
-    console.log(`[WhatsApp] - COP Rede Informa: ${contadores.copRedeInforma}`);
-    console.log(`[WhatsApp] - Alertas ignorados (histórico): ${contadores.ignorados || 0}`);
-    console.log('[WhatsApp] ℹ️ Alertas só são capturados em tempo real via webhook');
-    console.log('[WhatsApp] ====================================');
+    // Log apenas o resumo final
+    console.log(`[WhatsApp] Histórico: ${contadores.copRedeInforma} COP REDE INFORMA, ${contadores.ignorados} alertas ignorados`);
 
     return { copRedeInforma: contadores.copRedeInforma };
 
   } catch (error) {
-    console.error('[WhatsApp] ❌ Erro ao buscar histórico:', error.message);
+    console.error('[WhatsApp] Erro histórico:', error.message);
     return { copRedeInforma: 0, erro: error.message };
   }
 }
@@ -362,9 +235,6 @@ async function buscarHistorico(limite = 100) {
  */
 async function processarWebhook(webhookData) {
   try {
-    console.log('[WhatsApp] =====================================');
-    console.log('[WhatsApp] MENSAGEM RECEBIDA VIA WEBHOOK');
-
     const data = webhookData.data || webhookData;
     const message = data.message || data;
 
@@ -374,21 +244,17 @@ async function processarWebhook(webhookData) {
                   null;
 
     if (!texto) {
-      console.log('[WhatsApp] Ignorando - sem texto');
       return null;
     }
-
-    const remetente = data.pushName || data.key?.participant || 'WhatsApp';
-    console.log('[WhatsApp] De:', remetente);
-    console.log('[WhatsApp] Texto:', texto.substring(0, 80));
 
     if (EVOLUTION_CONFIG.SOURCE_CHAT_ID) {
       const chatId = data.key?.remoteJid;
       if (chatId !== EVOLUTION_CONFIG.SOURCE_CHAT_ID) {
-        console.log('[WhatsApp] Ignorando - chat diferente');
         return null;
       }
     }
+
+    const remetente = data.pushName || data.key?.participant || 'WhatsApp';
 
     const msgCompativel = {
       message_id: data.key?.id || Date.now().toString(),
@@ -401,21 +267,17 @@ async function processarWebhook(webhookData) {
     const resultado = processarMensagem(msgCompativel);
 
     if (!resultado) {
-      console.log('[WhatsApp] Não reconhecida:', texto.split('\n')[0]);
       return null;
     }
 
-    console.log('[WhatsApp] Tipo:', resultado.tipo);
-
     if (resultado.tipo === 'COP_REDE_INFORMA') {
       await adicionarCopRedeInforma(resultado.dados);
-      console.log('[WhatsApp] ✅ COP REDE INFORMA salvo!');
+      console.log('[WhatsApp] COP REDE INFORMA salvo');
     } else if (resultado.tipo === 'NOVO_EVENTO') {
       await adicionarAlerta(resultado.dados);
-      console.log('[WhatsApp] ✅ Alerta salvo!');
+      console.log('[WhatsApp] Alerta salvo');
     }
 
-    console.log('[WhatsApp] =====================================');
     return resultado;
 
   } catch (error) {
@@ -429,8 +291,6 @@ async function processarWebhook(webhookData) {
  */
 async function configurarWebhook(webhookUrl) {
   try {
-    console.log('[WhatsApp] Configurando webhook:', webhookUrl);
-
     const result = await evolutionRequest(
       `/webhook/set/${encodeURIComponent(EVOLUTION_CONFIG.INSTANCE_NAME)}`,
       'POST',
@@ -446,7 +306,7 @@ async function configurarWebhook(webhookUrl) {
     return result;
 
   } catch (error) {
-    console.error('[WhatsApp] Erro ao configurar webhook:', error.message);
+    console.error('[WhatsApp] Erro webhook config:', error.message);
     throw error;
   }
 }
@@ -461,7 +321,7 @@ async function listarChats() {
     );
     return chats;
   } catch (error) {
-    console.error('[WhatsApp] Erro ao listar chats:', error.message);
+    console.error('[WhatsApp] Erro listar chats:', error.message);
     return [];
   }
 }
