@@ -354,6 +354,35 @@
       font-size: var(--ds-font-size-xl, 18px);
     }
 
+    .calendar-title-wrapper {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 4px;
+    }
+
+    .escala-tipo-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 0.7rem;
+      font-weight: 600;
+      padding: 2px 8px;
+      border-radius: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .escala-tipo-badge.residencial {
+      background: linear-gradient(135deg, #4caf50 0%, #2e7d32 100%);
+      color: white;
+    }
+
+    .escala-tipo-badge.empresarial {
+      background: linear-gradient(135deg, #1976d2 0%, #0d47a1 100%);
+      color: white;
+    }
+
     .calendar-nav {
       display: flex;
       gap: var(--ds-spacing-sm, 6px);
@@ -1880,7 +1909,7 @@
   <div class="admin-nav-tabs" id="adminNavTabs">
     <button class="admin-nav-tab active" data-admin-tab="divisao" onclick="trocarAbaAdmin('divisao')">
       <i class="bi bi-calendar3"></i>
-      Calendário
+      Escalas
     </button>
     <button class="admin-nav-tab telegram-tab-nav" data-admin-tab="telegram" onclick="trocarAbaAdmin('telegram')">
       <i class="bi bi-whatsapp"></i>
@@ -1894,23 +1923,23 @@
   <!-- Painel de Gerenciamento de Calendários (somente Admin) -->
   <div class="config-accordion" id="calendarioPanel" style="display: none;">
     <div class="config-header collapsed" data-bs-toggle="collapse" data-bs-target="#calendarioPanelBody">
-      <span><i class="bi bi-calendar2-range me-2"></i>Gerenciar calendários</span>
+      <span><i class="bi bi-calendar2-range me-2"></i>Gerenciar escalas</span>
       <i class="bi bi-chevron-down"></i>
     </div>
     <div id="calendarioPanelBody" class="collapse">
       <div class="config-body">
         <p class="mb-3 text-muted" style="font-size: 0.85rem;">
-          Faça upload de até duas planilhas (uma para cada mês) e escolha qual calendário será exibido para os usuários.
+          Faça upload das planilhas para cada tipo de escala e escolha qual será exibida para os usuários.
         </p>
 
-        <!-- Calendário 1 -->
-        <div class="calendario-item mb-3 p-3" style="background: #f8f9fa; border-radius: 8px; border-left: 4px solid #ff9800;">
+        <!-- Escala Residencial -->
+        <div class="calendario-item mb-3 p-3" style="background: #f8f9fa; border-radius: 8px; border-left: 4px solid #4caf50;">
           <div class="d-flex justify-content-between align-items-center mb-2">
-            <strong><i class="bi bi-1-circle me-2"></i>Calendário 1</strong>
+            <strong><i class="bi bi-house me-2"></i>Escala residencial</strong>
             <span class="badge bg-secondary" id="cal1Status">Vazio</span>
           </div>
           <div class="d-flex gap-2 align-items-center flex-wrap">
-            <button class="btn btn-sm btn-outline-primary" onclick="document.getElementById('fileInputCal1').click()">
+            <button class="btn btn-sm btn-outline-success" onclick="document.getElementById('fileInputCal1').click()">
               <i class="bi bi-upload me-1"></i>Upload planilha
             </button>
             <input type="file" id="fileInputCal1" accept=".xlsx,.xls,.csv" style="display: none;" onchange="uploadCalendario(1, this)">
@@ -1919,10 +1948,10 @@
           <small class="text-muted">Nome do arquivo define o mês (ex: Janeiro 2025.xlsx)</small>
         </div>
 
-        <!-- Calendário 2 -->
-        <div class="calendario-item mb-3 p-3" style="background: #f8f9fa; border-radius: 8px; border-left: 4px solid #2196f3;">
+        <!-- Escala Empresarial -->
+        <div class="calendario-item mb-3 p-3" style="background: #f8f9fa; border-radius: 8px; border-left: 4px solid #1976d2;">
           <div class="d-flex justify-content-between align-items-center mb-2">
-            <strong><i class="bi bi-2-circle me-2"></i>Calendário 2</strong>
+            <strong><i class="bi bi-building me-2"></i>Escala empresarial</strong>
             <span class="badge bg-secondary" id="cal2Status">Vazio</span>
           </div>
           <div class="d-flex gap-2 align-items-center flex-wrap">
@@ -1937,15 +1966,15 @@
 
         <!-- Seleção do Calendário Ativo -->
         <div class="mt-3 p-3" style="background: #e8f5e9; border-radius: 8px;">
-          <label class="form-label fw-bold"><i class="bi bi-eye me-2"></i>Calendário visível para usuários:</label>
+          <label class="form-label fw-bold"><i class="bi bi-eye me-2"></i>Escala visível para usuários:</label>
           <div class="d-flex gap-3">
             <div class="form-check">
               <input class="form-check-input" type="radio" name="calendarioAtivo" id="radioCalendario1" value="calendario1" checked onchange="alterarCalendarioAtivo('calendario1')">
-              <label class="form-check-label" for="radioCalendario1">Calendário 1</label>
+              <label class="form-check-label" for="radioCalendario1"><i class="bi bi-house me-1"></i>Residencial</label>
             </div>
             <div class="form-check">
               <input class="form-check-input" type="radio" name="calendarioAtivo" id="radioCalendario2" value="calendario2" onchange="alterarCalendarioAtivo('calendario2')">
-              <label class="form-check-label" for="radioCalendario2">Calendário 2</label>
+              <label class="form-check-label" for="radioCalendario2"><i class="bi bi-building me-1"></i>Empresarial</label>
             </div>
           </div>
           <button class="btn btn-success btn-sm mt-2" onclick="salvarConfiguracaoCalendarios()">
@@ -2107,7 +2136,10 @@
     <!-- Cabeçalho do Calendário com Navegação -->
     <div class="calendar-container">
       <div class="calendar-header">
-        <h5 class="calendar-title" id="calendarTitle"></h5>
+        <div class="calendar-title-wrapper">
+          <h5 class="calendar-title" id="calendarTitle"></h5>
+          <span class="escala-tipo-badge" id="escalaTipoBadge"></span>
+        </div>
         <div class="calendar-nav">
           <!-- Botão Agendar trocas dentro do calendário -->
           <button class="btn-agendar-trocas me-2" id="btnAgendarTrocas" style="display: none;" onclick="toggleModoTroca()">
@@ -2311,12 +2343,17 @@
         <div class="login-option text-center">
           <i class="bi bi-eye mb-3" style="font-size: 3rem; color: #2e7d32;"></i>
           <h5 class="mb-3">Visualizar escala</h5>
-          <p class="text-muted mb-4">Veja a escala atual sem fazer alterações</p>
-          <button type="button" class="btn btn-lg w-100 py-3" style="background: linear-gradient(135deg, #4caf50 0%, #2e7d32 100%); color: white; border: none;" onclick="entrarComoVisualizador()">
-            <i class="bi bi-eye me-2"></i>Visualizar escala
-          </button>
+          <p class="text-muted mb-4">Selecione qual escala deseja visualizar</p>
+          <div class="d-flex gap-2 flex-column flex-sm-row">
+            <button type="button" class="btn btn-lg flex-fill py-3" style="background: linear-gradient(135deg, #4caf50 0%, #2e7d32 100%); color: white; border: none;" onclick="entrarComoVisualizador('residencial')">
+              <i class="bi bi-house me-2"></i>Escala residencial
+            </button>
+            <button type="button" class="btn btn-lg flex-fill py-3" style="background: linear-gradient(135deg, #1976d2 0%, #0d47a1 100%); color: white; border: none;" onclick="entrarComoVisualizador('empresarial')">
+              <i class="bi bi-building me-2"></i>Escala empresarial
+            </button>
+          </div>
         </div>
-        
+
         <div class="login-divider">
           <span>ou</span>
         </div>
@@ -2594,7 +2631,8 @@ function uploadCalendario(numCalendario, inputElement) {
       }
 
       hideLoading();
-      showToast(`✅ Calendário ${numCalendario} carregado com sucesso!`, 'success');
+      const nomeEscala = numCalendario === 1 ? 'Residencial' : 'Empresarial';
+      showToast(`✅ Escala ${nomeEscala} carregada com sucesso!`, 'success');
 
       // Salvar automaticamente na nuvem após upload
       console.log('💾 Salvando automaticamente após upload...');
@@ -2778,7 +2816,7 @@ function carregarCalendarioAtivo() {
     const calendarSection = document.getElementById('calendarSection');
     if (calendarSection) calendarSection.style.display = 'block';
 
-    showToast(`📅 Visualizando ${calendarioAtivo === 'calendario1' ? 'Calendário 1' : 'Calendário 2'}`, 'info');
+    showToast(`📅 Visualizando escala ${calendarioAtivo === 'calendario1' ? 'Residencial' : 'Empresarial'}`, 'info');
   } else {
     console.log('⚠️ Calendário ativo não tem dados');
   }
@@ -2864,17 +2902,49 @@ async function salvarConfiguracaoCalendarios() {
     });
 
     if (response.ok) {
-      showToast('✅ Calendários salvos e publicados!', 'success');
+      showToast('✅ Escalas salvas e publicadas!', 'success');
 
       // Salvar backup local
       localStorage.setItem('escala_backup', JSON.stringify(dadosParaSalvar));
       localStorage.setItem('escala_ultimo_salvamento', new Date().toISOString());
+    } else if (response.status === 404) {
+      // Bin não existe mais, tentar criar um novo
+      console.warn('⚠️ Bin não encontrado (404). Tentando criar novo...');
+      showToast('🔄 Armazenamento não encontrado. Criando novo...', 'warning');
+
+      try {
+        const novoBin = await criarNovoBin(dadosParaSalvar);
+        if (novoBin.success) {
+          showToast('✅ Novo armazenamento criado e escalas salvas!', 'success');
+          exibirInstrucoesBinId(novoBin.binId);
+        }
+      } catch (criarError) {
+        console.error('❌ Falha ao criar novo bin:', criarError);
+        throw new Error('Falha ao criar novo armazenamento: ' + criarError.message);
+      }
     } else {
-      throw new Error('Falha ao salvar na nuvem');
+      const errorText = await response.text();
+      console.error('❌ Resposta da API:', response.status, errorText);
+      throw new Error(`Falha ao salvar (${response.status}): ${errorText.substring(0, 100)}`);
     }
   } catch (error) {
     console.error('❌ Erro ao salvar calendários:', error);
     showToast('❌ Erro ao salvar: ' + error.message, 'danger');
+
+    // Salvar localmente como backup de emergência
+    try {
+      localStorage.setItem('escala_backup', JSON.stringify({
+        escala_id: 'backup_local',
+        versao: '3.0',
+        calendarioAtivo: calendarioAtivo,
+        calendario1: calendarios.calendario1,
+        calendario2: calendarios.calendario2,
+        ultima_atualizacao: new Date().toISOString()
+      }));
+      showToast('⚠️ Dados salvos localmente como backup', 'warning');
+    } catch (backupError) {
+      console.error('❌ Falha ao salvar backup local:', backupError);
+    }
   } finally {
     hideLoading();
   }
@@ -3179,12 +3249,12 @@ async function carregarDadosDaNuvem() {
           const cal2 = dados.calendario2;
           let info = '';
           if (cal1) {
-            info += `Cal1: ${MESES[cal1.mes]}/${cal1.ano}`;
+            info += `Residencial: ${MESES[cal1.mes]}/${cal1.ano}`;
           }
           if (cal2) {
-            info += ` | Cal2: ${MESES[cal2.mes]}/${cal2.ano}`;
+            info += ` | Empresarial: ${MESES[cal2.mes]}/${cal2.ano}`;
           }
-          showToast('✅ Calendários carregados da nuvem! ' + info, 'success');
+          showToast('✅ Escalas carregadas da nuvem! ' + info, 'success');
         } else {
           const info = `Mês: ${dados.mes !== undefined ? MESES[dados.mes] : 'N/A'} ${dados.ano || ''} | Funcionários: ${dados.dadosPlanilha?.length || 0} | Dias: ${Object.keys(dados.dadosOriginais || {}).length}`;
           console.log('📊 Info:', info);
@@ -3556,16 +3626,22 @@ function verificarPin() {
   }
 }
 
-function entrarComoVisualizador() {
+function entrarComoVisualizador(tipo = 'residencial') {
   // Salvar como visualizador por 24 horas
   const expiryTime = new Date().getTime() + (24 * 60 * 60 * 1000);
   localStorage.setItem('escala_auth', 'viewer');
   localStorage.setItem('escala_auth_expiry', expiryTime.toString());
-  
+
+  // Definir calendário ativo baseado no tipo selecionado
+  // residencial = calendario1, empresarial = calendario2
+  const calKey = tipo === 'empresarial' ? 'calendario2' : 'calendario1';
+  calendarioAtivo = calKey;
+  localStorage.setItem('escala_tipo_selecionado', tipo);
+
   // Fechar modal
   const loginModal = bootstrap.Modal.getInstance(document.getElementById('loginModal'));
   if (loginModal) loginModal.hide();
-  
+
   // Iniciar como visualizador
   iniciarComoVisualizador();
   carregarDadosDaNuvem();
@@ -3576,7 +3652,8 @@ function entrarComoVisualizador() {
     await carregarAlertas();
   }, 1000);
 
-  showToast('🔍 Modo de visualização ativado', 'info');
+  const nomeEscala = tipo === 'empresarial' ? 'Empresarial' : 'Residencial';
+  showToast(`🔍 Visualizando escala ${nomeEscala}`, 'info');
 }
 
 function iniciarComoAdmin() {
@@ -5106,6 +5183,16 @@ function atualizarCalendario() {
   const calendarTitle = document.getElementById('calendarTitle');
   if (calendarTitle) {
     calendarTitle.textContent = `${MESES[mesSelecionado]} de ${anoSelecionado}`;
+  }
+
+  // Atualizar badge do tipo de escala
+  const escalaTipoBadge = document.getElementById('escalaTipoBadge');
+  if (escalaTipoBadge) {
+    const isResidencial = calendarioAtivo === 'calendario1';
+    escalaTipoBadge.className = `escala-tipo-badge ${isResidencial ? 'residencial' : 'empresarial'}`;
+    escalaTipoBadge.innerHTML = isResidencial
+      ? '<i class="bi bi-house-fill"></i> Residencial'
+      : '<i class="bi bi-building-fill"></i> Empresarial';
   }
   
   // Gerar grid do calendário
