@@ -332,9 +332,9 @@ async function buscarHistorico(limite = 100) {
             contadores.copRedeInforma++;
             console.log(`[WhatsApp] ✅ COP REDE INFORMA salvo`);
           } else if (resultado.tipo === 'NOVO_EVENTO') {
-            await adicionarAlerta(resultado.dados);
-            contadores.alertas = (contadores.alertas || 0) + 1;
-            console.log(`[WhatsApp] ✅ Alerta salvo`);
+            // Alertas NÃO são salvos do histórico - apenas em tempo real via webhook
+            contadores.ignorados++;
+            console.log(`[WhatsApp] ⏭️ Alerta ignorado (histórico) - alertas só são capturados em tempo real`);
           }
         }
       } catch (msgError) {
@@ -345,10 +345,11 @@ async function buscarHistorico(limite = 100) {
     console.log('[WhatsApp] ====================================');
     console.log('[WhatsApp] ✅ HISTÓRICO PROCESSADO!');
     console.log(`[WhatsApp] - COP Rede Informa: ${contadores.copRedeInforma}`);
-    console.log(`[WhatsApp] - Alertas: ${contadores.alertas || 0}`);
+    console.log(`[WhatsApp] - Alertas ignorados (histórico): ${contadores.ignorados || 0}`);
+    console.log('[WhatsApp] ℹ️ Alertas só são capturados em tempo real via webhook');
     console.log('[WhatsApp] ====================================');
 
-    return { copRedeInforma: contadores.copRedeInforma, alertas: contadores.alertas || 0 };
+    return { copRedeInforma: contadores.copRedeInforma };
 
   } catch (error) {
     console.error('[WhatsApp] ❌ Erro ao buscar histórico:', error.message);
