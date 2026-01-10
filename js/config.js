@@ -94,7 +94,7 @@ const CONFIG = {
       RIO_DUPLO: false,
       areas: {
         'CO/NO': ['CRISTIANE', 'MARISTELLA', 'RAISSA', 'LEONARDO', 'THIAGO', 'ALAN'],
-        'NE/BA': ['RAISSA', 'MARISTELLA', 'CRISTIANE', 'LEONARDO', 'THIAGO', 'ALAN'],
+        'NE/BA': ['MARISTELLA', 'RAISSA', 'CRISTIANE', 'LEONARDO', 'THIAGO', 'ALAN'],
         'MG/ES': ['LEONARDO', 'RAISSA', 'CRISTIANE', 'ALAN', 'THIAGO', 'MARISTELLA'],
         'RIO': ['ALAN', 'THIAGO', 'RAISSA', 'CRISTIANE', 'MARISTELLA', 'LEONARDO']
       }
@@ -104,7 +104,7 @@ const CONFIG = {
       RIO_DUPLO: true,
       areas: {
         'CO/NO': ['CRISTIANE', 'MARISTELLA', 'RAISSA', 'LEONARDO', 'THIAGO', 'ALAN'],
-        'NE/BA': ['RAISSA', 'MARISTELLA', 'CRISTIANE', 'LEONARDO', 'THIAGO', 'ALAN'],
+        'NE/BA': ['MARISTELLA', 'RAISSA', 'CRISTIANE', 'LEONARDO', 'THIAGO', 'ALAN'],
         'MG': ['LEONARDO', 'RAISSA', 'CRISTIANE', 'ALAN', 'THIAGO', 'MARISTELLA'],
         'RIO': ['ALAN', 'THIAGO', 'RAISSA', 'CRISTIANE', 'MARISTELLA', 'LEONARDO'],
         '_RIO_2': ['THIAGO', 'ALAN', 'RAISSA', 'CRISTIANE', 'MARISTELLA', 'LEONARDO']
