@@ -125,6 +125,88 @@ const CONFIG = {
   },
 
   // ============================================
+  // REGRAS DE DIVISÃO - LESTE (Residencial)
+  // ============================================
+  //
+  // Prioridade:
+  // Fernanda, Igor e Sandro prioritários para MG/NO
+  // Gabriela, Magno e Aldenes prioritários para CO/NE/BA
+  //
+  PRIORIDADES_LESTE: {
+    3: {
+      areas: {
+        'NE/NO': ['FERNANDA', 'IGOR', 'SANDRO', 'GABRIELA', 'MAGNO', 'ALDENES'],
+        'MG/NO': ['FERNANDA', 'IGOR', 'SANDRO', 'GABRIELA', 'MAGNO', 'ALDENES'],
+        'CO/BA': ['GABRIELA', 'MAGNO', 'ALDENES', 'FERNANDA', 'IGOR', 'SANDRO']
+      }
+    },
+    4: {
+      areas: {
+        'MG/NO': ['FERNANDA', 'IGOR', 'SANDRO', 'GABRIELA', 'MAGNO', 'ALDENES'],
+        'NO/MG': ['FERNANDA', 'IGOR', 'SANDRO', 'GABRIELA', 'MAGNO', 'ALDENES'],
+        'NE/BA': ['GABRIELA', 'MAGNO', 'ALDENES', 'FERNANDA', 'IGOR', 'SANDRO'],
+        'CO/BA': ['GABRIELA', 'MAGNO', 'ALDENES', 'FERNANDA', 'IGOR', 'SANDRO']
+      }
+    },
+    5: {
+      areas: {
+        'MG/NO': ['FERNANDA', 'IGOR', 'SANDRO', 'GABRIELA', 'MAGNO', 'ALDENES'],
+        'NO/MG': ['FERNANDA', 'IGOR', 'SANDRO', 'GABRIELA', 'MAGNO', 'ALDENES'],
+        'NE/CO': ['GABRIELA', 'MAGNO', 'ALDENES', 'FERNANDA', 'IGOR', 'SANDRO'],
+        'CO/NE': ['GABRIELA', 'MAGNO', 'ALDENES', 'FERNANDA', 'IGOR', 'SANDRO'],
+        'APOIO SIR/BA': ['GABRIELA', 'MAGNO', 'ALDENES', 'FERNANDA', 'IGOR', 'SANDRO']
+      }
+    }
+  },
+
+  FUNCIONARIOS_LESTE: {
+    'FERNANDA': 'FERNANDA',
+    'IGOR': 'IGOR',
+    'SANDRO': 'SANDRO',
+    'GABRIELA': 'GABRIELA',
+    'MAGNO': 'MAGNO',
+    'ALDENES': 'ALDENES'
+  },
+
+  // ============================================
+  // REGRAS DE DIVISÃO - RIO/ES (Residencial)
+  // ============================================
+  //
+  // Áreas: ES, NO2, NO3, NO1, MTP, BX1, OE1, CZS, SU2, SEF, SUF, NOF, LGS
+  //
+  PRIORIDADES_RIO_ES: {
+    2: {
+      areas: {
+        'ES/NO3/NO1/CZS/SU2/SEF': [],
+        'NO2/MTP/BX1/OE1/SUF/NOF/LGS': []
+      }
+    },
+    3: {
+      areas: {
+        'ES/OE1/SUF/LGS': [],
+        'NO2/BX1/NO1': [],
+        'MTP/NO3/CZS/SU2/SEF/NOF': []
+      }
+    },
+    4: {
+      areas: {
+        'ES/SU2/SEF': [],
+        'NO2/BX1/OE1/SUF': [],
+        'MTP/NO1/NOF': [],
+        'NO3/CZS/LGS': []
+      }
+    },
+    5: {
+      areas: {
+        'ES': [],
+        'NO2/BX1/OE1/SUF': [],
+        'MTP/NO1/NOF/SU2': [],
+        'NO3/CZS/LGS/SEF': []
+      }
+    }
+  },
+
+  // ============================================
   // CONSTANTES DO SISTEMA
   // ============================================
 
