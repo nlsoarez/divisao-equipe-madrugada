@@ -2873,9 +2873,10 @@ function uploadCalendarioEmpresarial(subEscala, inputElement) {
 
       console.log(`📅 Sub-escala ${subEscala}: ${MESES[mesCalendario]}/${anoCalendario}`);
 
-      // Processar dados da planilha
+      // Processar dados da planilha com a configuração correta de divisão
       const dadosPlanilhaTemp = dados;
-      const dadosOriginaisTemp = processarPlanilhaParaCalendario(dadosPlanilhaTemp, mesCalendario, anoCalendario);
+      const tipoConfig = subEscala === 'leste' ? 'leste' : 'rio_es';
+      const dadosOriginaisTemp = processarPlanilhaParaCalendario(dadosPlanilhaTemp, mesCalendario, anoCalendario, tipoConfig);
 
       // Inicializar calendario2 se não existir
       if (!calendarios.calendario2) {
@@ -3146,7 +3147,8 @@ function mudarMesEmpresarial(subEscala, delta) {
 
 // Processar planilha para gerar dados do calendário
 // Função para processar planilha com mês e ano específicos (não usa variáveis globais)
-function processarPlanilhaParaCalendario(dadosPlanilhaTemp, mesParam, anoParam) {
+// tipoConfig: 'residencial' (padrão), 'leste' ou 'rio_es'
+function processarPlanilhaParaCalendario(dadosPlanilhaTemp, mesParam, anoParam, tipoConfig = 'residencial') {
   try {
     if (!dadosPlanilhaTemp || dadosPlanilhaTemp.length === 0) return {};
 
@@ -3238,7 +3240,7 @@ function processarPlanilhaParaCalendario(dadosPlanilhaTemp, mesParam, anoParam) 
       }
 
       if (trabalhandoHoje.length > 0) {
-        const divisao = calcularDivisaoPorNumero(trabalhandoHoje.length, trabalhandoHoje);
+        const divisao = calcularDivisaoPorNumero(trabalhandoHoje.length, trabalhandoHoje, tipoConfig);
 
         dadosProcessadosTemp[diaNumero] = {
           dia: diaNumero,
@@ -3251,7 +3253,7 @@ function processarPlanilhaParaCalendario(dadosPlanilhaTemp, mesParam, anoParam) 
       }
     }
 
-    console.log(`✅ Processados ${Object.keys(dadosProcessadosTemp).length} dias para ${MESES[mesUsar]}/${anoUsar}`);
+    console.log(`✅ Processados ${Object.keys(dadosProcessadosTemp).length} dias (${tipoConfig}) para ${MESES[mesUsar]}/${anoUsar}`);
     return dadosProcessadosTemp;
   } catch (error) {
     console.error('Erro ao processar planilha:', error);
@@ -4970,17 +4972,34 @@ function encontrarPessoaPorPrimeiroNome(primeiroNome, lista) {
   });
 }
 
-function calcularDivisaoPorNumero(num, trabalhandoHoje) {
+function calcularDivisaoPorNumero(num, trabalhandoHoje, tipoConfig = 'residencial') {
   let numPessoas = num;
-  // Ajustar para os limites das regras disponíveis (2 a 6 pessoas)
-  if (num < 2) numPessoas = 2;
-  if (num > 6) numPessoas = 6;
 
-  const configPrioridades = CONFIG?.PRIORIDADES || PRIORIDADES;
+  // Selecionar a configuração correta baseada no tipo
+  let configPrioridades;
+  let limiteSuperior = 6;
+  let limiteInferior = 2;
+
+  if (tipoConfig === 'leste') {
+    configPrioridades = CONFIG?.PRIORIDADES_LESTE || {};
+    limiteInferior = 3;
+    limiteSuperior = 5;
+  } else if (tipoConfig === 'rio_es') {
+    configPrioridades = CONFIG?.PRIORIDADES_RIO_ES || {};
+    limiteInferior = 2;
+    limiteSuperior = 5;
+  } else {
+    configPrioridades = CONFIG?.PRIORIDADES || PRIORIDADES;
+  }
+
+  // Ajustar para os limites das regras disponíveis
+  if (num < limiteInferior) numPessoas = limiteInferior;
+  if (num > limiteSuperior) numPessoas = limiteSuperior;
+
   const regrasConfig = configPrioridades[numPessoas];
 
   if (!regrasConfig) {
-    console.warn(`Nenhuma regra encontrada para ${numPessoas} pessoas`);
+    console.warn(`Nenhuma regra encontrada para ${numPessoas} pessoas no config ${tipoConfig}`);
     return {};
   }
 
@@ -4991,25 +5010,25 @@ function calcularDivisaoPorNumero(num, trabalhandoHoje) {
   const pessoasAlocadas = new Set();
   const pessoasDisponiveis = [...trabalhandoHoje];
 
-  console.log(`🔄 Calculando divisão para ${num} pessoas:`, trabalhandoHoje.map(extrairPrimeiroNome));
+  console.log(`🔄 Calculando divisão (${tipoConfig}) para ${num} pessoas:`, trabalhandoHoje.map(extrairPrimeiroNome));
 
-  // Ordenar áreas por prioridade de processamento
-  const ordemAreas = ['CO/NO', 'CO/NO/NE', 'NE/BA', 'MG', 'MG/ES/BA', 'RIO', '_RIO_2', 'SIR/APOIO'];
-  const areasOrdenadas = Object.keys(regras).sort((a, b) => {
-    const indexA = ordemAreas.indexOf(a);
-    const indexB = ordemAreas.indexOf(b);
-    if (indexA === -1 && indexB === -1) return 0;
-    if (indexA === -1) return 1;
-    if (indexB === -1) return -1;
-    return indexA - indexB;
-  });
+  // Ordenar áreas por ordem de aparição nas regras
+  const areasOrdenadas = Object.keys(regras);
 
   console.log(`📋 Áreas a processar (em ordem):`, areasOrdenadas);
 
   areasOrdenadas.forEach(area => {
     const prioridade = regras[area];
-    if (!prioridade || !Array.isArray(prioridade)) {
-      console.warn(`Prioridade não encontrada para área: ${area}`);
+
+    // Se não há lista de prioridade, alocar pessoa disponível diretamente
+    if (!prioridade || !Array.isArray(prioridade) || prioridade.length === 0) {
+      if (pessoasDisponiveis.length > 0) {
+        const pessoaRestante = pessoasDisponiveis[0];
+        divisaoTemp[area] = pessoaRestante;
+        pessoasAlocadas.add(normalizarNome(extrairPrimeiroNome(pessoaRestante)));
+        pessoasDisponiveis.splice(0, 1);
+        console.log(`   📌 ${area}: ${extrairPrimeiroNome(pessoaRestante)} (sequencial)`);
+      }
       return;
     }
 
@@ -5041,31 +5060,39 @@ function calcularDivisaoPorNumero(num, trabalhandoHoje) {
     }
   });
 
-  // Mesclar _RIO_2 com RIO para mostrar ambos responsáveis
+  // Para Residencial: mesclar _RIO_2 com RIO para mostrar ambos responsáveis
   const divisao = {};
-  let rioResponsaveis = [];
 
-  // Garantir ordem: RIO primeiro, depois _RIO_2
-  if (divisaoTemp['RIO']) {
-    rioResponsaveis.push(extrairPrimeiroNome(divisaoTemp['RIO']));
-  }
-  if (divisaoTemp['_RIO_2']) {
-    rioResponsaveis.push(extrairPrimeiroNome(divisaoTemp['_RIO_2']));
-  }
+  if (tipoConfig === 'residencial') {
+    let rioResponsaveis = [];
 
-  // Adicionar outras áreas (usando primeiro nome para exibição mais limpa)
-  Object.keys(divisaoTemp).forEach(area => {
-    if (area !== 'RIO' && area !== '_RIO_2') {
-      divisao[area] = extrairPrimeiroNome(divisaoTemp[area]);
+    // Garantir ordem: RIO primeiro, depois _RIO_2
+    if (divisaoTemp['RIO']) {
+      rioResponsaveis.push(extrairPrimeiroNome(divisaoTemp['RIO']));
     }
-  });
+    if (divisaoTemp['_RIO_2']) {
+      rioResponsaveis.push(extrairPrimeiroNome(divisaoTemp['_RIO_2']));
+    }
 
-  // Se temos responsáveis para RIO, adicionar ao divisão
-  if (rioResponsaveis.length > 0) {
-    divisao['RIO'] = rioResponsaveis.join(' / ');
+    // Adicionar outras áreas (usando primeiro nome para exibição mais limpa)
+    Object.keys(divisaoTemp).forEach(area => {
+      if (area !== 'RIO' && area !== '_RIO_2') {
+        divisao[area] = extrairPrimeiroNome(divisaoTemp[area]);
+      }
+    });
+
+    // Se temos responsáveis para RIO, adicionar ao divisão
+    if (rioResponsaveis.length > 0) {
+      divisao['RIO'] = rioResponsaveis.join(' / ');
+    }
+  } else {
+    // Para Leste e Rio/Es: usar áreas como estão
+    Object.keys(divisaoTemp).forEach(area => {
+      divisao[area] = extrairPrimeiroNome(divisaoTemp[area]);
+    });
   }
 
-  console.log(`📊 Divisão final (${num} pessoas):`, divisao);
+  console.log(`📊 Divisão final (${tipoConfig}, ${num} pessoas):`, divisao);
   if (divisaoTemp['_RIO_2']) {
     console.log(`   ✅ RIO com 2 pessoas: ${rioResponsaveis.join(' / ')}`);
   }
