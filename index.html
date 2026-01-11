@@ -1952,56 +1952,21 @@
     </div>
     <div id="calendarioPanelBodyResidencial" class="collapse">
       <div class="config-body">
-        <p class="mb-3 text-muted" style="font-size: 0.85rem;">
-          A escala Residencial possui duas divisões: <strong>Rio/Es</strong> e <strong>Leste</strong>.
-        </p>
-
-        <!-- Sub-escala Rio/Es -->
         <div class="calendario-item mb-3 p-3" style="background: #f8f9fa; border-radius: 8px; border-left: 4px solid #4caf50;">
           <div class="d-flex justify-content-between align-items-center mb-2">
-            <strong><i class="bi bi-geo-alt me-2"></i>Rio/Es</strong>
-            <span class="badge bg-secondary" id="calRioEsStatus">Vazio</span>
+            <strong><i class="bi bi-house me-2"></i>Escala residencial</strong>
+            <span class="badge bg-secondary" id="cal1Status">Vazio</span>
           </div>
           <div class="d-flex gap-2 align-items-center flex-wrap">
-            <button class="btn btn-sm btn-outline-success" onclick="document.getElementById('fileInputRioEs').click()">
+            <button class="btn btn-sm btn-outline-success" onclick="document.getElementById('fileInputCal1').click()">
               <i class="bi bi-upload me-1"></i>Upload planilha
             </button>
-            <input type="file" id="fileInputRioEs" accept=".xlsx,.xls,.csv" style="display: none;" onchange="uploadCalendarioResidencial('rio_es', this)">
+            <input type="file" id="fileInputCal1" accept=".xlsx,.xls,.csv" style="display: none;" onchange="uploadCalendario(1, this)">
           </div>
-          <span class="text-muted small d-block mt-2" id="calRioEsInfo">Nenhuma planilha carregada</span>
+          <span class="text-muted small d-block mt-2" id="cal1Info">Nenhuma planilha carregada</span>
+          <small class="text-muted">Nome do arquivo define o mês (ex: Janeiro 2025.xlsx)</small>
         </div>
-
-        <!-- Sub-escala Leste -->
-        <div class="calendario-item mb-3 p-3" style="background: #f8f9fa; border-radius: 8px; border-left: 4px solid #4caf50;">
-          <div class="d-flex justify-content-between align-items-center mb-2">
-            <strong><i class="bi bi-geo-alt me-2"></i>Leste</strong>
-            <span class="badge bg-secondary" id="calLesteStatus">Vazio</span>
-          </div>
-          <div class="d-flex gap-2 align-items-center flex-wrap">
-            <button class="btn btn-sm btn-outline-success" onclick="document.getElementById('fileInputLeste').click()">
-              <i class="bi bi-upload me-1"></i>Upload planilha
-            </button>
-            <input type="file" id="fileInputLeste" accept=".xlsx,.xls,.csv" style="display: none;" onchange="uploadCalendarioResidencial('leste', this)">
-          </div>
-          <span class="text-muted small d-block mt-2" id="calLesteInfo">Nenhuma planilha carregada</span>
-        </div>
-
-        <!-- Seleção da sub-escala ativa -->
-        <div class="mt-3 p-3" style="background: #e8f5e9; border-radius: 8px;">
-          <label class="form-label fw-bold"><i class="bi bi-eye me-2"></i>Sub-escala visível:</label>
-          <div class="d-flex gap-3">
-            <div class="form-check">
-              <input class="form-check-input" type="radio" name="subEscalaResidencial" id="radioRioEs" value="rio_es" checked onchange="alterarSubEscalaResidencial('rio_es')">
-              <label class="form-check-label" for="radioRioEs">Rio/Es</label>
-            </div>
-            <div class="form-check">
-              <input class="form-check-input" type="radio" name="subEscalaResidencial" id="radioLeste" value="leste" onchange="alterarSubEscalaResidencial('leste')">
-              <label class="form-check-label" for="radioLeste">Leste</label>
-            </div>
-          </div>
-        </div>
-
-        <button class="btn btn-success btn-sm mt-3" onclick="salvarConfiguracaoCalendarios()">
+        <button class="btn btn-success btn-sm mt-2" onclick="salvarConfiguracaoCalendarios()">
           <i class="bi bi-cloud-arrow-up me-1"></i>Salvar e publicar
         </button>
       </div>
@@ -2021,21 +1986,56 @@
     </div>
     <div id="calendarioPanelBodyEmpresarial" class="collapse">
       <div class="config-body">
+        <p class="mb-3 text-muted" style="font-size: 0.85rem;">
+          A escala Empresarial possui duas divisões: <strong>Rio/Es</strong> e <strong>Leste</strong>.
+        </p>
+
+        <!-- Sub-escala Rio/Es -->
         <div class="calendario-item mb-3 p-3" style="background: #f8f9fa; border-radius: 8px; border-left: 4px solid #4caf50;">
           <div class="d-flex justify-content-between align-items-center mb-2">
-            <strong><i class="bi bi-building me-2"></i>Escala empresarial</strong>
-            <span class="badge bg-secondary" id="cal2Status">Vazio</span>
+            <strong><i class="bi bi-geo-alt me-2"></i>Rio/Es</strong>
+            <span class="badge bg-secondary" id="calRioEsStatus">Vazio</span>
           </div>
           <div class="d-flex gap-2 align-items-center flex-wrap">
-            <button class="btn btn-sm btn-outline-success" onclick="document.getElementById('fileInputCal2').click()">
+            <button class="btn btn-sm btn-outline-success" onclick="document.getElementById('fileInputRioEs').click()">
               <i class="bi bi-upload me-1"></i>Upload planilha
             </button>
-            <input type="file" id="fileInputCal2" accept=".xlsx,.xls,.csv" style="display: none;" onchange="uploadCalendario(2, this)">
+            <input type="file" id="fileInputRioEs" accept=".xlsx,.xls,.csv" style="display: none;" onchange="uploadCalendarioEmpresarial('rio_es', this)">
           </div>
-          <span class="text-muted small d-block mt-2" id="cal2Info">Nenhuma planilha carregada</span>
-          <small class="text-muted">Nome do arquivo define o mês (ex: Janeiro 2025.xlsx)</small>
+          <span class="text-muted small d-block mt-2" id="calRioEsInfo">Nenhuma planilha carregada</span>
         </div>
-        <button class="btn btn-primary btn-sm mt-2" onclick="salvarConfiguracaoCalendarios()">
+
+        <!-- Sub-escala Leste -->
+        <div class="calendario-item mb-3 p-3" style="background: #f8f9fa; border-radius: 8px; border-left: 4px solid #4caf50;">
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <strong><i class="bi bi-geo-alt me-2"></i>Leste</strong>
+            <span class="badge bg-secondary" id="calLesteStatus">Vazio</span>
+          </div>
+          <div class="d-flex gap-2 align-items-center flex-wrap">
+            <button class="btn btn-sm btn-outline-success" onclick="document.getElementById('fileInputLeste').click()">
+              <i class="bi bi-upload me-1"></i>Upload planilha
+            </button>
+            <input type="file" id="fileInputLeste" accept=".xlsx,.xls,.csv" style="display: none;" onchange="uploadCalendarioEmpresarial('leste', this)">
+          </div>
+          <span class="text-muted small d-block mt-2" id="calLesteInfo">Nenhuma planilha carregada</span>
+        </div>
+
+        <!-- Seleção da sub-escala ativa -->
+        <div class="mt-3 p-3" style="background: #e8f5e9; border-radius: 8px;">
+          <label class="form-label fw-bold"><i class="bi bi-eye me-2"></i>Sub-escala visível:</label>
+          <div class="d-flex gap-3">
+            <div class="form-check">
+              <input class="form-check-input" type="radio" name="subEscalaEmpresarial" id="radioRioEs" value="rio_es" checked onchange="alterarSubEscalaEmpresarial('rio_es')">
+              <label class="form-check-label" for="radioRioEs">Rio/Es</label>
+            </div>
+            <div class="form-check">
+              <input class="form-check-input" type="radio" name="subEscalaEmpresarial" id="radioLeste" value="leste" onchange="alterarSubEscalaEmpresarial('leste')">
+              <label class="form-check-label" for="radioLeste">Leste</label>
+            </div>
+          </div>
+        </div>
+
+        <button class="btn btn-success btn-sm mt-3" onclick="salvarConfiguracaoCalendarios()">
           <i class="bi bi-cloud-arrow-up me-1"></i>Salvar e publicar
         </button>
       </div>
@@ -2715,6 +2715,171 @@ function uploadCalendario(numCalendario, inputElement) {
   reader.readAsArrayBuffer(file);
 }
 
+// Upload de planilha para uma sub-escala Empresarial (Rio/Es ou Leste)
+function uploadCalendarioEmpresarial(subEscala, inputElement) {
+  const file = inputElement.files?.[0];
+  if (!file) return;
+
+  console.log(`📤 Upload para Sub-escala Empresarial ${subEscala}:`, file.name);
+  showLoading();
+
+  const reader = new FileReader();
+
+  reader.onload = function(e) {
+    try {
+      const data = new Uint8Array(e.target.result);
+      const workbook = XLSX.read(data, { type: 'array' });
+      const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+      const jsonData = XLSX.utils.sheet_to_json(firstSheet, { header: 1, defval: '' });
+
+      if (jsonData.length < 2) {
+        showToast('❌ Planilha vazia ou inválida', 'danger');
+        hideLoading();
+        return;
+      }
+
+      // Processar dados
+      const headers = jsonData[0].map(h => String(h).trim());
+      const dados = [];
+
+      for (let i = 1; i < jsonData.length; i++) {
+        const row = jsonData[i];
+        const obj = {};
+        for (let j = 0; j < headers.length; j++) {
+          obj[headers[j]] = row[j] || '';
+        }
+        const primeiroValor = obj[headers[0]];
+        if (primeiroValor && String(primeiroValor).trim() !== '') {
+          dados.push(obj);
+        }
+      }
+
+      if (dados.length === 0) {
+        showToast('❌ Nenhum dado válido encontrado', 'danger');
+        hideLoading();
+        return;
+      }
+
+      // Tentar extrair mês/ano do nome do arquivo
+      let mesCalendario = new Date().getMonth();
+      let anoCalendario = new Date().getFullYear();
+
+      const nomeArquivoLower = file.name.toLowerCase();
+      const mesesNomes = ['janeiro', 'fevereiro', 'marco', 'abril', 'maio', 'junho',
+                          'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
+      for (let i = 0; i < mesesNomes.length; i++) {
+        if (nomeArquivoLower.includes(mesesNomes[i])) {
+          mesCalendario = i;
+          console.log(`📝 Extraído do arquivo "${file.name}": Mês=${i} (${MESES[i]})`);
+          break;
+        }
+      }
+
+      const matchAno = nomeArquivoLower.match(/20(2[4-9])/);
+      if (matchAno) {
+        anoCalendario = parseInt('20' + matchAno[1]);
+        console.log(`📝 Extraído ano do arquivo: ${anoCalendario}`);
+      }
+
+      console.log(`📅 Sub-escala ${subEscala}: ${MESES[mesCalendario]}/${anoCalendario}`);
+
+      // Processar dados da planilha
+      const dadosPlanilhaTemp = dados;
+      const dadosOriginaisTemp = processarPlanilhaParaCalendario(dadosPlanilhaTemp, mesCalendario, anoCalendario);
+
+      // Inicializar calendario2 se não existir
+      if (!calendarios.calendario2) {
+        calendarios.calendario2 = {};
+      }
+
+      // Salvar na sub-escala apropriada
+      calendarios.calendario2[subEscala] = {
+        dadosPlanilha: dadosPlanilhaTemp,
+        dadosOriginais: dadosOriginaisTemp,
+        mes: mesCalendario,
+        ano: anoCalendario,
+        trocas: [],
+        nomeArquivo: file.name,
+        dataUpload: new Date().toISOString()
+      };
+
+      // Atualizar interface
+      atualizarStatusCalendarios();
+
+      // Se na aba Empresarial e esta sub-escala está selecionada, carregar os dados
+      if (calendarioAtivo === 'calendario2') {
+        const subEscalaSelecionada = document.querySelector('input[name="subEscalaEmpresarial"]:checked')?.value || 'rio_es';
+        if (subEscalaSelecionada === subEscala) {
+          carregarSubEscalaEmpresarial(subEscala);
+        }
+      }
+
+      hideLoading();
+      const nomeSubEscala = subEscala === 'rio_es' ? 'Rio/Es' : 'Leste';
+      showToast(`✅ Escala ${nomeSubEscala} carregada com sucesso!`, 'success');
+
+      // Salvar automaticamente na nuvem após upload
+      console.log('💾 Salvando automaticamente após upload...');
+      setTimeout(() => {
+        salvarConfiguracaoCalendarios();
+      }, 500);
+
+      // Limpar input
+      inputElement.value = '';
+
+    } catch (err) {
+      console.error('Erro ao processar arquivo:', err);
+      showToast('❌ Erro ao processar arquivo', 'danger');
+      hideLoading();
+    }
+  };
+
+  reader.onerror = function() {
+    showToast('❌ Erro ao ler arquivo', 'danger');
+    hideLoading();
+  };
+
+  reader.readAsArrayBuffer(file);
+}
+
+// Alternar sub-escala Empresarial ativa (Rio/Es ou Leste)
+function alterarSubEscalaEmpresarial(subEscala) {
+  console.log('📅 Sub-escala Empresarial alterada para:', subEscala);
+  carregarSubEscalaEmpresarial(subEscala);
+}
+
+// Carregar dados de uma sub-escala Empresarial na tela
+function carregarSubEscalaEmpresarial(subEscala) {
+  const subEscalaDados = calendarios.calendario2?.[subEscala];
+
+  if (subEscalaDados && subEscalaDados.dadosOriginais) {
+    dadosPlanilha = subEscalaDados.dadosPlanilha || [];
+    dadosOriginais = subEscalaDados.dadosOriginais || {};
+    mesSelecionado = subEscalaDados.mes ?? new Date().getMonth();
+    anoSelecionado = subEscalaDados.ano ?? new Date().getFullYear();
+    trocasRegistradas = subEscalaDados.trocas || [];
+
+    // Recalcular divisões usando prioridades atuais do CONFIG
+    recalcularDivisoesOriginais();
+
+    // Carregar dados no calendário
+    carregarCalendario();
+
+    const nomeSubEscala = subEscala === 'rio_es' ? 'Rio/Es' : 'Leste';
+    showToast(`📅 Visualizando escala Empresarial - ${nomeSubEscala}`, 'info');
+  } else {
+    // Limpar tela se não há dados
+    dadosPlanilha = [];
+    dadosOriginais = {};
+    trocasRegistradas = [];
+    const container = document.getElementById('calendarioContainer');
+    if (container) container.innerHTML = '<p class="text-center text-muted">Nenhuma planilha carregada para esta sub-escala.</p>';
+
+    const nomeSubEscala = subEscala === 'rio_es' ? 'Rio/Es' : 'Leste';
+    showToast(`⚠️ Sub-escala ${nomeSubEscala} ainda não tem dados`, 'warning');
+  }
+}
+
 // Processar planilha para gerar dados do calendário
 // Função para processar planilha com mês e ano específicos (não usa variáveis globais)
 function processarPlanilhaParaCalendario(dadosPlanilhaTemp, mesParam, anoParam) {
@@ -2835,9 +3000,11 @@ function alterarCalendarioAtivo(calKey) {
   calendarioAtivo = calKey;
   console.log('📅 Calendário ativo alterado para:', calKey);
 
-  // Atualizar radio buttons
-  document.getElementById('radioCalendario1').checked = (calKey === 'calendario1');
-  document.getElementById('radioCalendario2').checked = (calKey === 'calendario2');
+  // Atualizar radio buttons (se existirem)
+  const radio1 = document.getElementById('radioCalendario1');
+  const radio2 = document.getElementById('radioCalendario2');
+  if (radio1) radio1.checked = (calKey === 'calendario1');
+  if (radio2) radio2.checked = (calKey === 'calendario2');
 
   // Carregar dados do calendário ativo
   carregarCalendarioAtivo();
@@ -2881,36 +3048,58 @@ function carregarCalendarioAtivo() {
 
 // Atualizar badges de status dos calendários
 function atualizarStatusCalendarios() {
-  // Calendário 1
+  // Calendário 1 (Residencial)
   const cal1Status = document.getElementById('cal1Status');
   const cal1Info = document.getElementById('cal1Info');
-  if (calendarios.calendario1) {
-    const cal1 = calendarios.calendario1;
-    cal1Status.textContent = 'Carregado';
-    cal1Status.className = 'badge bg-success';
-    const mesNome = MESES[cal1.mes] || 'N/A';
-    const dias = Object.keys(cal1.dadosOriginais || {}).length;
-    cal1Info.textContent = `${mesNome}/${cal1.ano} - ${dias} dias`;
-  } else {
-    cal1Status.textContent = 'Vazio';
-    cal1Status.className = 'badge bg-secondary';
-    cal1Info.textContent = 'Nenhuma planilha carregada';
+  if (cal1Status && cal1Info) {
+    if (calendarios.calendario1) {
+      const cal1 = calendarios.calendario1;
+      cal1Status.textContent = 'Carregado';
+      cal1Status.className = 'badge bg-success';
+      const mesNome = MESES[cal1.mes] || 'N/A';
+      const dias = Object.keys(cal1.dadosOriginais || {}).length;
+      cal1Info.textContent = `${mesNome}/${cal1.ano} - ${dias} dias`;
+    } else {
+      cal1Status.textContent = 'Vazio';
+      cal1Status.className = 'badge bg-secondary';
+      cal1Info.textContent = 'Nenhuma planilha carregada';
+    }
   }
 
-  // Calendário 2
-  const cal2Status = document.getElementById('cal2Status');
-  const cal2Info = document.getElementById('cal2Info');
-  if (calendarios.calendario2) {
-    const cal2 = calendarios.calendario2;
-    cal2Status.textContent = 'Carregado';
-    cal2Status.className = 'badge bg-success';
-    const mesNome = MESES[cal2.mes] || 'N/A';
-    const dias = Object.keys(cal2.dadosOriginais || {}).length;
-    cal2Info.textContent = `${mesNome}/${cal2.ano} - ${dias} dias`;
-  } else {
-    cal2Status.textContent = 'Vazio';
-    cal2Status.className = 'badge bg-secondary';
-    cal2Info.textContent = 'Nenhuma planilha carregada';
+  // Sub-escala Rio/Es (Empresarial)
+  const calRioEsStatus = document.getElementById('calRioEsStatus');
+  const calRioEsInfo = document.getElementById('calRioEsInfo');
+  if (calRioEsStatus && calRioEsInfo) {
+    const rioEsData = calendarios.calendario2?.rio_es;
+    if (rioEsData) {
+      calRioEsStatus.textContent = 'Carregado';
+      calRioEsStatus.className = 'badge bg-success';
+      const mesNome = MESES[rioEsData.mes] || 'N/A';
+      const dias = Object.keys(rioEsData.dadosOriginais || {}).length;
+      calRioEsInfo.textContent = `${mesNome}/${rioEsData.ano} - ${dias} dias`;
+    } else {
+      calRioEsStatus.textContent = 'Vazio';
+      calRioEsStatus.className = 'badge bg-secondary';
+      calRioEsInfo.textContent = 'Nenhuma planilha carregada';
+    }
+  }
+
+  // Sub-escala Leste (Empresarial)
+  const calLesteStatus = document.getElementById('calLesteStatus');
+  const calLesteInfo = document.getElementById('calLesteInfo');
+  if (calLesteStatus && calLesteInfo) {
+    const lesteData = calendarios.calendario2?.leste;
+    if (lesteData) {
+      calLesteStatus.textContent = 'Carregado';
+      calLesteStatus.className = 'badge bg-success';
+      const mesNome = MESES[lesteData.mes] || 'N/A';
+      const dias = Object.keys(lesteData.dadosOriginais || {}).length;
+      calLesteInfo.textContent = `${mesNome}/${lesteData.ano} - ${dias} dias`;
+    } else {
+      calLesteStatus.textContent = 'Vazio';
+      calLesteStatus.className = 'badge bg-secondary';
+      calLesteInfo.textContent = 'Nenhuma planilha carregada';
+    }
   }
 }
 
@@ -5206,9 +5395,11 @@ function mudarMes(delta) {
     calendarioAtivo = novoMes.calendario;
     carregarCalendarioAtivo();
 
-    // Atualizar radio buttons
-    document.getElementById('radioCalendario1').checked = (calendarioAtivo === 'calendario1');
-    document.getElementById('radioCalendario2').checked = (calendarioAtivo === 'calendario2');
+    // Atualizar radio buttons (se existirem)
+    const radio1 = document.getElementById('radioCalendario1');
+    const radio2 = document.getElementById('radioCalendario2');
+    if (radio1) radio1.checked = (calendarioAtivo === 'calendario1');
+    if (radio2) radio2.checked = (calendarioAtivo === 'calendario2');
   }
 
   // Atualizar selects
@@ -6266,8 +6457,9 @@ function trocarAbaAdmin(abaId) {
     if (calendarioPanelEmpresarial) calendarioPanelEmpresarial.style.display = isAdmin ? 'block' : 'none';
     if (telegramPanel) telegramPanel.style.display = 'none';
 
-    // Atualizar calendário
-    carregarCalendarioAtivo();
+    // Carregar sub-escala selecionada (Rio/Es ou Leste)
+    const subEscalaSelecionada = document.querySelector('input[name="subEscalaEmpresarial"]:checked')?.value || 'rio_es';
+    carregarSubEscalaEmpresarial(subEscalaSelecionada);
 
   } else if (abaId === 'telegram') {
     // Mostrar aba Telegram
@@ -6566,18 +6758,22 @@ function obterDiaEscalaMadrugada(data) {
 }
 
 // Função para obter o responsável por uma área em uma data específica
+// NOTA: Sempre usa dados do Residencial (calendario1) para o Volume por Área
 function obterResponsavelPorArea(areaTelegram, dataMensagem) {
   try {
     const data = new Date(dataMensagem);
     // Usar o dia ajustado para a escala da madrugada (vira às 07h)
     const dia = obterDiaEscalaMadrugada(data);
 
+    // Usar sempre dados do Residencial (calendario1) para Volume por Área
+    const dadosResidencial = calendarios.calendario1?.dadosOriginais;
+
     // Verificar se temos dados para este dia
-    if (!dadosOriginais || !dadosOriginais[dia] || !dadosOriginais[dia].divisao) {
+    if (!dadosResidencial || !dadosResidencial[dia] || !dadosResidencial[dia].divisao) {
       return '-';
     }
 
-    const divisao = dadosOriginais[dia].divisao;
+    const divisao = dadosResidencial[dia].divisao;
 
     // Mapear área do Telegram para área da escala
     const areasEscala = MAPEAMENTO_AREAS_TELEGRAM[areaTelegram] || [areaTelegram];
@@ -6641,13 +6837,15 @@ function atualizarTabelaCopRede(dados) {
   const resumoPorArea = {};
 
   // Determinar número de pessoas trabalhando na data da mensagem
+  // NOTA: Sempre usa dados do Residencial (calendario1) para o Volume por Área
   const dataMensagem = new Date(ultimaMensagem.dataRecebimento);
   const diaMensagem = obterDiaEscalaMadrugada(dataMensagem);
   let numPessoasHoje = 4; // padrão
-  if (dadosOriginais && dadosOriginais[diaMensagem]) {
-    numPessoasHoje = dadosOriginais[diaMensagem].numPessoas || 4;
+  const dadosResidencial = calendarios.calendario1?.dadosOriginais;
+  if (dadosResidencial && dadosResidencial[diaMensagem]) {
+    numPessoasHoje = dadosResidencial[diaMensagem].numPessoas || 4;
   }
-  console.log(`[COP] Dia ${diaMensagem}: ${numPessoasHoje} pessoas trabalhando`);
+  console.log(`[COP] Dia ${diaMensagem}: ${numPessoasHoje} pessoas trabalhando (dados do Residencial)`);
 
   if (ultimaMensagem.resumo && ultimaMensagem.resumo.grupo) {
     console.log('[COP] Grupos encontrados:', ultimaMensagem.resumo.grupo);
