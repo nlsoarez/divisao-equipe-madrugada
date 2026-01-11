@@ -2947,8 +2947,9 @@ function carregarSubEscalaEmpresarial(subEscala) {
     anoSelecionado = subEscalaDados.ano ?? new Date().getFullYear();
     trocasRegistradas = subEscalaDados.trocas || [];
 
-    // Recalcular divisões usando prioridades atuais do CONFIG
-    recalcularDivisoesOriginais();
+    // Recalcular divisões usando configuração correta (leste ou rio_es)
+    const tipoConfig = subEscala === 'leste' ? 'leste' : 'rio_es';
+    recalcularDivisoesOriginais(tipoConfig);
 
     // Carregar dados no calendário
     carregarCalendario();
@@ -2987,6 +2988,9 @@ function carregarCalendarioEmpresarialGrid(subEscala) {
   const title = document.getElementById(titleId);
 
   if (!grid) return;
+
+  // Recalcular divisões com a configuração correta antes de exibir
+  recalcularDivisoesEmpresarial(subEscala);
 
   const subEscalaDados = calendarios.calendario2?.[subEscala];
 
@@ -5102,19 +5106,20 @@ function calcularDivisaoPorNumero(num, trabalhandoHoje, tipoConfig = 'residencia
 
 // Função para recalcular todas as divisões em dadosOriginais
 // usando as prioridades atuais do CONFIG
-function recalcularDivisoesOriginais() {
+// tipoConfig: 'residencial' (padrão), 'leste' ou 'rio_es'
+function recalcularDivisoesOriginais(tipoConfig = 'residencial') {
   if (!dadosOriginais || Object.keys(dadosOriginais).length === 0) {
     console.log('⚠️ Nenhum dado para recalcular divisões');
     return;
   }
 
-  console.log('🔄 Recalculando divisões com prioridades atuais...');
+  console.log(`🔄 Recalculando divisões (${tipoConfig}) com prioridades atuais...`);
 
   Object.keys(dadosOriginais).forEach(dia => {
     const dadosDia = dadosOriginais[dia];
 
     if (dadosDia && dadosDia.trabalhando && dadosDia.trabalhando.length > 0) {
-      const novaDivisao = calcularDivisaoPorNumero(dadosDia.numPessoas || dadosDia.trabalhando.length, dadosDia.trabalhando);
+      const novaDivisao = calcularDivisaoPorNumero(dadosDia.numPessoas || dadosDia.trabalhando.length, dadosDia.trabalhando, tipoConfig);
 
       if (Object.keys(novaDivisao).length > 0) {
         dadosOriginais[dia].divisao = novaDivisao;
@@ -5124,6 +5129,34 @@ function recalcularDivisoesOriginais() {
   });
 
   console.log('✅ Divisões recalculadas com sucesso!');
+}
+
+// Função para recalcular divisões de uma sub-escala Empresarial específica
+function recalcularDivisoesEmpresarial(subEscala) {
+  const tipoConfig = subEscala === 'leste' ? 'leste' : 'rio_es';
+  const subEscalaDados = calendarios.calendario2?.[subEscala];
+
+  if (!subEscalaDados || !subEscalaDados.dadosOriginais) {
+    console.log(`⚠️ Nenhum dado para recalcular divisões (${subEscala})`);
+    return;
+  }
+
+  console.log(`🔄 Recalculando divisões Empresarial ${subEscala}...`);
+
+  Object.keys(subEscalaDados.dadosOriginais).forEach(dia => {
+    const dadosDia = subEscalaDados.dadosOriginais[dia];
+
+    if (dadosDia && dadosDia.trabalhando && dadosDia.trabalhando.length > 0) {
+      const novaDivisao = calcularDivisaoPorNumero(dadosDia.numPessoas || dadosDia.trabalhando.length, dadosDia.trabalhando, tipoConfig);
+
+      if (Object.keys(novaDivisao).length > 0) {
+        subEscalaDados.dadosOriginais[dia].divisao = novaDivisao;
+        console.log(`   📅 Dia ${dia}: ${dadosDia.trabalhando.length} pessoas - ${JSON.stringify(novaDivisao)}`);
+      }
+    }
+  });
+
+  console.log(`✅ Divisões ${subEscala} recalculadas com sucesso!`);
 }
 
 // ============================================
