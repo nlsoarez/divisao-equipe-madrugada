@@ -133,6 +133,12 @@ const CONFIG = {
   // Gabriela, Magno e Aldenes prioritários para CO/NE/BA
   //
   PRIORIDADES_LESTE: {
+    2: {
+      areas: {
+        'CO/MG': ['FERNANDA', 'IGOR', 'SANDRO', 'GABRIELA', 'MAGNO', 'ALDENES'],
+        'NE/NO/BA': ['GABRIELA', 'MAGNO', 'ALDENES', 'FERNANDA', 'IGOR', 'SANDRO']
+      }
+    },
     3: {
       areas: {
         'NE/NO': ['FERNANDA', 'IGOR', 'SANDRO', 'GABRIELA', 'MAGNO', 'ALDENES'],
