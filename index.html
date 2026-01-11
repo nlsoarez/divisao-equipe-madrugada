@@ -250,7 +250,24 @@
       border-left-color: #f57c00;
       color: #e65100;
     }
-    
+
+    /* Botões de troca Empresarial - garantir fundo visível */
+    .btn-agendar-trocas-empresarial {
+      background: rgba(255, 152, 0, 0.15) !important;
+      border-left: 3px solid var(--warning) !important;
+      color: #e68900 !important;
+    }
+
+    .btn-agendar-trocas-empresarial:hover {
+      background: rgba(255, 152, 0, 0.25) !important;
+    }
+
+    .btn-agendar-trocas-empresarial.active {
+      background: rgba(255, 152, 0, 0.35) !important;
+      border-left-color: #f57c00 !important;
+      color: #e65100 !important;
+    }
+
     /* Configuração de Mês/Ano em Acordeão */
     .config-accordion {
       background: white;
@@ -4402,6 +4419,13 @@ function processarDadosCarregados(dados) {
 
   atualizarCalendario();
   atualizarPainelTrocas();
+
+  // Ativar a aba correta após carregar os dados
+  // Usar 'residencial' como padrão, ou a aba salva no localStorage
+  const abaSalva = localStorage.getItem('escala_tipo_selecionado') || 'residencial';
+  setTimeout(() => {
+    trocarAbaAdmin(abaSalva);
+  }, 100);
 }
 
 // ============================================
@@ -4614,11 +4638,6 @@ function iniciarComoAdmin() {
   }
 
   showToast('👑 Modo administrador ativado', 'warning');
-
-  // Ativar a aba Residencial por padrão após inicialização
-  setTimeout(() => {
-    trocarAbaAdmin('residencial');
-  }, 100);
 }
 
 // Função para alternar modo de troca
