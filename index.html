@@ -252,19 +252,30 @@
     }
 
     /* Botões de troca Empresarial - garantir fundo visível */
-    .btn-agendar-trocas-empresarial {
-      background: rgba(255, 152, 0, 0.15) !important;
-      border-left: 3px solid var(--warning) !important;
+    .calendar-nav .btn-agendar-trocas,
+    .calendar-nav .btn-agendar-trocas-empresarial,
+    #btnAgendarTrocasRioEs,
+    #btnAgendarTrocasLeste {
+      background: rgba(255, 152, 0, 0.2) !important;
+      border: 1px solid rgba(255, 152, 0, 0.4) !important;
+      border-left: 3px solid #ff9800 !important;
       color: #e68900 !important;
+      border-radius: 6px !important;
     }
 
-    .btn-agendar-trocas-empresarial:hover {
-      background: rgba(255, 152, 0, 0.25) !important;
-    }
-
-    .btn-agendar-trocas-empresarial.active {
+    .calendar-nav .btn-agendar-trocas:hover,
+    .calendar-nav .btn-agendar-trocas-empresarial:hover,
+    #btnAgendarTrocasRioEs:hover,
+    #btnAgendarTrocasLeste:hover {
       background: rgba(255, 152, 0, 0.35) !important;
-      border-left-color: #f57c00 !important;
+    }
+
+    .calendar-nav .btn-agendar-trocas.active,
+    .calendar-nav .btn-agendar-trocas-empresarial.active,
+    #btnAgendarTrocasRioEs.active,
+    #btnAgendarTrocasLeste.active {
+      background: rgba(255, 152, 0, 0.45) !important;
+      border-color: #f57c00 !important;
       color: #e65100 !important;
     }
 
@@ -3635,8 +3646,23 @@ function processarPlanilhaParaCalendario(dadosPlanilhaTemp, mesParam, anoParam, 
         let valorCelula = funcionario[colunaDia];
         let status = String(valorCelula || '').trim().toUpperCase();
 
-        const trabalhando = status === '' || status === '22';
-        const ausente = !trabalhando && status !== '';
+        // Detecção flexível de quem está trabalhando:
+        // - Célula vazia = trabalhando
+        // - '22', '22:00', '22H', '6', '6H', 'X', 'MADRUGADA', 'MD' = trabalhando
+        // - Números (horas de trabalho) = trabalhando
+        // - Ausências: 'FERIAS', 'FOLGA', 'ATESTADO', 'FALTA', 'LIC', etc.
+        const ausenciasConhecidas = ['FERIAS', 'FÉRIAS', 'FOLGA', 'ATESTADO', 'FALTA', 'LIC', 'LICENÇA', 'LICENCA', 'AFASTADO', 'AFASTAMENTO', 'DISPENSA', 'ABONO', 'COMPENSAÇÃO', 'COMPENSACAO'];
+        const isAusencia = ausenciasConhecidas.some(a => status.includes(a));
+
+        // Considera trabalhando se:
+        // - Célula vazia
+        // - Contém número (ex: 6, 22, 22:00)
+        // - Contém 'X', 'MD', 'MADRUGADA'
+        // - Não é uma ausência conhecida
+        const isNumeric = /^\d+/.test(status) || status === '';
+        const isMarcacao = status === 'X' || status === 'MD' || status.includes('MADRUGADA');
+        const trabalhando = (status === '' || isNumeric || isMarcacao) && !isAusencia;
+        const ausente = isAusencia || (!trabalhando && status !== '');
 
         if (trabalhando) {
           trabalhandoHoje.push(nome);
@@ -5289,9 +5315,23 @@ function processarDadosPlanilha() {
           debugCelulas.push({ nome: nome.substring(0, 20), valor: valorCelula, status });
         }
 
-        // REGRA SIMPLIFICADA: vazio ou "22" = presente, qualquer outra coisa = ausente
-        const trabalhando = status === '' || status === '22';
-        const ausente = !trabalhando && status !== '';
+        // Detecção flexível de quem está trabalhando:
+        // - Célula vazia = trabalhando
+        // - '22', '22:00', '22H', '6', '6H', 'X', 'MADRUGADA', 'MD' = trabalhando
+        // - Números (horas de trabalho) = trabalhando
+        // - Ausências: 'FERIAS', 'FOLGA', 'ATESTADO', 'FALTA', 'LIC', etc.
+        const ausenciasConhecidas = ['FERIAS', 'FÉRIAS', 'FOLGA', 'ATESTADO', 'FALTA', 'LIC', 'LICENÇA', 'LICENCA', 'AFASTADO', 'AFASTAMENTO', 'DISPENSA', 'ABONO', 'COMPENSAÇÃO', 'COMPENSACAO'];
+        const isAusencia = ausenciasConhecidas.some(a => status.includes(a));
+
+        // Considera trabalhando se:
+        // - Célula vazia
+        // - Contém número (ex: 6, 22, 22:00)
+        // - Contém 'X', 'MD', 'MADRUGADA'
+        // - Não é uma ausência conhecida
+        const isNumeric = /^\d+/.test(status) || status === '';
+        const isMarcacao = status === 'X' || status === 'MD' || status.includes('MADRUGADA');
+        const trabalhando = (status === '' || isNumeric || isMarcacao) && !isAusencia;
+        const ausente = isAusencia || (!trabalhando && status !== '');
 
         if (trabalhando) {
           trabalhandoHoje.push(nome);
