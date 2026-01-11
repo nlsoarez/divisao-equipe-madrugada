@@ -2077,6 +2077,10 @@
               <span class="escala-tipo-badge empresarial" style="font-size: 0.7rem;">Rio/Es</span>
             </div>
             <div class="calendar-nav">
+              <button class="btn-agendar-trocas btn-agendar-trocas-empresarial me-1" id="btnAgendarTrocasRioEs" style="display: none; font-size: 0.65rem; padding: 0.2rem 0.4rem;" onclick="toggleModoTrocaEmpresarial('rio_es')">
+                <i class="bi bi-arrow-left-right"></i>
+                <span>Trocas</span>
+              </button>
               <button class="calendar-nav-btn" onclick="mudarMesEmpresarial('rio_es', -1)">
                 <i class="bi bi-chevron-left"></i>
               </button>
@@ -2084,6 +2088,11 @@
                 <i class="bi bi-chevron-right"></i>
               </button>
             </div>
+          </div>
+          <!-- Status de Troca Rio/Es -->
+          <div class="swap-status text-center p-1 mb-1" id="swapStatusRioEs" style="display: none; background: #fff3cd; border-radius: 4px; font-size: 0.75rem;">
+            <i class="bi bi-info-circle me-1"></i>
+            <span id="swapStatusTextRioEs">Selecione o primeiro dia...</span>
           </div>
           <div class="calendar-grid calendar-grid-compact" id="calendarGridRioEs">
             <div class="calendar-weekday">S</div>
@@ -2105,6 +2114,10 @@
               <span class="escala-tipo-badge empresarial" style="font-size: 0.7rem;">Leste</span>
             </div>
             <div class="calendar-nav">
+              <button class="btn-agendar-trocas btn-agendar-trocas-empresarial me-1" id="btnAgendarTrocasLeste" style="display: none; font-size: 0.65rem; padding: 0.2rem 0.4rem;" onclick="toggleModoTrocaEmpresarial('leste')">
+                <i class="bi bi-arrow-left-right"></i>
+                <span>Trocas</span>
+              </button>
               <button class="calendar-nav-btn" onclick="mudarMesEmpresarial('leste', -1)">
                 <i class="bi bi-chevron-left"></i>
               </button>
@@ -2112,6 +2125,11 @@
                 <i class="bi bi-chevron-right"></i>
               </button>
             </div>
+          </div>
+          <!-- Status de Troca Leste -->
+          <div class="swap-status text-center p-1 mb-1" id="swapStatusLeste" style="display: none; background: #fff3cd; border-radius: 4px; font-size: 0.75rem;">
+            <i class="bi bi-info-circle me-1"></i>
+            <span id="swapStatusTextLeste">Selecione o primeiro dia...</span>
           </div>
           <div class="calendar-grid calendar-grid-compact" id="calendarGridLeste">
             <div class="calendar-weekday">S</div>
@@ -2583,6 +2601,16 @@ let selecaoTroca = {
 };
 let trocasRegistradas = [];
 
+// Variáveis para modo de troca do Empresarial
+let modoTrocaEmpresarial = {
+  rio_es: false,
+  leste: false
+};
+let selecaoTrocaEmpresarial = {
+  rio_es: { primeiro: { dia: null, pessoa: null }, segundo: { dia: null, pessoa: null } },
+  leste: { primeiro: { dia: null, pessoa: null }, segundo: { dia: null, pessoa: null } }
+};
+
 // Sistema de múltiplos calendários
 let calendarios = {
   calendario1: null,  // Dados do primeiro calendário
@@ -2947,8 +2975,9 @@ function carregarSubEscalaEmpresarial(subEscala) {
     anoSelecionado = subEscalaDados.ano ?? new Date().getFullYear();
     trocasRegistradas = subEscalaDados.trocas || [];
 
-    // Recalcular divisões usando prioridades atuais do CONFIG
-    recalcularDivisoesOriginais();
+    // Recalcular divisões usando configuração correta (leste ou rio_es)
+    const tipoConfig = subEscala === 'leste' ? 'leste' : 'rio_es';
+    recalcularDivisoesOriginais(tipoConfig);
 
     // Carregar dados no calendário
     carregarCalendario();
@@ -2987,6 +3016,9 @@ function carregarCalendarioEmpresarialGrid(subEscala) {
   const title = document.getElementById(titleId);
 
   if (!grid) return;
+
+  // Recalcular divisões com a configuração correta antes de exibir
+  recalcularDivisoesEmpresarial(subEscala);
 
   const subEscalaDados = calendarios.calendario2?.[subEscala];
 
@@ -3064,9 +3096,16 @@ function carregarCalendarioEmpresarialGrid(subEscala) {
       stats.innerHTML = `<span title="Pessoas">${dadosDia.numPessoas || 0}p</span>`;
       cell.appendChild(stats);
 
-      // Click para ver detalhes
+      // Verificar se é dia selecionado para troca
+      const selecao = selecaoTrocaEmpresarial[subEscala];
+      if (selecao && (selecao.primeiro.dia === dia || selecao.segundo.dia === dia)) {
+        cell.classList.add('selected-for-swap');
+      }
+
+      // Click para ver detalhes ou agendar troca
       cell.style.cursor = 'pointer';
-      cell.onclick = () => mostrarDetalhesDiaEmpresarial(subEscala, dia);
+      cell.setAttribute('data-dia', dia);
+      cell.onclick = () => handleDiaClickEmpresarial(subEscala, dia);
     }
 
     grid.appendChild(cell);
@@ -3143,6 +3182,356 @@ function mudarMesEmpresarial(subEscala, delta) {
 
   // Recarregar o calendário específico
   carregarCalendarioEmpresarialGrid(subEscala);
+}
+
+// ============================================
+// FUNÇÕES DE TROCA PARA EMPRESARIAL
+// ============================================
+
+function toggleModoTrocaEmpresarial(subEscala) {
+  // Desativar modo de troca da outra sub-escala
+  const outraSubEscala = subEscala === 'rio_es' ? 'leste' : 'rio_es';
+  if (modoTrocaEmpresarial[outraSubEscala]) {
+    modoTrocaEmpresarial[outraSubEscala] = false;
+    resetarSelecaoTrocaEmpresarial(outraSubEscala);
+    const outroBtn = document.getElementById(outraSubEscala === 'rio_es' ? 'btnAgendarTrocasRioEs' : 'btnAgendarTrocasLeste');
+    const outroStatus = document.getElementById(outraSubEscala === 'rio_es' ? 'swapStatusRioEs' : 'swapStatusLeste');
+    if (outroBtn) outroBtn.classList.remove('active');
+    if (outroStatus) outroStatus.style.display = 'none';
+  }
+
+  modoTrocaEmpresarial[subEscala] = !modoTrocaEmpresarial[subEscala];
+
+  const btnId = subEscala === 'rio_es' ? 'btnAgendarTrocasRioEs' : 'btnAgendarTrocasLeste';
+  const statusId = subEscala === 'rio_es' ? 'swapStatusRioEs' : 'swapStatusLeste';
+  const statusTextId = subEscala === 'rio_es' ? 'swapStatusTextRioEs' : 'swapStatusTextLeste';
+
+  const btn = document.getElementById(btnId);
+  const status = document.getElementById(statusId);
+  const statusText = document.getElementById(statusTextId);
+
+  if (modoTrocaEmpresarial[subEscala]) {
+    if (btn) btn.classList.add('active');
+    if (status) status.style.display = 'block';
+    if (statusText) statusText.textContent = 'Selecione o primeiro dia...';
+    resetarSelecaoTrocaEmpresarial(subEscala);
+    showToast(`🔄 Modo troca ativado para ${subEscala === 'rio_es' ? 'Rio/Es' : 'Leste'}`, 'info');
+  } else {
+    if (btn) btn.classList.remove('active');
+    if (status) status.style.display = 'none';
+    resetarSelecaoTrocaEmpresarial(subEscala);
+  }
+
+  // Recarregar calendário para atualizar visual
+  carregarCalendarioEmpresarialGrid(subEscala);
+}
+
+function resetarSelecaoTrocaEmpresarial(subEscala) {
+  selecaoTrocaEmpresarial[subEscala] = {
+    primeiro: { dia: null, pessoa: null },
+    segundo: { dia: null, pessoa: null }
+  };
+}
+
+function handleDiaClickEmpresarial(subEscala, dia) {
+  const subEscalaDados = calendarios.calendario2?.[subEscala];
+  if (!subEscalaDados || !subEscalaDados.dadosOriginais) return;
+
+  const dadosDia = subEscalaDados.dadosOriginais[dia];
+  if (!dadosDia) {
+    showToast('❌ Este dia não tem dados', 'warning');
+    return;
+  }
+
+  if (!modoTrocaEmpresarial[subEscala] || !isAdmin) {
+    mostrarDetalhesDiaEmpresarial(subEscala, dia);
+    return;
+  }
+
+  const selecao = selecaoTrocaEmpresarial[subEscala];
+
+  if (selecao.primeiro.dia && selecao.primeiro.dia === dia) {
+    if (!selecao.segundo.dia) {
+      mostrarModalSelecaoPessoaEmpresarial(subEscala, dia, 'segundo');
+    }
+    return;
+  }
+
+  if (selecao.segundo.dia && selecao.segundo.dia === dia) {
+    return;
+  }
+
+  if (!selecao.primeiro.dia) {
+    selecaoTrocaEmpresarial[subEscala].primeiro.dia = dia;
+    mostrarModalSelecaoPessoaEmpresarial(subEscala, dia, 'primeiro');
+  } else if (!selecao.segundo.dia) {
+    selecaoTrocaEmpresarial[subEscala].segundo.dia = dia;
+    mostrarModalSelecaoPessoaEmpresarial(subEscala, dia, 'segundo');
+  }
+}
+
+function mostrarModalSelecaoPessoaEmpresarial(subEscala, dia, etapa) {
+  const subEscalaDados = calendarios.calendario2?.[subEscala];
+  if (!subEscalaDados || !subEscalaDados.dadosOriginais) return;
+
+  const dadosDia = subEscalaDados.dadosOriginais[dia];
+  if (!dadosDia || !dadosDia.trabalhando || dadosDia.trabalhando.length === 0) {
+    showToast('❌ Nenhuma pessoa disponível neste dia', 'warning');
+    return;
+  }
+
+  const nomeSubEscala = subEscala === 'rio_es' ? 'Rio/Es' : 'Leste';
+  const modal = new bootstrap.Modal(document.getElementById('selectPersonModal'));
+  const personList = document.getElementById('personList');
+
+  let titulo = etapa === 'primeiro'
+    ? `[${nomeSubEscala}] Selecionar pessoa (Dia ${dia})`
+    : `[${nomeSubEscala}] Trocar com (Dia ${dia})`;
+
+  const modalTitle = document.querySelector('#selectPersonModal .modal-title');
+  if (modalTitle) {
+    modalTitle.innerHTML = `<i class="bi bi-person-plus me-2"></i>${titulo}`;
+  }
+
+  // Obter trocas da sub-escala
+  const trocasSubEscala = subEscalaDados.trocas || [];
+
+  const pessoasEmTrocas = new Set();
+  trocasSubEscala
+    .filter(t => t.status === 'ativa' && (t.dia_a === dia || t.dia_b === dia))
+    .forEach(t => {
+      if (t.dia_a === dia) pessoasEmTrocas.add(t.pessoa_a);
+      if (t.dia_b === dia) pessoasEmTrocas.add(t.pessoa_b);
+    });
+
+  const pessoasDisponiveis = dadosDia.trabalhando.filter(p => !pessoasEmTrocas.has(p));
+
+  if (pessoasDisponiveis.length === 0) {
+    showToast('❌ Todas as pessoas deste dia já estão em trocas', 'warning');
+    return;
+  }
+
+  if (personList) {
+    personList.innerHTML = pessoasDisponiveis.map(pessoa => `
+      <button type="button" class="list-group-item list-group-item-action py-2" onclick="selecionarPessoaEmpresarial('${subEscala}', '${pessoa}', ${dia}, '${etapa}')">
+        <i class="bi bi-person me-2"></i>${pessoa}
+      </button>
+    `).join('');
+  }
+
+  modal.show();
+}
+
+function selecionarPessoaEmpresarial(subEscala, pessoa, dia, etapa) {
+  const nomeSubEscala = subEscala === 'rio_es' ? 'Rio/Es' : 'Leste';
+  const statusTextId = subEscala === 'rio_es' ? 'swapStatusTextRioEs' : 'swapStatusTextLeste';
+
+  if (etapa === 'primeiro') {
+    selecaoTrocaEmpresarial[subEscala].primeiro.pessoa = pessoa;
+    selecaoTrocaEmpresarial[subEscala].primeiro.dia = dia;
+
+    const modalPessoa = bootstrap.Modal.getInstance(document.getElementById('selectPersonModal'));
+    if (modalPessoa) modalPessoa.hide();
+
+    const statusText = document.getElementById(statusTextId);
+    if (statusText) {
+      statusText.textContent = `${pessoa} (Dia ${dia}). Selecione o segundo dia...`;
+    }
+
+    // Atualizar visual do calendário
+    carregarCalendarioEmpresarialGrid(subEscala);
+
+  } else if (etapa === 'segundo') {
+    selecaoTrocaEmpresarial[subEscala].segundo.pessoa = pessoa;
+    selecaoTrocaEmpresarial[subEscala].segundo.dia = dia;
+
+    const modal = bootstrap.Modal.getInstance(document.getElementById('selectPersonModal'));
+    if (modal) modal.hide();
+
+    if (selecaoTrocaEmpresarial[subEscala].primeiro.pessoa === selecaoTrocaEmpresarial[subEscala].segundo.pessoa) {
+      showToast('❌ Não pode trocar a mesma pessoa consigo mesma', 'warning');
+      resetarSelecaoTrocaEmpresarial(subEscala);
+      const statusText = document.getElementById(statusTextId);
+      if (statusText) statusText.textContent = 'Selecione o primeiro dia...';
+      return;
+    }
+
+    mostrarModalConfirmacaoTrocaEmpresarial(subEscala);
+  }
+}
+
+function mostrarModalConfirmacaoTrocaEmpresarial(subEscala) {
+  const selecao = selecaoTrocaEmpresarial[subEscala];
+  const subEscalaDados = calendarios.calendario2?.[subEscala];
+  const nomeSubEscala = subEscala === 'rio_es' ? 'Rio/Es' : 'Leste';
+
+  const modal = new bootstrap.Modal(document.getElementById('swapModal'));
+  const swapDetails = document.getElementById('swapDetails');
+
+  const dadosDia1 = subEscalaDados.dadosOriginais[selecao.primeiro.dia];
+  const dadosDia2 = subEscalaDados.dadosOriginais[selecao.segundo.dia];
+
+  const area1 = dadosDia1.divisao ? Object.entries(dadosDia1.divisao).find(([area, p]) => p === selecao.primeiro.pessoa)?.[0] || 'Área' : 'Área';
+  const area2 = dadosDia2.divisao ? Object.entries(dadosDia2.divisao).find(([area, p]) => p === selecao.segundo.pessoa)?.[0] || 'Área' : 'Área';
+
+  // Guardar sub-escala atual para o confirmar
+  window.trocaEmpresarialAtual = subEscala;
+
+  if (swapDetails) {
+    swapDetails.innerHTML = `
+      <p><strong>Troca proposta (${nomeSubEscala}):</strong></p>
+      <div class="row">
+        <div class="col-6">
+          <div class="card mb-2" style="border: 2px solid #4caf50;">
+            <div class="card-body p-2">
+              <h6 class="card-title mb-1">${selecao.primeiro.pessoa}</h6>
+              <p class="card-text small mb-1">
+                <strong>Dia ${selecao.primeiro.dia}:</strong> ${area1}<br>
+                <small>Vai para: Dia ${selecao.segundo.dia}</small>
+              </p>
+            </div>
+          </div>
+        </div>
+        <div class="col-6">
+          <div class="card mb-2" style="border: 2px solid #4caf50;">
+            <div class="card-body p-2">
+              <h6 class="card-title mb-1">${selecao.segundo.pessoa}</h6>
+              <p class="card-text small mb-1">
+                <strong>Dia ${selecao.segundo.dia}:</strong> ${area2}<br>
+                <small>Vai para: Dia ${selecao.primeiro.dia}</small>
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+      <p class="small text-muted mt-2">
+        <i class="bi bi-info-circle me-1"></i>
+        ${selecao.primeiro.pessoa} trabalhará no dia ${selecao.segundo.dia} e
+        ${selecao.segundo.pessoa} trabalhará no dia ${selecao.primeiro.dia}.
+      </p>
+    `;
+  }
+
+  // Modificar botão de confirmação temporariamente
+  const btnConfirmar = document.querySelector('#swapModal .btn-success');
+  if (btnConfirmar) {
+    btnConfirmar.setAttribute('onclick', 'confirmarTrocaEmpresarial()');
+  }
+
+  modal.show();
+}
+
+function confirmarTrocaEmpresarial() {
+  const subEscala = window.trocaEmpresarialAtual;
+  if (!subEscala) return;
+
+  const selecao = selecaoTrocaEmpresarial[subEscala];
+  const subEscalaDados = calendarios.calendario2?.[subEscala];
+  const observacao = document.getElementById('swapObservation');
+  const observacaoTexto = observacao ? observacao.value : '';
+  const nomeSubEscala = subEscala === 'rio_es' ? 'Rio/Es' : 'Leste';
+
+  const novaTroca = {
+    id: 'troca-emp-' + Date.now(),
+    data_registro: new Date().toISOString().split('T')[0],
+    dia_a: selecao.primeiro.dia,
+    pessoa_a: selecao.primeiro.pessoa,
+    dia_b: selecao.segundo.dia,
+    pessoa_b: selecao.segundo.pessoa,
+    observacao: observacaoTexto,
+    status: 'ativa',
+    subEscala: subEscala
+  };
+
+  // Inicializar array de trocas se não existir
+  if (!subEscalaDados.trocas) {
+    subEscalaDados.trocas = [];
+  }
+  subEscalaDados.trocas.push(novaTroca);
+
+  // Fechar modal
+  const modal = bootstrap.Modal.getInstance(document.getElementById('swapModal'));
+  if (modal) modal.hide();
+
+  // Resetar seleção e desativar modo
+  resetarSelecaoTrocaEmpresarial(subEscala);
+  modoTrocaEmpresarial[subEscala] = false;
+
+  const btnId = subEscala === 'rio_es' ? 'btnAgendarTrocasRioEs' : 'btnAgendarTrocasLeste';
+  const statusId = subEscala === 'rio_es' ? 'swapStatusRioEs' : 'swapStatusLeste';
+  const btn = document.getElementById(btnId);
+  const status = document.getElementById(statusId);
+  if (btn) btn.classList.remove('active');
+  if (status) status.style.display = 'none';
+
+  // Restaurar botão de confirmação original
+  const btnConfirmar = document.querySelector('#swapModal .btn-success');
+  if (btnConfirmar) {
+    btnConfirmar.setAttribute('onclick', 'confirmarTroca()');
+  }
+
+  // Aplicar trocas e atualizar calendário
+  aplicarTrocasEmpresarial(subEscala);
+  carregarCalendarioEmpresarialGrid(subEscala);
+
+  // Salvar na nuvem
+  salvarDadosNaNuvem().then(() => {
+    showToast(`✅ Troca registrada em ${nomeSubEscala}!`, 'success');
+  });
+
+  delete window.trocaEmpresarialAtual;
+}
+
+function aplicarTrocasEmpresarial(subEscala) {
+  const subEscalaDados = calendarios.calendario2?.[subEscala];
+  if (!subEscalaDados || !subEscalaDados.trocas) return;
+
+  // Criar cópia dos dados originais se não existir dadosProcessados
+  if (!subEscalaDados.dadosProcessados) {
+    subEscalaDados.dadosProcessados = JSON.parse(JSON.stringify(subEscalaDados.dadosOriginais));
+  }
+
+  subEscalaDados.trocas.filter(t => t.status === 'ativa').forEach(troca => {
+    const diaA = troca.dia_a;
+    const diaB = troca.dia_b;
+    const pessoaA = troca.pessoa_a;
+    const pessoaB = troca.pessoa_b;
+
+    const dadosDiaA = subEscalaDados.dadosProcessados[diaA];
+    const dadosDiaB = subEscalaDados.dadosProcessados[diaB];
+
+    if (dadosDiaA && dadosDiaB) {
+      // Trocar nas listas de trabalhando
+      if (dadosDiaA.trabalhando) {
+        const indexA = dadosDiaA.trabalhando.indexOf(pessoaA);
+        if (indexA > -1) {
+          dadosDiaA.trabalhando[indexA] = pessoaB;
+        }
+      }
+      if (dadosDiaB.trabalhando) {
+        const indexB = dadosDiaB.trabalhando.indexOf(pessoaB);
+        if (indexB > -1) {
+          dadosDiaB.trabalhando[indexB] = pessoaA;
+        }
+      }
+
+      // Atualizar divisões
+      if (dadosDiaA.divisao) {
+        Object.keys(dadosDiaA.divisao).forEach(area => {
+          if (dadosDiaA.divisao[area] === pessoaA) {
+            dadosDiaA.divisao[area] = pessoaB;
+          }
+        });
+      }
+      if (dadosDiaB.divisao) {
+        Object.keys(dadosDiaB.divisao).forEach(area => {
+          if (dadosDiaB.divisao[area] === pessoaB) {
+            dadosDiaB.divisao[area] = pessoaA;
+          }
+        });
+      }
+    }
+  });
 }
 
 // Processar planilha para gerar dados do calendário
@@ -4225,6 +4614,11 @@ function iniciarComoAdmin() {
   }
 
   showToast('👑 Modo administrador ativado', 'warning');
+
+  // Ativar a aba Residencial por padrão após inicialização
+  setTimeout(() => {
+    trocarAbaAdmin('residencial');
+  }, 100);
 }
 
 // Função para alternar modo de troca
@@ -4982,7 +5376,7 @@ function calcularDivisaoPorNumero(num, trabalhandoHoje, tipoConfig = 'residencia
 
   if (tipoConfig === 'leste') {
     configPrioridades = CONFIG?.PRIORIDADES_LESTE || {};
-    limiteInferior = 3;
+    limiteInferior = 2;
     limiteSuperior = 5;
   } else if (tipoConfig === 'rio_es') {
     configPrioridades = CONFIG?.PRIORIDADES_RIO_ES || {};
@@ -5102,19 +5496,20 @@ function calcularDivisaoPorNumero(num, trabalhandoHoje, tipoConfig = 'residencia
 
 // Função para recalcular todas as divisões em dadosOriginais
 // usando as prioridades atuais do CONFIG
-function recalcularDivisoesOriginais() {
+// tipoConfig: 'residencial' (padrão), 'leste' ou 'rio_es'
+function recalcularDivisoesOriginais(tipoConfig = 'residencial') {
   if (!dadosOriginais || Object.keys(dadosOriginais).length === 0) {
     console.log('⚠️ Nenhum dado para recalcular divisões');
     return;
   }
 
-  console.log('🔄 Recalculando divisões com prioridades atuais...');
+  console.log(`🔄 Recalculando divisões (${tipoConfig}) com prioridades atuais...`);
 
   Object.keys(dadosOriginais).forEach(dia => {
     const dadosDia = dadosOriginais[dia];
 
     if (dadosDia && dadosDia.trabalhando && dadosDia.trabalhando.length > 0) {
-      const novaDivisao = calcularDivisaoPorNumero(dadosDia.numPessoas || dadosDia.trabalhando.length, dadosDia.trabalhando);
+      const novaDivisao = calcularDivisaoPorNumero(dadosDia.numPessoas || dadosDia.trabalhando.length, dadosDia.trabalhando, tipoConfig);
 
       if (Object.keys(novaDivisao).length > 0) {
         dadosOriginais[dia].divisao = novaDivisao;
@@ -5124,6 +5519,34 @@ function recalcularDivisoesOriginais() {
   });
 
   console.log('✅ Divisões recalculadas com sucesso!');
+}
+
+// Função para recalcular divisões de uma sub-escala Empresarial específica
+function recalcularDivisoesEmpresarial(subEscala) {
+  const tipoConfig = subEscala === 'leste' ? 'leste' : 'rio_es';
+  const subEscalaDados = calendarios.calendario2?.[subEscala];
+
+  if (!subEscalaDados || !subEscalaDados.dadosOriginais) {
+    console.log(`⚠️ Nenhum dado para recalcular divisões (${subEscala})`);
+    return;
+  }
+
+  console.log(`🔄 Recalculando divisões Empresarial ${subEscala}...`);
+
+  Object.keys(subEscalaDados.dadosOriginais).forEach(dia => {
+    const dadosDia = subEscalaDados.dadosOriginais[dia];
+
+    if (dadosDia && dadosDia.trabalhando && dadosDia.trabalhando.length > 0) {
+      const novaDivisao = calcularDivisaoPorNumero(dadosDia.numPessoas || dadosDia.trabalhando.length, dadosDia.trabalhando, tipoConfig);
+
+      if (Object.keys(novaDivisao).length > 0) {
+        subEscalaDados.dadosOriginais[dia].divisao = novaDivisao;
+        console.log(`   📅 Dia ${dia}: ${dadosDia.trabalhando.length} pessoas - ${JSON.stringify(novaDivisao)}`);
+      }
+    }
+  });
+
+  console.log(`✅ Divisões ${subEscala} recalculadas com sucesso!`);
 }
 
 // ============================================
@@ -6777,6 +7200,12 @@ function trocarAbaAdmin(abaId) {
     if (calendarioPanelResidencial) calendarioPanelResidencial.style.display = 'none';
     if (calendarioPanelEmpresarial) calendarioPanelEmpresarial.style.display = isAdmin ? 'block' : 'none';
     if (telegramPanel) telegramPanel.style.display = 'none';
+
+    // Mostrar botões de troca para admin
+    const btnAgendarTrocasRioEs = document.getElementById('btnAgendarTrocasRioEs');
+    const btnAgendarTrocasLeste = document.getElementById('btnAgendarTrocasLeste');
+    if (btnAgendarTrocasRioEs) btnAgendarTrocasRioEs.style.display = isAdmin ? 'inline-flex' : 'none';
+    if (btnAgendarTrocasLeste) btnAgendarTrocasLeste.style.display = isAdmin ? 'inline-flex' : 'none';
 
     // Carregar ambos os calendários Empresarial
     carregarCalendariosEmpresarial();
