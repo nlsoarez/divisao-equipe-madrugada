@@ -3300,9 +3300,20 @@ function carregarCalendarioAtivo() {
     atualizarCalendario();
     atualizarPainelTrocas();
 
-    // Mostrar calendário
+    // Mostrar calendário apropriado baseado no calendário ativo
     const calendarSection = document.getElementById('calendarSection');
-    if (calendarSection) calendarSection.style.display = 'block';
+    const calendarSectionEmpresarial = document.getElementById('calendarSectionEmpresarial');
+
+    if (calendarioAtivo === 'calendario2') {
+      // Empresarial: ocultar calendário principal, mostrar calendários Empresarial
+      if (calendarSection) calendarSection.style.display = 'none';
+      if (calendarSectionEmpresarial) calendarSectionEmpresarial.style.display = 'block';
+      carregarCalendariosEmpresarial();
+    } else {
+      // Residencial: mostrar calendário principal, ocultar calendários Empresarial
+      if (calendarSection) calendarSection.style.display = 'block';
+      if (calendarSectionEmpresarial) calendarSectionEmpresarial.style.display = 'none';
+    }
 
     showToast(`📅 Visualizando escala ${calendarioAtivo === 'calendario1' ? 'Residencial' : 'Empresarial'}`, 'info');
   } else {
@@ -3951,13 +3962,22 @@ function processarDadosCarregados(dados) {
   dadosProcessados = JSON.parse(JSON.stringify(dadosOriginais));
   aplicarTrocasAosDados();
 
-  // Mostrar calendário
+  // Mostrar calendário apropriado baseado no calendário ativo
   const calendarSection = document.getElementById('calendarSection');
+  const calendarSectionEmpresarial = document.getElementById('calendarSectionEmpresarial');
   const configAccordion = document.getElementById('configAccordion');
   const calendarioPanel = document.getElementById('calendarioPanel');
   const emptyMessage = document.getElementById('emptyMessage');
 
-  if (calendarSection) calendarSection.style.display = 'block';
+  if (calendarioAtivo === 'calendario2') {
+    // Empresarial: ocultar calendário principal, mostrar calendários Empresarial
+    if (calendarSection) calendarSection.style.display = 'none';
+    if (calendarSectionEmpresarial) calendarSectionEmpresarial.style.display = 'block';
+  } else {
+    // Residencial: mostrar calendário principal, ocultar calendários Empresarial
+    if (calendarSection) calendarSection.style.display = 'block';
+    if (calendarSectionEmpresarial) calendarSectionEmpresarial.style.display = 'none';
+  }
   // Configuração de mês só aparece para admin
   if (configAccordion) configAccordion.style.display = isAdmin ? 'block' : 'none';
   // Painel de calendários só aparece para admin
@@ -4897,12 +4917,19 @@ function processarDadosPlanilha() {
     // Salvar cópia dos dados originais
     dadosOriginais = JSON.parse(JSON.stringify(dadosProcessados));
     
-    // Mostrar calendário
+    // Mostrar calendário apropriado baseado no calendário ativo
     const calendarSection = document.getElementById('calendarSection');
+    const calendarSectionEmpresarial = document.getElementById('calendarSectionEmpresarial');
     const configAccordion = document.getElementById('configAccordion');
     const emptyMessage = document.getElementById('emptyMessage');
 
-    if (calendarSection) calendarSection.style.display = 'block';
+    if (calendarioAtivo === 'calendario2') {
+      if (calendarSection) calendarSection.style.display = 'none';
+      if (calendarSectionEmpresarial) calendarSectionEmpresarial.style.display = 'block';
+    } else {
+      if (calendarSection) calendarSection.style.display = 'block';
+      if (calendarSectionEmpresarial) calendarSectionEmpresarial.style.display = 'none';
+    }
     // Configuração de mês só aparece para admin
     if (configAccordion) configAccordion.style.display = isAdmin ? 'block' : 'none';
     
