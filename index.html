@@ -672,7 +672,45 @@
         opacity: 0.9;
       }
     }
-    
+
+    /* Calendários Empresarial lado a lado */
+    .empresarial-calendar {
+      margin-bottom: 1rem;
+    }
+    .empresarial-calendar .calendar-header {
+      padding: 0.5rem 0.75rem;
+    }
+    .empresarial-calendar .calendar-title {
+      font-size: 0.9rem;
+    }
+    .calendar-grid-compact {
+      gap: 1px;
+    }
+    .calendar-grid-compact .calendar-weekday {
+      padding: 0.4rem 0.25rem;
+      font-size: 0.65rem;
+    }
+    .calendar-grid-compact .calendar-day {
+      padding: 0.35rem 0.25rem;
+      min-height: 55px;
+    }
+    .calendar-grid-compact .calendar-day-number {
+      font-size: 0.75rem;
+    }
+    .calendar-grid-compact .calendar-day-week {
+      font-size: 0.55rem;
+    }
+    .calendar-grid-compact .calendar-day-stats {
+      font-size: 0.55rem;
+      gap: 1px;
+    }
+    .calendar-grid-compact .calendar-day-stats span {
+      padding: 0.1rem 0.2rem;
+    }
+    #calendarSectionEmpresarial {
+      margin-top: 1rem;
+    }
+
     /* Modal para Detalhes do Dia - Design System Style */
     .day-modal .modal-content {
       border-radius: var(--ds-border-radius-2xl, 14px);
@@ -2020,25 +2058,77 @@
           <span class="text-muted small d-block mt-2" id="calLesteInfo">Nenhuma planilha carregada</span>
         </div>
 
-        <!-- Seleção da sub-escala ativa -->
-        <div class="mt-3 p-3" style="background: #e8f5e9; border-radius: 8px;">
-          <label class="form-label fw-bold"><i class="bi bi-eye me-2"></i>Sub-escala visível:</label>
-          <div class="d-flex gap-3">
-            <div class="form-check">
-              <input class="form-check-input" type="radio" name="subEscalaEmpresarial" id="radioRioEs" value="rio_es" checked onchange="alterarSubEscalaEmpresarial('rio_es')">
-              <label class="form-check-label" for="radioRioEs">Rio/Es</label>
-            </div>
-            <div class="form-check">
-              <input class="form-check-input" type="radio" name="subEscalaEmpresarial" id="radioLeste" value="leste" onchange="alterarSubEscalaEmpresarial('leste')">
-              <label class="form-check-label" for="radioLeste">Leste</label>
-            </div>
-          </div>
-        </div>
-
         <button class="btn btn-success btn-sm mt-3" onclick="salvarConfiguracaoCalendarios()">
           <i class="bi bi-cloud-arrow-up me-1"></i>Salvar e publicar
         </button>
       </div>
+    </div>
+  </div>
+
+  <!-- Seção de Calendários Empresarial (Rio/Es e Leste lado a lado) -->
+  <div id="calendarSectionEmpresarial" style="display: none;">
+    <div class="row g-3">
+      <!-- Calendário Rio/Es -->
+      <div class="col-md-6">
+        <div class="calendar-container empresarial-calendar">
+          <div class="calendar-header" style="background: linear-gradient(135deg, #4caf50 0%, #2e7d32 100%);">
+            <div class="calendar-title-wrapper">
+              <h5 class="calendar-title" id="calendarTitleRioEs">Rio/Es</h5>
+              <span class="escala-tipo-badge empresarial" style="font-size: 0.7rem;">Rio/Es</span>
+            </div>
+            <div class="calendar-nav">
+              <button class="calendar-nav-btn" onclick="mudarMesEmpresarial('rio_es', -1)">
+                <i class="bi bi-chevron-left"></i>
+              </button>
+              <button class="calendar-nav-btn" onclick="mudarMesEmpresarial('rio_es', 1)">
+                <i class="bi bi-chevron-right"></i>
+              </button>
+            </div>
+          </div>
+          <div class="calendar-grid calendar-grid-compact" id="calendarGridRioEs">
+            <div class="calendar-weekday">S</div>
+            <div class="calendar-weekday">T</div>
+            <div class="calendar-weekday">Q</div>
+            <div class="calendar-weekday">Q</div>
+            <div class="calendar-weekday">S</div>
+            <div class="calendar-weekday">S</div>
+            <div class="calendar-weekday">D</div>
+          </div>
+        </div>
+      </div>
+      <!-- Calendário Leste -->
+      <div class="col-md-6">
+        <div class="calendar-container empresarial-calendar">
+          <div class="calendar-header" style="background: linear-gradient(135deg, #4caf50 0%, #2e7d32 100%);">
+            <div class="calendar-title-wrapper">
+              <h5 class="calendar-title" id="calendarTitleLeste">Leste</h5>
+              <span class="escala-tipo-badge empresarial" style="font-size: 0.7rem;">Leste</span>
+            </div>
+            <div class="calendar-nav">
+              <button class="calendar-nav-btn" onclick="mudarMesEmpresarial('leste', -1)">
+                <i class="bi bi-chevron-left"></i>
+              </button>
+              <button class="calendar-nav-btn" onclick="mudarMesEmpresarial('leste', 1)">
+                <i class="bi bi-chevron-right"></i>
+              </button>
+            </div>
+          </div>
+          <div class="calendar-grid calendar-grid-compact" id="calendarGridLeste">
+            <div class="calendar-weekday">S</div>
+            <div class="calendar-weekday">T</div>
+            <div class="calendar-weekday">Q</div>
+            <div class="calendar-weekday">Q</div>
+            <div class="calendar-weekday">S</div>
+            <div class="calendar-weekday">S</div>
+            <div class="calendar-weekday">D</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- Mensagem quando não há dados -->
+    <div id="emptyMessageEmpresarial" class="empty-message" style="display: none;">
+      <i class="bi bi-calendar-x"></i>
+      <p>Nenhum dado encontrado. Faça upload das planilhas Rio/Es e Leste.</p>
     </div>
   </div>
 
@@ -2806,12 +2896,9 @@ function uploadCalendarioEmpresarial(subEscala, inputElement) {
       // Atualizar interface
       atualizarStatusCalendarios();
 
-      // Se na aba Empresarial e esta sub-escala está selecionada, carregar os dados
+      // Se na aba Empresarial, atualizar o calendário específico
       if (calendarioAtivo === 'calendario2') {
-        const subEscalaSelecionada = document.querySelector('input[name="subEscalaEmpresarial"]:checked')?.value || 'rio_es';
-        if (subEscalaSelecionada === subEscala) {
-          carregarSubEscalaEmpresarial(subEscala);
-        }
+        carregarCalendarioEmpresarialGrid(subEscala);
       }
 
       hideLoading();
@@ -2878,6 +2965,183 @@ function carregarSubEscalaEmpresarial(subEscala) {
     const nomeSubEscala = subEscala === 'rio_es' ? 'Rio/Es' : 'Leste';
     showToast(`⚠️ Sub-escala ${nomeSubEscala} ainda não tem dados`, 'warning');
   }
+}
+
+// Carregar ambos os calendários Empresarial (Rio/Es e Leste) lado a lado
+function carregarCalendariosEmpresarial() {
+  console.log('📅 Carregando calendários Empresarial (Rio/Es e Leste)');
+
+  // Carregar Rio/Es
+  carregarCalendarioEmpresarialGrid('rio_es');
+
+  // Carregar Leste
+  carregarCalendarioEmpresarialGrid('leste');
+}
+
+// Carregar um calendário específico no grid Empresarial
+function carregarCalendarioEmpresarialGrid(subEscala) {
+  const gridId = subEscala === 'rio_es' ? 'calendarGridRioEs' : 'calendarGridLeste';
+  const titleId = subEscala === 'rio_es' ? 'calendarTitleRioEs' : 'calendarTitleLeste';
+  const grid = document.getElementById(gridId);
+  const title = document.getElementById(titleId);
+
+  if (!grid) return;
+
+  const subEscalaDados = calendarios.calendario2?.[subEscala];
+
+  // Limpar grid (manter weekdays)
+  const weekdays = grid.querySelectorAll('.calendar-weekday');
+  grid.innerHTML = '';
+  weekdays.forEach(w => grid.appendChild(w.cloneNode(true)));
+
+  if (!subEscalaDados || !subEscalaDados.dadosOriginais) {
+    // Mostrar mensagem de vazio
+    const emptyCell = document.createElement('div');
+    emptyCell.className = 'calendar-day empty';
+    emptyCell.style.gridColumn = 'span 7';
+    emptyCell.style.textAlign = 'center';
+    emptyCell.style.padding = '2rem';
+    emptyCell.innerHTML = '<small class="text-muted">Nenhuma planilha carregada</small>';
+    grid.appendChild(emptyCell);
+    return;
+  }
+
+  const dados = subEscalaDados.dadosOriginais;
+  const mes = subEscalaDados.mes;
+  const ano = subEscalaDados.ano;
+
+  // Atualizar título
+  const nomeSubEscala = subEscala === 'rio_es' ? 'Rio/Es' : 'Leste';
+  if (title) title.textContent = `${nomeSubEscala} - ${MESES[mes]} ${ano}`;
+
+  // Calcular dias do mês
+  const primeiroDia = new Date(ano, mes, 1);
+  const ultimoDia = new Date(ano, mes + 1, 0);
+  const diasNoMes = ultimoDia.getDate();
+
+  // Ajustar dia da semana (0=Dom -> 6, 1=Seg -> 0, etc)
+  let primeiroDiaSemana = primeiroDia.getDay();
+  primeiroDiaSemana = primeiroDiaSemana === 0 ? 6 : primeiroDiaSemana - 1;
+
+  // Adicionar células vazias antes do primeiro dia
+  for (let i = 0; i < primeiroDiaSemana; i++) {
+    const emptyCell = document.createElement('div');
+    emptyCell.className = 'calendar-day empty';
+    grid.appendChild(emptyCell);
+  }
+
+  // Adicionar dias do mês
+  const hoje = new Date();
+  for (let dia = 1; dia <= diasNoMes; dia++) {
+    const cell = document.createElement('div');
+    cell.className = 'calendar-day';
+
+    const dadosDia = dados[dia];
+    const isToday = dia === hoje.getDate() && mes === hoje.getMonth() && ano === hoje.getFullYear();
+
+    if (isToday) cell.classList.add('today');
+    if (dadosDia) cell.classList.add('has-data');
+
+    // Número do dia
+    const dayNumber = document.createElement('div');
+    dayNumber.className = 'calendar-day-number';
+    dayNumber.textContent = dia;
+    cell.appendChild(dayNumber);
+
+    // Dia da semana
+    const dataAtual = new Date(ano, mes, dia);
+    const diaSemana = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'][dataAtual.getDay()];
+    const weekLabel = document.createElement('div');
+    weekLabel.className = 'calendar-day-week';
+    weekLabel.textContent = diaSemana;
+    cell.appendChild(weekLabel);
+
+    // Stats (número de pessoas)
+    if (dadosDia) {
+      const stats = document.createElement('div');
+      stats.className = 'calendar-day-stats';
+      stats.innerHTML = `<span title="Pessoas">${dadosDia.numPessoas || 0}p</span>`;
+      cell.appendChild(stats);
+
+      // Click para ver detalhes
+      cell.style.cursor = 'pointer';
+      cell.onclick = () => mostrarDetalhesDiaEmpresarial(subEscala, dia);
+    }
+
+    grid.appendChild(cell);
+  }
+}
+
+// Mostrar detalhes de um dia da escala Empresarial
+function mostrarDetalhesDiaEmpresarial(subEscala, dia) {
+  const subEscalaDados = calendarios.calendario2?.[subEscala];
+  if (!subEscalaDados || !subEscalaDados.dadosOriginais) return;
+
+  const dadosDia = subEscalaDados.dadosOriginais[dia];
+  if (!dadosDia) return;
+
+  const nomeSubEscala = subEscala === 'rio_es' ? 'Rio/Es' : 'Leste';
+  const mes = subEscalaDados.mes;
+  const ano = subEscalaDados.ano;
+
+  // Título do modal
+  const modalTitle = document.getElementById('dayModalTitle');
+  if (modalTitle) {
+    modalTitle.innerHTML = `<i class="bi bi-calendar-day me-2"></i>${dia} de ${MESES[mes]} - ${nomeSubEscala}`;
+  }
+
+  // Conteúdo do modal
+  const modalContent = document.getElementById('dayModalContent');
+  if (modalContent) {
+    let html = '<div class="day-details">';
+    html += `<p><strong>Pessoas trabalhando:</strong> ${dadosDia.numPessoas || 0}</p>`;
+
+    if (dadosDia.divisao) {
+      html += '<h6 class="mt-3">Divisão por Área:</h6>';
+      html += '<ul class="list-group list-group-flush">';
+      for (const [area, pessoa] of Object.entries(dadosDia.divisao)) {
+        html += `<li class="list-group-item d-flex justify-content-between align-items-center py-2">
+          <span class="fw-bold">${area}</span>
+          <span>${pessoa}</span>
+        </li>`;
+      }
+      html += '</ul>';
+    }
+
+    html += '</div>';
+    modalContent.innerHTML = html;
+  }
+
+  // Mostrar modal
+  const modal = new bootstrap.Modal(document.getElementById('dayModal'));
+  modal.show();
+}
+
+// Mudar mês nos calendários Empresarial
+function mudarMesEmpresarial(subEscala, delta) {
+  const subEscalaDados = calendarios.calendario2?.[subEscala];
+  if (!subEscalaDados) {
+    showToast(`⚠️ Nenhuma planilha carregada para ${subEscala === 'rio_es' ? 'Rio/Es' : 'Leste'}`, 'warning');
+    return;
+  }
+
+  // Atualizar mês/ano da sub-escala
+  let novoMes = subEscalaDados.mes + delta;
+  let novoAno = subEscalaDados.ano;
+
+  if (novoMes < 0) {
+    novoMes = 11;
+    novoAno--;
+  } else if (novoMes > 11) {
+    novoMes = 0;
+    novoAno++;
+  }
+
+  subEscalaDados.mes = novoMes;
+  subEscalaDados.ano = novoAno;
+
+  // Recarregar o calendário específico
+  carregarCalendarioEmpresarialGrid(subEscala);
 }
 
 // Processar planilha para gerar dados do calendário
@@ -6416,6 +6680,7 @@ function trocarAbaAdmin(abaId) {
   const tabEmpresarial = document.getElementById('tabEmpresarial');
   const tabTelegram = document.getElementById('tabTelegram');
   const calendarSection = document.getElementById('calendarSection');
+  const calendarSectionEmpresarial = document.getElementById('calendarSectionEmpresarial');
   const calendarioPanelResidencial = document.getElementById('calendarioPanelResidencial');
   const calendarioPanelEmpresarial = document.getElementById('calendarioPanelEmpresarial');
   const telegramPanel = document.getElementById('telegramPanel');
@@ -6434,8 +6699,9 @@ function trocarAbaAdmin(abaId) {
     calendarioAtivo = 'calendario1';
     localStorage.setItem('escala_tipo_selecionado', 'residencial');
 
-    // Mostrar conteúdo
+    // Mostrar conteúdo - apenas calendário Residencial
     if (calendarSection) calendarSection.style.display = 'block';
+    if (calendarSectionEmpresarial) calendarSectionEmpresarial.style.display = 'none';
     if (calendarioPanelResidencial) calendarioPanelResidencial.style.display = isAdmin ? 'block' : 'none';
     if (calendarioPanelEmpresarial) calendarioPanelEmpresarial.style.display = 'none';
     if (telegramPanel) telegramPanel.style.display = 'none';
@@ -6451,15 +6717,15 @@ function trocarAbaAdmin(abaId) {
     calendarioAtivo = 'calendario2';
     localStorage.setItem('escala_tipo_selecionado', 'empresarial');
 
-    // Mostrar conteúdo
-    if (calendarSection) calendarSection.style.display = 'block';
+    // Mostrar conteúdo - calendários Rio/Es e Leste lado a lado
+    if (calendarSection) calendarSection.style.display = 'none';
+    if (calendarSectionEmpresarial) calendarSectionEmpresarial.style.display = 'block';
     if (calendarioPanelResidencial) calendarioPanelResidencial.style.display = 'none';
     if (calendarioPanelEmpresarial) calendarioPanelEmpresarial.style.display = isAdmin ? 'block' : 'none';
     if (telegramPanel) telegramPanel.style.display = 'none';
 
-    // Carregar sub-escala selecionada (Rio/Es ou Leste)
-    const subEscalaSelecionada = document.querySelector('input[name="subEscalaEmpresarial"]:checked')?.value || 'rio_es';
-    carregarSubEscalaEmpresarial(subEscalaSelecionada);
+    // Carregar ambos os calendários Empresarial
+    carregarCalendariosEmpresarial();
 
   } else if (abaId === 'telegram') {
     // Mostrar aba Telegram
@@ -6467,6 +6733,7 @@ function trocarAbaAdmin(abaId) {
 
     // Ocultar calendários
     if (calendarSection) calendarSection.style.display = 'none';
+    if (calendarSectionEmpresarial) calendarSectionEmpresarial.style.display = 'none';
     if (calendarioPanelResidencial) calendarioPanelResidencial.style.display = 'none';
     if (calendarioPanelEmpresarial) calendarioPanelEmpresarial.style.display = 'none';
 
