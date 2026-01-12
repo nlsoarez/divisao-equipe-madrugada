@@ -251,34 +251,32 @@
       color: #e65100;
     }
 
-    /* Botões de troca Empresarial - fundo sólido igual ao botão Agendar trocas residencial */
+    /* Botões de troca Empresarial - estilo igual ao indicador Modo administrador */
     .calendar-nav .btn-agendar-trocas-empresarial,
     #btnAgendarTrocasRioEs,
     #btnAgendarTrocasLeste {
-      background: #fff8f0 !important;
-      border: 1px solid rgba(255, 152, 0, 0.5) !important;
-      border-left: 4px solid #ff9800 !important;
+      background: rgba(255, 152, 0, 0.15) !important;
+      border: none !important;
+      border-left: 4px solid var(--warning, #ff9800) !important;
       color: #e68900 !important;
       border-radius: 6px !important;
-      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15) !important;
+      padding: 0.4rem 0.8rem !important;
+      font-weight: 500 !important;
     }
 
     .calendar-nav .btn-agendar-trocas-empresarial:hover,
     #btnAgendarTrocasRioEs:hover,
     #btnAgendarTrocasLeste:hover {
-      background: #fff0e0 !important;
-      border-color: rgba(255, 152, 0, 0.7) !important;
+      background: rgba(255, 152, 0, 0.25) !important;
       transform: translateY(-1px);
-      box-shadow: 0 3px 6px rgba(0, 0, 0, 0.2) !important;
     }
 
     .calendar-nav .btn-agendar-trocas-empresarial.active,
     #btnAgendarTrocasRioEs.active,
     #btnAgendarTrocasLeste.active {
-      background: #ffe4c4 !important;
-      border-color: #f57c00 !important;
+      background: rgba(255, 152, 0, 0.35) !important;
+      border-left-color: #f57c00 !important;
       color: #e65100 !important;
-      box-shadow: 0 2px 6px rgba(245, 124, 0, 0.3) !important;
     }
 
     /* Configuração de Mês/Ano em Acordeão */
@@ -739,6 +737,100 @@
     }
     #calendarSectionEmpresarial {
       margin-top: 1rem;
+    }
+
+    /* Calendário Empresarial Expandido */
+    .calendario-expanded {
+      position: fixed !important;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      width: 100vw !important;
+      height: 100vh !important;
+      max-width: none !important;
+      z-index: 1050;
+      background: white;
+      padding: 1rem;
+      overflow: auto;
+      animation: expandCalendar 0.3s ease-out;
+    }
+
+    @keyframes expandCalendar {
+      from {
+        opacity: 0;
+        transform: scale(0.9);
+      }
+      to {
+        opacity: 1;
+        transform: scale(1);
+      }
+    }
+
+    .calendario-expanded .calendar-container {
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .calendario-expanded .calendar-grid {
+      flex: 1;
+      display: grid;
+      gap: 4px !important;
+    }
+
+    .calendario-expanded .calendar-day {
+      min-height: 80px !important;
+      padding: 0.5rem !important;
+    }
+
+    .calendario-expanded .calendar-day-number {
+      font-size: 1rem !important;
+    }
+
+    .calendario-expanded .calendar-day-week {
+      font-size: 0.7rem !important;
+    }
+
+    .calendario-expanded .calendar-day-stats {
+      font-size: 0.7rem !important;
+    }
+
+    .calendario-expanded .calendar-weekday {
+      padding: 0.6rem 0.4rem !important;
+      font-size: 0.8rem !important;
+    }
+
+    .calendario-expanded-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.5);
+      z-index: 1049;
+    }
+
+    .btn-expand-calendar {
+      background: rgba(255, 255, 255, 0.2);
+      border: none;
+      color: white;
+      padding: 0.2rem 0.4rem;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    .btn-expand-calendar:hover {
+      background: rgba(255, 255, 255, 0.3);
+    }
+
+    .btn-expand-calendar.expanded {
+      background: rgba(255, 0, 0, 0.2);
+    }
+
+    .btn-expand-calendar.expanded:hover {
+      background: rgba(255, 0, 0, 0.3);
     }
 
     /* Modal para Detalhes do Dia - Design System Style */
@@ -2107,6 +2199,9 @@
               <span class="escala-tipo-badge empresarial" style="font-size: 0.7rem;">Rio/Es</span>
             </div>
             <div class="calendar-nav">
+              <button class="btn-expand-calendar me-1" id="btnExpandRioEs" onclick="toggleExpandCalendario('rio_es')" title="Expandir calendário">
+                <i class="bi bi-arrows-fullscreen"></i>
+              </button>
               <button class="btn-agendar-trocas btn-agendar-trocas-empresarial me-1" id="btnAgendarTrocasRioEs" style="display: none; font-size: 0.65rem; padding: 0.2rem 0.4rem;" onclick="toggleModoTrocaEmpresarial('rio_es')">
                 <i class="bi bi-arrow-left-right"></i>
                 <span>Trocas</span>
@@ -2144,6 +2239,9 @@
               <span class="escala-tipo-badge empresarial" style="font-size: 0.7rem;">Leste</span>
             </div>
             <div class="calendar-nav">
+              <button class="btn-expand-calendar me-1" id="btnExpandLeste" onclick="toggleExpandCalendario('leste')" title="Expandir calendário">
+                <i class="bi bi-arrows-fullscreen"></i>
+              </button>
               <button class="btn-agendar-trocas btn-agendar-trocas-empresarial me-1" id="btnAgendarTrocasLeste" style="display: none; font-size: 0.65rem; padding: 0.2rem 0.4rem;" onclick="toggleModoTrocaEmpresarial('leste')">
                 <i class="bi bi-arrow-left-right"></i>
                 <span>Trocas</span>
@@ -3184,39 +3282,426 @@ function mostrarDetalhesDiaEmpresarial(subEscala, dia) {
 
   const nomeSubEscala = subEscala === 'rio_es' ? 'Rio/Es' : 'Leste';
   const mes = subEscalaDados.mes;
-  const ano = subEscalaDados.ano;
+  const trocasDia = (subEscalaDados.trocas || []).filter(t =>
+    (t.dia_a === dia || t.dia_b === dia) && t.status === 'ativa'
+  );
 
-  // Título do modal
-  const modalTitle = document.getElementById('dayModalTitle');
-  if (modalTitle) {
-    modalTitle.innerHTML = `<i class="bi bi-calendar-day me-2"></i>${dia} de ${MESES[mes]} - ${nomeSubEscala}`;
-  }
-
-  // Conteúdo do modal
-  const modalContent = document.getElementById('dayModalContent');
-  if (modalContent) {
-    let html = '<div class="day-details">';
-    html += `<p><strong>Pessoas trabalhando:</strong> ${dadosDia.numPessoas || 0}</p>`;
-
-    if (dadosDia.divisao) {
-      html += '<h6 class="mt-3">Divisão por Área:</h6>';
-      html += '<ul class="list-group list-group-flush">';
-      for (const [area, pessoa] of Object.entries(dadosDia.divisao)) {
-        html += `<li class="list-group-item d-flex justify-content-between align-items-center py-2">
-          <span class="fw-bold">${area}</span>
-          <span>${pessoa}</span>
-        </li>`;
-      }
-      html += '</ul>';
-    }
-
-    html += '</div>';
-    modalContent.innerHTML = html;
-  }
-
-  // Mostrar modal
   const modal = new bootstrap.Modal(document.getElementById('dayModal'));
+  const modalTitle = document.getElementById('dayModalTitle');
+  const modalContent = document.getElementById('dayModalContent');
+
+  if (!modalTitle || !modalContent) return;
+
+  let tituloExtra = '';
+  if (trocasDia.length > 0) {
+    tituloExtra = ` <span class="badge bg-purple">${trocasDia.length} troca(s)</span>`;
+  }
+
+  modalTitle.innerHTML = `Dia ${dia} (${dadosDia.diaSemana}) - ${nomeSubEscala} - ${dadosDia.numPessoas} pessoa(s)${tituloExtra}`;
+
+  let html = `
+    <div class="day-content">
+      <div class="area-section">
+        <div class="area-title">
+          <i class="bi bi-diagram-3"></i>
+          <span>Divisão de Áreas - ${nomeSubEscala}</span>
+          ${trocasDia.length > 0 ? '<span class="badge ms-2" style="background: linear-gradient(135deg, #26a69a 0%, #00897b 100%); color: white;">COM TROCAS</span>' : ''}
+          ${isAdmin ? `
+            <div class="ms-auto d-flex gap-1">
+              <button class="btn btn-sm btn-outline-danger" onclick="marcarAusenciaNaoEsperadaEmpresarial('${subEscala}', ${dia})" title="Marcar ausência não esperada"><i class="bi bi-person-dash"></i></button>
+              <button class="btn btn-sm btn-outline-primary" onclick="editarDivisaoAreasEmpresarial('${subEscala}', ${dia})" title="Editar divisão de áreas"><i class="bi bi-pencil"></i></button>
+            </div>
+          ` : ''}
+        </div>
+        <div class="area-grid" id="areaGridEmpresarial-${subEscala}-${dia}">
+  `;
+
+  if (dadosDia.divisao && Object.keys(dadosDia.divisao).length > 0) {
+    // Ordenar as entradas alfabeticamente pelo primeiro nome da pessoa
+    const entradasOrdenadas = Object.entries(dadosDia.divisao)
+      .filter(([area, pessoa]) => pessoa)
+      .sort((a, b) => {
+        const nomeA = obterPrimeiroNome(a[1]).toLowerCase();
+        const nomeB = obterPrimeiroNome(b[1]).toLowerCase();
+        return nomeA.localeCompare(nomeB, 'pt-BR');
+      });
+
+    entradasOrdenadas.forEach(([area, pessoa]) => {
+      const pessoaEmTroca = trocasDia.some(t => t.pessoa_a === pessoa || t.pessoa_b === pessoa);
+      const nomeExibir = pessoa.includes(' / ')
+        ? pessoa.split(' / ').map(n => obterPrimeiroNome(n)).join(' / ')
+        : obterPrimeiroNome(pessoa);
+
+      html += `
+        <div class="area-item">
+          <span class="area-label">${area}</span>
+          <div class="funcionario-name" title="${pessoa}">
+            ${nomeExibir}
+            ${pessoaEmTroca ? ' <i class="bi bi-arrow-left-right text-purple"></i>' : ''}
+          </div>
+        </div>
+      `;
+    });
+  } else {
+    html += `<div class="text-muted small">Não foi possível fazer a divisão.</div>`;
+  }
+
+  html += `
+        </div>
+      </div>
+
+      <div class="status-section">
+        <div class="status-title">
+          <i class="bi bi-people"></i>
+          <span>Status da Equipe</span>
+        </div>
+
+        <div class="status-group">
+          <div class="status-group-title">Trabalhando (${dadosDia.trabalhando?.length || 0})</div>
+          <div class="status-list">
+  `;
+
+  // Ordenar trabalhando alfabeticamente pelo primeiro nome
+  const trabalhandoOrdenado = ordenarNomesAlfabeticamente(dadosDia.trabalhando || []);
+
+  trabalhandoOrdenado.forEach(nome => {
+    const pessoaEmTroca = trocasDia.some(t => t.pessoa_a === nome || t.pessoa_b === nome);
+    const primeiroNome = obterPrimeiroNome(nome);
+
+    html += `
+      <div class="status-item">
+        <span class="status-badge badge-presente">✓</span>
+        <span>${primeiroNome} ${pessoaEmTroca ? '<i class="bi bi-arrow-left-right text-purple ms-1"></i>' : ''}</span>
+      </div>
+    `;
+  });
+
+  html += `
+          </div>
+        </div>
+  `;
+
+  if (dadosDia.ausentes && dadosDia.ausentes.length > 0) {
+    html += `
+        <div class="status-group">
+          <div class="status-group-title">Ausentes (${dadosDia.ausentes.length})</div>
+          <div class="status-list">
+    `;
+
+    const ausentesOrdenados = [...dadosDia.ausentes].sort((a, b) => {
+      const nomeA = obterPrimeiroNome(a.nome).toLowerCase();
+      const nomeB = obterPrimeiroNome(b.nome).toLowerCase();
+      return nomeA.localeCompare(nomeB, 'pt-BR');
+    });
+
+    ausentesOrdenados.forEach(({nome, motivo}) => {
+      const primeiroNome = obterPrimeiroNome(nome);
+      html += `
+        <div class="status-item">
+          <span class="status-badge badge-ausente">✗</span>
+          <span>${primeiroNome}</span>
+          <span class="absence-reason">${motivo}</span>
+        </div>
+      `;
+    });
+
+    html += `
+          </div>
+        </div>
+    `;
+  }
+
+  html += `
+      </div>
+    </div>
+  `;
+
+  modalContent.innerHTML = html;
   modal.show();
+}
+
+// Editar divisão de áreas para Empresarial
+function editarDivisaoAreasEmpresarial(subEscala, dia) {
+  const subEscalaDados = calendarios.calendario2?.[subEscala];
+  if (!subEscalaDados || !subEscalaDados.dadosOriginais || !isAdmin) return;
+
+  const dadosDia = subEscalaDados.dadosOriginais[dia];
+  if (!dadosDia) return;
+
+  const areaGrid = document.getElementById(`areaGridEmpresarial-${subEscala}-${dia}`);
+  if (!areaGrid) return;
+
+  const nomeSubEscala = subEscala === 'rio_es' ? 'Rio/Es' : 'Leste';
+  const funcionariosDisponiveis = dadosDia.trabalhando || [];
+
+  let formHtml = `<form id="formEditarDivisaoEmpresarial" class="edit-divisao-form" data-subescala="${subEscala}" data-dia="${dia}">`;
+
+  Object.entries(dadosDia.divisao || {}).forEach(([area, pessoaAtual]) => {
+    // Verificar se já tem 2 pessoas (formato "Pessoa1 / Pessoa2")
+    const pessoas = pessoaAtual ? pessoaAtual.split(' / ').map(p => p.trim()) : [];
+    const pessoa1 = pessoas[0] || '';
+    const pessoa2 = pessoas[1] || '';
+    const areaId = area.replace(/\//g, '_').replace(/\s/g, '_');
+
+    formHtml += `
+      <div class="area-edit-item mb-3">
+        <label class="form-label fw-bold mb-1">${area}</label>
+        <div class="d-flex gap-2 align-items-center">
+          <select class="form-select form-select-sm" name="area1-${areaId}" data-area="${area}" data-position="1" style="flex: 1;">
+            <option value="">-- Pessoa 1 --</option>
+    `;
+
+    funcionariosDisponiveis.forEach(func => {
+      const primeiroNome = obterPrimeiroNome(func);
+      const selected = func === pessoa1 || primeiroNome === pessoa1 ? 'selected' : '';
+      formHtml += `<option value="${func}" ${selected}>${primeiroNome}</option>`;
+    });
+
+    formHtml += `
+          </select>
+          <select class="form-select form-select-sm" name="area2-${areaId}" data-area="${area}" data-position="2" style="flex: 1;">
+            <option value="">-- Pessoa 2 (opcional) --</option>
+    `;
+
+    funcionariosDisponiveis.forEach(func => {
+      const primeiroNome = obterPrimeiroNome(func);
+      const selected = func === pessoa2 || primeiroNome === pessoa2 ? 'selected' : '';
+      formHtml += `<option value="${func}" ${selected}>${primeiroNome}</option>`;
+    });
+
+    formHtml += `
+          </select>
+        </div>
+      </div>
+    `;
+  });
+
+  formHtml += `
+    <div class="mt-3 d-flex gap-2 flex-wrap">
+      <button type="button" class="btn btn-success btn-sm" onclick="salvarDivisaoAreasEmpresarial('${subEscala}', ${dia})">
+        <i class="bi bi-check"></i> Salvar
+      </button>
+      <button type="button" class="btn btn-secondary btn-sm" onclick="mostrarDetalhesDiaEmpresarial('${subEscala}', ${dia})">
+        <i class="bi bi-x"></i> Cancelar
+      </button>
+      <button type="button" class="btn btn-warning btn-sm" onclick="recalcularDivisaoAutomaticaEmpresarial('${subEscala}', ${dia})">
+        <i class="bi bi-arrow-clockwise"></i> Recalcular
+      </button>
+    </div>
+  </form>`;
+
+  areaGrid.innerHTML = formHtml;
+}
+
+function salvarDivisaoAreasEmpresarial(subEscala, dia) {
+  const form = document.getElementById('formEditarDivisaoEmpresarial');
+  if (!form) return;
+
+  const subEscalaDados = calendarios.calendario2?.[subEscala];
+  if (!subEscalaDados || !subEscalaDados.dadosOriginais) return;
+
+  const selects = form.querySelectorAll('select');
+  const novaDivisao = {};
+  const pessoasPorArea = {};
+
+  // Agrupar pessoas por área
+  selects.forEach(select => {
+    const area = select.dataset.area;
+    const pessoa = select.value;
+    const position = select.dataset.position;
+
+    if (area) {
+      if (!pessoasPorArea[area]) {
+        pessoasPorArea[area] = { pessoa1: '', pessoa2: '' };
+      }
+      if (position === '1' && pessoa) {
+        pessoasPorArea[area].pessoa1 = pessoa;
+      } else if (position === '2' && pessoa) {
+        pessoasPorArea[area].pessoa2 = pessoa;
+      }
+    }
+  });
+
+  // Combinar pessoas em formato "Pessoa1 / Pessoa2" se houver 2
+  Object.entries(pessoasPorArea).forEach(([area, pessoas]) => {
+    if (pessoas.pessoa1 && pessoas.pessoa2) {
+      novaDivisao[area] = `${pessoas.pessoa1} / ${pessoas.pessoa2}`;
+    } else if (pessoas.pessoa1) {
+      novaDivisao[area] = pessoas.pessoa1;
+    } else if (pessoas.pessoa2) {
+      novaDivisao[area] = pessoas.pessoa2;
+    }
+  });
+
+  // Atualizar dados
+  if (subEscalaDados.dadosOriginais[dia]) {
+    subEscalaDados.dadosOriginais[dia].divisao = novaDivisao;
+  }
+
+  // Salvar na nuvem
+  salvarConfiguracaoCalendarios().then(() => {
+    showToast('✅ Divisão de áreas atualizada!', 'success');
+    carregarCalendarioEmpresarialGrid(subEscala);
+
+    // Fechar modal e reabrir com dados atualizados
+    const modal = bootstrap.Modal.getInstance(document.getElementById('dayModal'));
+    if (modal) modal.hide();
+
+    setTimeout(() => mostrarDetalhesDiaEmpresarial(subEscala, dia), 300);
+  }).catch(error => {
+    console.error('Erro ao salvar:', error);
+    showToast('❌ Erro ao salvar alterações', 'danger');
+  });
+}
+
+function recalcularDivisaoAutomaticaEmpresarial(subEscala, dia) {
+  const subEscalaDados = calendarios.calendario2?.[subEscala];
+  if (!subEscalaDados || !subEscalaDados.dadosOriginais) return;
+
+  const dadosDia = subEscalaDados.dadosOriginais[dia];
+  if (!dadosDia || !dadosDia.trabalhando) return;
+
+  const tipoConfig = subEscala === 'leste' ? 'leste' : 'rio_es';
+
+  // Recalcular usando a função existente
+  const novaDivisao = calcularDivisaoPorNumero(dadosDia.numPessoas || dadosDia.trabalhando.length, dadosDia.trabalhando, tipoConfig);
+
+  // Atualizar dados
+  subEscalaDados.dadosOriginais[dia].divisao = novaDivisao;
+
+  // Salvar na nuvem
+  salvarConfiguracaoCalendarios().then(() => {
+    showToast('✅ Divisão recalculada automaticamente!', 'success');
+    carregarCalendarioEmpresarialGrid(subEscala);
+
+    // Fechar modal e reabrir com dados atualizados
+    const modal = bootstrap.Modal.getInstance(document.getElementById('dayModal'));
+    if (modal) modal.hide();
+
+    setTimeout(() => mostrarDetalhesDiaEmpresarial(subEscala, dia), 300);
+  }).catch(error => {
+    console.error('Erro ao salvar:', error);
+    showToast('❌ Erro ao salvar alterações', 'danger');
+  });
+}
+
+// ============================================
+// AUSÊNCIA NÃO ESPERADA - EMPRESARIAL
+// ============================================
+
+function marcarAusenciaNaoEsperadaEmpresarial(subEscala, dia) {
+  const subEscalaDados = calendarios.calendario2?.[subEscala];
+  if (!subEscalaDados || !subEscalaDados.dadosOriginais || !isAdmin) return;
+
+  const dadosDia = subEscalaDados.dadosOriginais[dia];
+  if (!dadosDia) return;
+
+  const modalContent = document.getElementById('dayModalContent');
+  if (!modalContent) return;
+
+  const funcionariosDisponiveis = dadosDia.trabalhando || [];
+  const nomeSubEscala = subEscala === 'rio_es' ? 'Rio/Es' : 'Leste';
+
+  if (funcionariosDisponiveis.length === 0) {
+    showToast('❌ Não há funcionários trabalhando para marcar como ausente', 'warning');
+    return;
+  }
+
+  let html = `
+    <div class="ausencia-form p-3">
+      <div class="alert alert-warning mb-3">
+        <i class="bi bi-exclamation-triangle me-2"></i>
+        <strong>Ausência não esperada - ${nomeSubEscala}</strong><br>
+        <small>Selecione o funcionário que ficou ausente inesperadamente. A divisão de áreas será recalculada automaticamente.</small>
+      </div>
+
+      <div class="mb-3">
+        <label class="form-label fw-bold">Funcionário ausente:</label>
+        <select class="form-select" id="selectFuncionarioAusenteEmpresarial">
+          <option value="">-- Selecione --</option>
+  `;
+
+  funcionariosDisponiveis.forEach(func => {
+    const primeiroNome = obterPrimeiroNome(func);
+    html += `<option value="${func}">${primeiroNome}</option>`;
+  });
+
+  html += `
+        </select>
+      </div>
+
+      <div class="mb-3">
+        <label class="form-label fw-bold">Motivo (opcional):</label>
+        <input type="text" class="form-control" id="motivoAusenciaEmpresarial" placeholder="Ex: Doença, emergência familiar...">
+      </div>
+
+      <div class="d-flex gap-2">
+        <button class="btn btn-danger" onclick="confirmarAusenciaNaoEsperadaEmpresarial('${subEscala}', ${dia})">
+          <i class="bi bi-person-dash me-1"></i> Confirmar Ausência
+        </button>
+        <button class="btn btn-secondary" onclick="mostrarDetalhesDiaEmpresarial('${subEscala}', ${dia})">
+          <i class="bi bi-x me-1"></i> Cancelar
+        </button>
+      </div>
+    </div>
+  `;
+
+  modalContent.innerHTML = html;
+}
+
+function confirmarAusenciaNaoEsperadaEmpresarial(subEscala, dia) {
+  const selectFuncionario = document.getElementById('selectFuncionarioAusenteEmpresarial');
+  const motivoInput = document.getElementById('motivoAusenciaEmpresarial');
+
+  if (!selectFuncionario || !selectFuncionario.value) {
+    showToast('❌ Selecione um funcionário', 'warning');
+    return;
+  }
+
+  const funcionarioAusente = selectFuncionario.value;
+  const motivo = motivoInput?.value || 'Ausência não esperada';
+
+  const subEscalaDados = calendarios.calendario2?.[subEscala];
+  if (!subEscalaDados || !subEscalaDados.dadosOriginais) return;
+
+  const dadosDia = subEscalaDados.dadosOriginais[dia];
+  if (!dadosDia) return;
+
+  // Remover da lista de trabalhando
+  dadosDia.trabalhando = dadosDia.trabalhando.filter(f => f !== funcionarioAusente);
+
+  // Adicionar à lista de ausentes
+  if (!dadosDia.ausentes) {
+    dadosDia.ausentes = [];
+  }
+  dadosDia.ausentes.push({ nome: funcionarioAusente, motivo: motivo });
+
+  // Atualizar número de pessoas
+  dadosDia.numPessoas = dadosDia.trabalhando.length;
+
+  // Recalcular divisão
+  const tipoConfig = subEscala === 'leste' ? 'leste' : 'rio_es';
+  const novaDivisao = calcularDivisaoPorNumero(
+    dadosDia.numPessoas,
+    dadosDia.trabalhando,
+    tipoConfig
+  );
+  dadosDia.divisao = novaDivisao;
+
+  // Salvar na nuvem
+  salvarConfiguracaoCalendarios().then(() => {
+    showToast(`✅ ${obterPrimeiroNome(funcionarioAusente)} marcado como ausente. Divisão recalculada!`, 'success');
+    carregarCalendarioEmpresarialGrid(subEscala);
+
+    // Fechar modal e reabrir com dados atualizados
+    const modal = bootstrap.Modal.getInstance(document.getElementById('dayModal'));
+    if (modal) modal.hide();
+
+    setTimeout(() => mostrarDetalhesDiaEmpresarial(subEscala, dia), 300);
+  }).catch(error => {
+    console.error('Erro ao salvar:', error);
+    showToast('❌ Erro ao salvar alterações', 'danger');
+  });
 }
 
 // Mudar mês nos calendários Empresarial
@@ -3245,6 +3730,102 @@ function mudarMesEmpresarial(subEscala, delta) {
   // Recarregar o calendário específico
   carregarCalendarioEmpresarialGrid(subEscala);
 }
+
+// ============================================
+// EXPANSÃO DE CALENDÁRIO EMPRESARIAL
+// ============================================
+
+let calendarioExpandido = null;
+let overlayElement = null;
+let calendarContainerOriginal = null;
+let colOriginal = null;
+
+function toggleExpandCalendario(subEscala) {
+  if (calendarioExpandido === subEscala) {
+    // Se já está expandido, recolher
+    recolherCalendario();
+  } else {
+    // Expandir o calendário
+    expandirCalendario(subEscala);
+  }
+}
+
+function expandirCalendario(subEscala) {
+  // Se outro calendário está expandido, recolher primeiro
+  if (calendarioExpandido) {
+    recolherCalendario();
+  }
+
+  const containerId = subEscala === 'rio_es' ? 'calendarGridRioEs' : 'calendarGridLeste';
+  const btnId = subEscala === 'rio_es' ? 'btnExpandRioEs' : 'btnExpandLeste';
+
+  // Encontrar o col-md-6 que contém o calendário
+  const grid = document.getElementById(containerId);
+  if (!grid) return;
+
+  colOriginal = grid.closest('.col-md-6');
+  if (!colOriginal) return;
+
+  // Criar overlay de fundo
+  overlayElement = document.createElement('div');
+  overlayElement.className = 'calendario-expanded-overlay';
+  overlayElement.onclick = () => recolherCalendario();
+  document.body.appendChild(overlayElement);
+
+  // Adicionar classe de expansão
+  colOriginal.classList.add('calendario-expanded');
+
+  // Atualizar botão
+  const btn = document.getElementById(btnId);
+  if (btn) {
+    btn.classList.add('expanded');
+    btn.innerHTML = '<i class="bi bi-fullscreen-exit"></i>';
+    btn.title = 'Recolher calendário';
+  }
+
+  calendarioExpandido = subEscala;
+
+  // Prevenir scroll do body
+  document.body.style.overflow = 'hidden';
+}
+
+function recolherCalendario() {
+  if (!calendarioExpandido) return;
+
+  const btnId = calendarioExpandido === 'rio_es' ? 'btnExpandRioEs' : 'btnExpandLeste';
+
+  // Remover overlay
+  if (overlayElement) {
+    overlayElement.remove();
+    overlayElement = null;
+  }
+
+  // Remover classe de expansão
+  if (colOriginal) {
+    colOriginal.classList.remove('calendario-expanded');
+    colOriginal = null;
+  }
+
+  // Restaurar botão
+  const btn = document.getElementById(btnId);
+  if (btn) {
+    btn.classList.remove('expanded');
+    btn.innerHTML = '<i class="bi bi-arrows-fullscreen"></i>';
+    btn.title = 'Expandir calendário';
+  }
+
+  calendarioExpandido = null;
+
+  // Restaurar scroll do body
+  document.body.style.overflow = '';
+}
+
+// Fechar calendário expandido com tecla Escape
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Escape' && calendarioExpandido) {
+    recolherCalendario();
+  }
+});
 
 // ============================================
 // FUNÇÕES DE TROCA PARA EMPRESARIAL
@@ -6492,7 +7073,12 @@ function mostrarDetalhesDia(dia) {
           <i class="bi bi-diagram-3"></i>
           <span>Divisão de Áreas</span>
           ${trocasDia.length > 0 ? '<span class="badge ms-2" style="background: linear-gradient(135deg, #26a69a 0%, #00897b 100%); color: white;">COM TROCAS</span>' : ''}
-          ${isAdmin ? `<button class="btn btn-sm btn-outline-primary ms-auto" onclick="editarDivisaoAreas(${dia})" title="Editar divisão de áreas"><i class="bi bi-pencil"></i></button>` : ''}
+          ${isAdmin ? `
+            <div class="ms-auto d-flex gap-1">
+              <button class="btn btn-sm btn-outline-danger" onclick="marcarAusenciaNaoEsperada(${dia})" title="Marcar ausência não esperada"><i class="bi bi-person-dash"></i></button>
+              <button class="btn btn-sm btn-outline-primary" onclick="editarDivisaoAreas(${dia})" title="Editar divisão de áreas"><i class="bi bi-pencil"></i></button>
+            </div>
+          ` : ''}
         </div>
         <div class="area-grid" id="areaGrid-${dia}">
   `;
@@ -6648,21 +7234,41 @@ function editarDivisaoAreas(dia) {
   let formHtml = '<form id="formEditarDivisao" class="edit-divisao-form">';
 
   Object.entries(dadosDia.divisao).forEach(([area, pessoaAtual]) => {
+    // Verificar se já tem 2 pessoas (formato "Pessoa1 / Pessoa2")
+    const pessoas = pessoaAtual ? pessoaAtual.split(' / ').map(p => p.trim()) : [];
+    const pessoa1 = pessoas[0] || '';
+    const pessoa2 = pessoas[1] || '';
+    const areaId = area.replace(/\//g, '_').replace(/\s/g, '_');
+
     formHtml += `
-      <div class="area-edit-item mb-2">
-        <label class="form-label fw-bold">${area}</label>
-        <select class="form-select form-select-sm" name="area-${area.replace(/\//g, '_')}" data-area="${area}">
-          <option value="">-- Selecione --</option>
+      <div class="area-edit-item mb-3">
+        <label class="form-label fw-bold mb-1">${area}</label>
+        <div class="d-flex gap-2 align-items-center">
+          <select class="form-select form-select-sm" name="area1-${areaId}" data-area="${area}" data-position="1" style="flex: 1;">
+            <option value="">-- Pessoa 1 --</option>
     `;
 
     funcionariosDisponiveis.forEach(func => {
       const primeiroNome = obterPrimeiroNome(func);
-      const selected = func === pessoaAtual || primeiroNome === pessoaAtual ? 'selected' : '';
+      const selected = func === pessoa1 || primeiroNome === pessoa1 ? 'selected' : '';
       formHtml += `<option value="${func}" ${selected}>${primeiroNome}</option>`;
     });
 
     formHtml += `
-        </select>
+          </select>
+          <select class="form-select form-select-sm" name="area2-${areaId}" data-area="${area}" data-position="2" style="flex: 1;">
+            <option value="">-- Pessoa 2 (opcional) --</option>
+    `;
+
+    funcionariosDisponiveis.forEach(func => {
+      const primeiroNome = obterPrimeiroNome(func);
+      const selected = func === pessoa2 || primeiroNome === pessoa2 ? 'selected' : '';
+      formHtml += `<option value="${func}" ${selected}>${primeiroNome}</option>`;
+    });
+
+    formHtml += `
+          </select>
+        </div>
       </div>
     `;
   });
@@ -6690,12 +7296,34 @@ function salvarDivisaoAreas(dia) {
 
   const selects = form.querySelectorAll('select');
   const novaDivisao = {};
+  const pessoasPorArea = {};
 
+  // Agrupar pessoas por área
   selects.forEach(select => {
     const area = select.dataset.area;
     const pessoa = select.value;
-    if (area && pessoa) {
-      novaDivisao[area] = pessoa;
+    const position = select.dataset.position;
+
+    if (area) {
+      if (!pessoasPorArea[area]) {
+        pessoasPorArea[area] = { pessoa1: '', pessoa2: '' };
+      }
+      if (position === '1' && pessoa) {
+        pessoasPorArea[area].pessoa1 = pessoa;
+      } else if (position === '2' && pessoa) {
+        pessoasPorArea[area].pessoa2 = pessoa;
+      }
+    }
+  });
+
+  // Combinar pessoas em formato "Pessoa1 / Pessoa2" se houver 2
+  Object.entries(pessoasPorArea).forEach(([area, pessoas]) => {
+    if (pessoas.pessoa1 && pessoas.pessoa2) {
+      novaDivisao[area] = `${pessoas.pessoa1} / ${pessoas.pessoa2}`;
+    } else if (pessoas.pessoa1) {
+      novaDivisao[area] = pessoas.pessoa1;
+    } else if (pessoas.pessoa2) {
+      novaDivisao[area] = pessoas.pessoa2;
     }
   });
 
@@ -6737,6 +7365,124 @@ function recalcularDivisaoAutomatica(dia) {
   // Salvar na nuvem
   salvarDadosNaNuvem().then(() => {
     showToast('✅ Divisão recalculada automaticamente!', 'success');
+    atualizarCalendario();
+
+    // Fechar modal e reabrir com dados atualizados
+    const modal = bootstrap.Modal.getInstance(document.getElementById('dayModal'));
+    if (modal) modal.hide();
+
+    setTimeout(() => mostrarDetalhesDia(dia), 300);
+  }).catch(error => {
+    console.error('Erro ao salvar:', error);
+    showToast('❌ Erro ao salvar alterações', 'danger');
+  });
+}
+
+// ============================================
+// AUSÊNCIA NÃO ESPERADA - RESIDENCIAL
+// ============================================
+
+function marcarAusenciaNaoEsperada(dia) {
+  const dadosDia = getDadosDiaComTrocas(dia);
+  if (!dadosDia || !isAdmin) return;
+
+  const modalContent = document.getElementById('dayModalContent');
+  if (!modalContent) return;
+
+  const funcionariosDisponiveis = dadosDia.trabalhando || [];
+
+  if (funcionariosDisponiveis.length === 0) {
+    showToast('❌ Não há funcionários trabalhando para marcar como ausente', 'warning');
+    return;
+  }
+
+  let html = `
+    <div class="ausencia-form p-3">
+      <div class="alert alert-warning mb-3">
+        <i class="bi bi-exclamation-triangle me-2"></i>
+        <strong>Ausência não esperada</strong><br>
+        <small>Selecione o funcionário que ficou ausente inesperadamente. A divisão de áreas será recalculada automaticamente.</small>
+      </div>
+
+      <div class="mb-3">
+        <label class="form-label fw-bold">Funcionário ausente:</label>
+        <select class="form-select" id="selectFuncionarioAusente">
+          <option value="">-- Selecione --</option>
+  `;
+
+  funcionariosDisponiveis.forEach(func => {
+    const primeiroNome = obterPrimeiroNome(func);
+    html += `<option value="${func}">${primeiroNome}</option>`;
+  });
+
+  html += `
+        </select>
+      </div>
+
+      <div class="mb-3">
+        <label class="form-label fw-bold">Motivo (opcional):</label>
+        <input type="text" class="form-control" id="motivoAusencia" placeholder="Ex: Doença, emergência familiar...">
+      </div>
+
+      <div class="d-flex gap-2">
+        <button class="btn btn-danger" onclick="confirmarAusenciaNaoEsperada(${dia})">
+          <i class="bi bi-person-dash me-1"></i> Confirmar Ausência
+        </button>
+        <button class="btn btn-secondary" onclick="mostrarDetalhesDia(${dia})">
+          <i class="bi bi-x me-1"></i> Cancelar
+        </button>
+      </div>
+    </div>
+  `;
+
+  modalContent.innerHTML = html;
+}
+
+function confirmarAusenciaNaoEsperada(dia) {
+  const selectFuncionario = document.getElementById('selectFuncionarioAusente');
+  const motivoInput = document.getElementById('motivoAusencia');
+
+  if (!selectFuncionario || !selectFuncionario.value) {
+    showToast('❌ Selecione um funcionário', 'warning');
+    return;
+  }
+
+  const funcionarioAusente = selectFuncionario.value;
+  const motivo = motivoInput?.value || 'Ausência não esperada';
+
+  // Atualizar dados originais e processados
+  if (dadosOriginais[dia]) {
+    // Remover da lista de trabalhando
+    dadosOriginais[dia].trabalhando = dadosOriginais[dia].trabalhando.filter(f => f !== funcionarioAusente);
+
+    // Adicionar à lista de ausentes
+    if (!dadosOriginais[dia].ausentes) {
+      dadosOriginais[dia].ausentes = [];
+    }
+    dadosOriginais[dia].ausentes.push({ nome: funcionarioAusente, motivo: motivo });
+
+    // Atualizar número de pessoas
+    dadosOriginais[dia].numPessoas = dadosOriginais[dia].trabalhando.length;
+
+    // Recalcular divisão
+    const novaDivisao = calcularDivisaoPorNumero(
+      dadosOriginais[dia].numPessoas,
+      dadosOriginais[dia].trabalhando
+    );
+    dadosOriginais[dia].divisao = novaDivisao;
+  }
+
+  // Espelhar no dadosProcessados
+  if (dadosProcessados[dia]) {
+    dadosProcessados[dia].trabalhando = [...dadosOriginais[dia].trabalhando];
+    dadosProcessados[dia].ausentes = [...dadosOriginais[dia].ausentes];
+    dadosProcessados[dia].numPessoas = dadosOriginais[dia].numPessoas;
+    dadosProcessados[dia].divisao = {...dadosOriginais[dia].divisao};
+  }
+
+  // Salvar na nuvem
+  salvarDadosNaNuvem().then(() => {
+    showToast(`✅ ${obterPrimeiroNome(funcionarioAusente)} marcado como ausente. Divisão recalculada!`, 'success');
     atualizarCalendario();
 
     // Fechar modal e reabrir com dados atualizados
