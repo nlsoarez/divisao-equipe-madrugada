@@ -160,7 +160,7 @@ const CONFIG = {
         'NO/MG': ['FERNANDA', 'IGOR', 'SANDRO', 'GABRIELA', 'MAGNO', 'ALDENES'],
         'NE/CO': ['GABRIELA', 'MAGNO', 'ALDENES', 'FERNANDA', 'IGOR', 'SANDRO'],
         'CO/NE': ['GABRIELA', 'MAGNO', 'ALDENES', 'FERNANDA', 'IGOR', 'SANDRO'],
-        'APOIO SIR/BA': ['GABRIELA', 'MAGNO', 'ALDENES', 'FERNANDA', 'IGOR', 'SANDRO']
+        'APOIO SIR/BA': ['ALDENES', 'MAGNO', 'GABRIELA', 'FERNANDA', 'IGOR', 'SANDRO']
       }
     }
   },
