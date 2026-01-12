@@ -2810,10 +2810,19 @@ function uploadCalendario(numCalendario, inputElement) {
       }
 
       console.log(`📅 Calendário ${numCalendario}: ${MESES[mesCalendario]}/${anoCalendario} (extraído de: ${file.name})`);
+      console.log(`📊 Dados brutos da planilha: ${dados.length} linhas`);
 
       // Processar dados da planilha com mês e ano específicos
       const dadosPlanilhaTemp = dados;
       const dadosOriginaisTemp = processarPlanilhaParaCalendario(dadosPlanilhaTemp, mesCalendario, anoCalendario);
+
+      // Log detalhado do resultado do processamento
+      const diasProcessados = Object.keys(dadosOriginaisTemp).length;
+      console.log(`📅 Resultado do processamento: ${diasProcessados} dias com dados`);
+      if (diasProcessados === 0) {
+        console.warn('⚠️ ATENÇÃO: Nenhum dia foi processado da planilha!');
+        console.warn('   Verifique o Console para mais detalhes sobre detecção de colunas.');
+      }
 
       // Salvar no calendário apropriado
       const calKey = `calendario${numCalendario}`;
@@ -2830,14 +2839,26 @@ function uploadCalendario(numCalendario, inputElement) {
       // Atualizar interface
       atualizarStatusCalendarios();
 
-      // Se este é o calendário ativo, carregar os dados
-      if (calendarioAtivo === calKey) {
+      // SEMPRE forçar atualização para calendário Residencial (numCalendario === 1)
+      // Isso garante que o calendário seja atualizado mesmo se não estiver na aba ativa
+      if (numCalendario === 1) {
+        calendarioAtivo = 'calendario1';
+        carregarCalendarioAtivo();
+        // Também garantir que a aba residencial está selecionada
+        trocarAbaAdmin('residencial');
+      } else if (calendarioAtivo === calKey) {
         carregarCalendarioAtivo();
       }
 
       hideLoading();
       const nomeEscala = numCalendario === 1 ? 'Residencial' : 'Empresarial';
-      showToast(`✅ Escala ${nomeEscala} carregada com sucesso!`, 'success');
+
+      // Mostrar mensagem apropriada baseada no resultado
+      if (diasProcessados > 0) {
+        showToast(`✅ Escala ${nomeEscala} carregada: ${diasProcessados} dias processados!`, 'success');
+      } else {
+        showToast(`⚠️ Escala ${nomeEscala}: arquivo lido mas 0 dias processados. Verifique o formato da planilha.`, 'warning');
+      }
 
       // Salvar automaticamente na nuvem após upload
       console.log('💾 Salvando automaticamente após upload...');
