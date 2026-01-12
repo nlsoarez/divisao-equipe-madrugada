@@ -251,32 +251,34 @@
       color: #e65100;
     }
 
-    /* Botões de troca Empresarial - garantir fundo visível */
-    .calendar-nav .btn-agendar-trocas,
+    /* Botões de troca Empresarial - fundo sólido igual ao botão Agendar trocas residencial */
     .calendar-nav .btn-agendar-trocas-empresarial,
     #btnAgendarTrocasRioEs,
     #btnAgendarTrocasLeste {
-      background: rgba(255, 152, 0, 0.2) !important;
-      border: 1px solid rgba(255, 152, 0, 0.4) !important;
-      border-left: 3px solid #ff9800 !important;
+      background: #fff8f0 !important;
+      border: 1px solid rgba(255, 152, 0, 0.5) !important;
+      border-left: 4px solid #ff9800 !important;
       color: #e68900 !important;
       border-radius: 6px !important;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15) !important;
     }
 
-    .calendar-nav .btn-agendar-trocas:hover,
     .calendar-nav .btn-agendar-trocas-empresarial:hover,
     #btnAgendarTrocasRioEs:hover,
     #btnAgendarTrocasLeste:hover {
-      background: rgba(255, 152, 0, 0.35) !important;
+      background: #fff0e0 !important;
+      border-color: rgba(255, 152, 0, 0.7) !important;
+      transform: translateY(-1px);
+      box-shadow: 0 3px 6px rgba(0, 0, 0, 0.2) !important;
     }
 
-    .calendar-nav .btn-agendar-trocas.active,
     .calendar-nav .btn-agendar-trocas-empresarial.active,
     #btnAgendarTrocasRioEs.active,
     #btnAgendarTrocasLeste.active {
-      background: rgba(255, 152, 0, 0.45) !important;
+      background: #ffe4c4 !important;
       border-color: #f57c00 !important;
       color: #e65100 !important;
+      box-shadow: 0 2px 6px rgba(245, 124, 0, 0.3) !important;
     }
 
     /* Configuração de Mês/Ano em Acordeão */
@@ -3567,16 +3569,22 @@ function aplicarTrocasEmpresarial(subEscala) {
 // tipoConfig: 'residencial' (padrão), 'leste' ou 'rio_es'
 function processarPlanilhaParaCalendario(dadosPlanilhaTemp, mesParam, anoParam, tipoConfig = 'residencial') {
   try {
-    if (!dadosPlanilhaTemp || dadosPlanilhaTemp.length === 0) return {};
+    if (!dadosPlanilhaTemp || dadosPlanilhaTemp.length === 0) {
+      console.warn('⚠️ Planilha vazia ou sem dados');
+      return {};
+    }
 
     // Usar parâmetros se fornecidos, senão usar globais
     const mesUsar = mesParam !== undefined ? mesParam : mesSelecionado;
     const anoUsar = anoParam !== undefined ? anoParam : anoSelecionado;
 
     console.log(`🔄 Processando planilha para ${MESES[mesUsar]}/${anoUsar}`);
+    console.log(`📊 Total de funcionários na planilha: ${dadosPlanilhaTemp.length}`);
 
     const primeiraLinha = dadosPlanilhaTemp[0];
     const todasColunas = Object.keys(primeiraLinha);
+
+    console.log(`📋 Colunas encontradas (${todasColunas.length}):`, todasColunas.slice(0, 10).join(', ') + (todasColunas.length > 10 ? '...' : ''));
 
     // Encontrar coluna do NOME
     let colunaNome = null;
@@ -3590,25 +3598,43 @@ function processarPlanilhaParaCalendario(dadosPlanilhaTemp, mesParam, anoParam, 
 
     if (!colunaNome) {
       colunaNome = todasColunas[0];
+      console.log(`⚠️ Coluna NOME não encontrada, usando primeira coluna: "${colunaNome}"`);
+    } else {
+      console.log(`✅ Coluna NOME encontrada: "${colunaNome}"`);
     }
 
-    // Encontrar colunas de dias
+    // Encontrar colunas de dias - melhor detecção
     const colunaDias = [];
     for (let col of todasColunas) {
       const colStr = String(col).trim();
       if (colStr === colunaNome) continue;
 
       let diaNumero = null;
+
+      // Padrão 1: Número puro (1, 2, 3, ... 31)
       if (/^\d+$/.test(colStr)) {
         diaNumero = parseInt(colStr);
-      } else if (/^(\d+)\s*[\(\[]/.test(colStr)) {
+      }
+      // Padrão 2: Número seguido de parênteses ou colchetes - ex: "1 (SEG)", "2[TER]"
+      else if (/^(\d+)\s*[\(\[]/.test(colStr)) {
         const match = colStr.match(/^(\d+)/);
         diaNumero = parseInt(match[1]);
-      } else if (/^\d{1,2}[\/\-]\d{1,2}/.test(colStr)) {
+      }
+      // Padrão 3: Data no formato DD/MM ou DD-MM - ex: "01/01", "15-01"
+      else if (/^\d{1,2}[\/\-]\d{1,2}/.test(colStr)) {
         const match = colStr.match(/^(\d{1,2})[\/\-]/);
         diaNumero = parseInt(match[1]);
-      } else {
+      }
+      // Padrão 4: Dia da semana com número - ex: "SEG 1", "1 SEG", "SEG-1"
+      else if (/\b(\d{1,2})\b/.test(colStr)) {
         const match = colStr.match(/\b(\d{1,2})\b/);
+        if (match) {
+          diaNumero = parseInt(match[1]);
+        }
+      }
+      // Padrão 5: Número no final após espaço - ex: "DIA 1", "Dia: 15"
+      else {
+        const match = colStr.match(/(\d{1,2})\s*$/);
         if (match) {
           diaNumero = parseInt(match[1]);
         }
@@ -3620,9 +3646,23 @@ function processarPlanilhaParaCalendario(dadosPlanilhaTemp, mesParam, anoParam, 
     }
 
     colunaDias.sort((a, b) => a.dia - b.dia);
-    if (colunaDias.length === 0) return {};
+
+    console.log(`📅 Colunas de dias detectadas: ${colunaDias.length}`);
+    if (colunaDias.length > 0) {
+      console.log(`   Primeiros dias: ${colunaDias.slice(0, 5).map(c => c.dia).join(', ')}...`);
+    }
+
+    if (colunaDias.length === 0) {
+      console.error('❌ Nenhuma coluna de dia encontrada na planilha!');
+      console.error('   Colunas disponíveis:', todasColunas.join(', '));
+      showToast('❌ Formato de planilha não reconhecido. Verifique se as colunas têm números dos dias (1, 2, 3...)', 'danger');
+      return {};
+    }
 
     const dadosProcessadosTemp = {};
+    let totalDiasProcessados = 0;
+    let totalFuncionariosEncontrados = 0;
+    let statusCelulasDebug = {}; // Para debug
 
     for (let diaInfo of colunaDias) {
       const colunaDia = diaInfo.coluna;
@@ -3638,29 +3678,36 @@ function processarPlanilhaParaCalendario(dadosPlanilhaTemp, mesParam, anoParam, 
 
       const trabalhandoHoje = [];
       const ausentesHoje = [];
+      let funcionariosNoDia = 0;
 
       for (let funcionario of dadosPlanilhaTemp) {
         let nome = String(funcionario[colunaNome] || '').trim().toUpperCase();
         if (!nome || nome === '' || nome === 'TOTAL' || nome === 'TOTAIS') continue;
 
+        funcionariosNoDia++;
         let valorCelula = funcionario[colunaDia];
         let status = String(valorCelula || '').trim().toUpperCase();
+
+        // Guardar alguns status para debug (apenas do primeiro dia)
+        if (diaNumero === colunaDias[0]?.dia && Object.keys(statusCelulasDebug).length < 5) {
+          statusCelulasDebug[nome] = status || '(vazio)';
+        }
 
         // Detecção flexível de quem está trabalhando:
         // - Célula vazia = trabalhando
         // - '22', '22:00', '22H', '6', '6H', 'X', 'MADRUGADA', 'MD' = trabalhando
         // - Números (horas de trabalho) = trabalhando
         // - Ausências: 'FERIAS', 'FOLGA', 'ATESTADO', 'FALTA', 'LIC', etc.
-        const ausenciasConhecidas = ['FERIAS', 'FÉRIAS', 'FOLGA', 'ATESTADO', 'FALTA', 'LIC', 'LICENÇA', 'LICENCA', 'AFASTADO', 'AFASTAMENTO', 'DISPENSA', 'ABONO', 'COMPENSAÇÃO', 'COMPENSACAO'];
+        const ausenciasConhecidas = ['FERIAS', 'FÉRIAS', 'FOLGA', 'ATESTADO', 'FALTA', 'LIC', 'LICENÇA', 'LICENCA', 'AFASTADO', 'AFASTAMENTO', 'DISPENSA', 'ABONO', 'COMPENSAÇÃO', 'COMPENSACAO', 'DSR', 'FERIADO'];
         const isAusencia = ausenciasConhecidas.some(a => status.includes(a));
 
         // Considera trabalhando se:
         // - Célula vazia
         // - Contém número (ex: 6, 22, 22:00)
-        // - Contém 'X', 'MD', 'MADRUGADA'
+        // - Contém 'X', 'MD', 'MADRUGADA', 'SIM', 'S'
         // - Não é uma ausência conhecida
         const isNumeric = /^\d+/.test(status) || status === '';
-        const isMarcacao = status === 'X' || status === 'MD' || status.includes('MADRUGADA');
+        const isMarcacao = status === 'X' || status === 'MD' || status === 'S' || status === 'SIM' || status.includes('MADRUGADA');
         const trabalhando = (status === '' || isNumeric || isMarcacao) && !isAusencia;
         const ausente = isAusencia || (!trabalhando && status !== '');
 
@@ -3669,6 +3716,10 @@ function processarPlanilhaParaCalendario(dadosPlanilhaTemp, mesParam, anoParam, 
         } else if (ausente) {
           ausentesHoje.push({ nome, motivo: status || 'AUSENTE' });
         }
+      }
+
+      if (funcionariosNoDia > totalFuncionariosEncontrados) {
+        totalFuncionariosEncontrados = funcionariosNoDia;
       }
 
       if (trabalhandoHoje.length > 0) {
@@ -3682,13 +3733,30 @@ function processarPlanilhaParaCalendario(dadosPlanilhaTemp, mesParam, anoParam, 
           ausentes: [...ausentesHoje],
           divisao
         };
+        totalDiasProcessados++;
       }
     }
 
-    console.log(`✅ Processados ${Object.keys(dadosProcessadosTemp).length} dias (${tipoConfig}) para ${MESES[mesUsar]}/${anoUsar}`);
+    console.log(`✅ Processados ${totalDiasProcessados} dias (${tipoConfig}) para ${MESES[mesUsar]}/${anoUsar}`);
+    console.log(`📊 Total funcionários encontrados: ${totalFuncionariosEncontrados}`);
+
+    // Se não encontrou nenhum dia com trabalhadores, mostrar informações de debug
+    if (totalDiasProcessados === 0) {
+      console.warn('⚠️ Nenhum dia com trabalhadores detectado!');
+      console.warn('📋 Amostra de status das células:', statusCelulasDebug);
+      console.warn('   Verifique se a planilha usa valores reconhecidos para marcar presença.');
+      console.warn('   Valores aceitos: célula vazia, números (6, 22, etc), X, MD, MADRUGADA, SIM, S');
+      console.warn('   Valores de ausência: FERIAS, FOLGA, ATESTADO, FALTA, LICENÇA, etc.');
+
+      if (totalFuncionariosEncontrados > 0 && colunaDias.length > 0) {
+        showToast('⚠️ Planilha carregada mas nenhum funcionário trabalhando detectado. Verifique o formato das células.', 'warning');
+      }
+    }
+
     return dadosProcessadosTemp;
   } catch (error) {
-    console.error('Erro ao processar planilha:', error);
+    console.error('❌ Erro ao processar planilha:', error);
+    showToast('❌ Erro ao processar planilha: ' + error.message, 'danger');
     return {};
   }
 }
