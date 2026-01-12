@@ -158,9 +158,9 @@ const CONFIG = {
       areas: {
         'MG/NO': ['FERNANDA', 'IGOR', 'SANDRO', 'GABRIELA', 'MAGNO', 'ALDENES'],
         'NO/MG': ['FERNANDA', 'IGOR', 'SANDRO', 'GABRIELA', 'MAGNO', 'ALDENES'],
-        'NE/CO': ['GABRIELA', 'MAGNO', 'ALDENES', 'FERNANDA', 'IGOR', 'SANDRO'],
-        'CO/NE': ['GABRIELA', 'MAGNO', 'ALDENES', 'FERNANDA', 'IGOR', 'SANDRO'],
-        'APOIO SIR/BA': ['ALDENES', 'MAGNO', 'GABRIELA', 'FERNANDA', 'IGOR', 'SANDRO']
+        'APOIO SIR/BA': ['ALDENES', 'MAGNO', 'GABRIELA', 'FERNANDA', 'IGOR', 'SANDRO'],
+        'NE/CO': ['GABRIELA', 'MAGNO', 'FERNANDA', 'IGOR', 'SANDRO', 'ALDENES'],
+        'CO/NE': ['GABRIELA', 'MAGNO', 'FERNANDA', 'IGOR', 'SANDRO', 'ALDENES']
       }
     }
   },
