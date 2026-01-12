@@ -2812,6 +2812,17 @@ function uploadCalendario(numCalendario, inputElement) {
       console.log(`📅 Calendário ${numCalendario}: ${MESES[mesCalendario]}/${anoCalendario} (extraído de: ${file.name})`);
       console.log(`📊 Dados brutos da planilha: ${dados.length} linhas`);
 
+      // DEBUG: Mostrar estrutura da planilha para diagnóstico
+      if (dados.length > 0) {
+        const primeiraLinha = dados[0];
+        const colunas = Object.keys(primeiraLinha);
+        console.log(`📋 DEBUG - Colunas da planilha (${colunas.length}):`, colunas);
+        console.log(`📋 DEBUG - Primeira linha de dados:`, primeiraLinha);
+        if (dados.length > 1) {
+          console.log(`📋 DEBUG - Segunda linha de dados:`, dados[1]);
+        }
+      }
+
       // Processar dados da planilha com mês e ano específicos
       const dadosPlanilhaTemp = dados;
       const dadosOriginaisTemp = processarPlanilhaParaCalendario(dadosPlanilhaTemp, mesCalendario, anoCalendario);
@@ -4430,12 +4441,17 @@ function processarDadosCarregados(dados) {
 
     // Carregar o calendário ativo
     const calDados = calendarios[calendarioAtivo];
+    console.log(`📦 DEBUG - Carregando calendário ativo: ${calendarioAtivo}`);
+    console.log(`📦 DEBUG - calDados existe:`, !!calDados);
     if (calDados) {
+      console.log(`📦 DEBUG - calDados.dadosOriginais existe:`, !!calDados.dadosOriginais);
+      console.log(`📦 DEBUG - Dias em dadosOriginais:`, Object.keys(calDados.dadosOriginais || {}).length);
       dadosPlanilha = calDados.dadosPlanilha || [];
       mesSelecionado = calDados.mes ?? new Date().getMonth();
       anoSelecionado = calDados.ano ?? new Date().getFullYear();
       dadosOriginais = calDados.dadosOriginais || {};
       trocasRegistradas = calDados.trocas || [];
+      console.log(`📦 DEBUG - dadosOriginais carregado com ${Object.keys(dadosOriginais).length} dias`);
     } else {
       // Tentar o outro calendário
       const outroKey = calendarioAtivo === 'calendario1' ? 'calendario2' : 'calendario1';
