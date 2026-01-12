@@ -5651,8 +5651,8 @@ function calcularDivisaoPorNumero(num, trabalhandoHoje, tipoConfig = 'residencia
   }
 
   console.log(`📊 Divisão final (${tipoConfig}, ${num} pessoas):`, divisao);
-  if (divisaoTemp['_RIO_2']) {
-    console.log(`   ✅ RIO com 2 pessoas: ${rioResponsaveis.join(' / ')}`);
+  if (tipoConfig === 'residencial' && divisaoTemp['_RIO_2'] && divisao['RIO']) {
+    console.log(`   ✅ RIO com 2 pessoas: ${divisao['RIO']}`);
   }
 
   return divisao;
