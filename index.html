@@ -2091,9 +2091,13 @@
       <i class="bi bi-house"></i>
       Residencial
     </button>
-    <button class="admin-nav-tab" data-admin-tab="empresarial" onclick="trocarAbaAdmin('empresarial')">
+    <button class="admin-nav-tab" data-admin-tab="rio_es" onclick="trocarAbaAdmin('rio_es')">
       <i class="bi bi-building"></i>
-      Empresarial
+      Rio/ES
+    </button>
+    <button class="admin-nav-tab" data-admin-tab="leste" onclick="trocarAbaAdmin('leste')">
+      <i class="bi bi-building"></i>
+      Leste
     </button>
     <button class="admin-nav-tab telegram-tab-nav" data-admin-tab="telegram" onclick="trocarAbaAdmin('telegram')">
       <i class="bi bi-whatsapp"></i>
@@ -2135,25 +2139,21 @@
 
   </div><!-- Fim tabResidencial -->
 
-  <!-- Conteúdo da Aba Empresarial -->
-  <div class="admin-tab-content" id="tabEmpresarial">
+  <!-- Conteúdo da Aba Rio/ES -->
+  <div class="admin-tab-content" id="tabRioEs">
 
-  <!-- Painel de Gerenciamento Escala Empresarial (somente Admin) -->
-  <div class="config-accordion" id="calendarioPanelEmpresarial" style="display: none;">
-    <div class="config-header collapsed" data-bs-toggle="collapse" data-bs-target="#calendarioPanelBodyEmpresarial">
-      <span><i class="bi bi-building me-2"></i>Gerenciar escala empresarial</span>
+  <!-- Painel de Gerenciamento Escala Rio/ES (somente Admin) -->
+  <div class="config-accordion" id="calendarioPanelRioEs" style="display: none;">
+    <div class="config-header collapsed" data-bs-toggle="collapse" data-bs-target="#calendarioPanelBodyRioEs">
+      <span><i class="bi bi-building me-2"></i>Gerenciar escala Rio/ES</span>
       <i class="bi bi-chevron-down"></i>
     </div>
-    <div id="calendarioPanelBodyEmpresarial" class="collapse">
+    <div id="calendarioPanelBodyRioEs" class="collapse">
       <div class="config-body">
-        <p class="mb-3 text-muted" style="font-size: 0.85rem;">
-          A escala Empresarial possui duas divisões: <strong>Rio/Es</strong> e <strong>Leste</strong>.
-        </p>
-
         <!-- Sub-escala Rio/Es -->
         <div class="calendario-item mb-3 p-3" style="background: #f8f9fa; border-radius: 8px; border-left: 4px solid #4caf50;">
           <div class="d-flex justify-content-between align-items-center mb-2">
-            <strong><i class="bi bi-geo-alt me-2"></i>Rio/Es</strong>
+            <strong><i class="bi bi-geo-alt me-2"></i>Rio/ES</strong>
             <span class="badge bg-secondary" id="calRioEsStatus">Vazio</span>
           </div>
           <div class="d-flex gap-2 align-items-center flex-wrap">
@@ -2163,8 +2163,76 @@
             <input type="file" id="fileInputRioEs" accept=".xlsx,.xls,.csv" style="display: none;" onchange="uploadCalendarioEmpresarial('rio_es', this)">
           </div>
           <span class="text-muted small d-block mt-2" id="calRioEsInfo">Nenhuma planilha carregada</span>
+          <small class="text-muted">Nome do arquivo define o mês (ex: Janeiro 2025.xlsx)</small>
         </div>
 
+        <button class="btn btn-success btn-sm mt-3" onclick="salvarConfiguracaoCalendarios()">
+          <i class="bi bi-cloud-arrow-up me-1"></i>Salvar e publicar
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Seção de Calendário Rio/ES -->
+  <div id="calendarSectionRioEs" style="display: none;">
+    <!-- Calendário Rio/Es -->
+    <div class="calendar-container empresarial-calendar">
+      <div class="calendar-header" style="background: linear-gradient(135deg, #4caf50 0%, #2e7d32 100%);">
+        <div class="calendar-title-wrapper">
+          <h5 class="calendar-title" id="calendarTitleRioEs">Rio/ES</h5>
+          <span class="escala-tipo-badge empresarial" style="font-size: 0.7rem;">Rio/ES</span>
+        </div>
+        <div class="calendar-nav">
+          <button class="btn-expand-calendar me-1" id="btnExpandRioEs" onclick="toggleExpandCalendario('rio_es')" title="Expandir calendário">
+            <i class="bi bi-arrows-fullscreen"></i>
+          </button>
+          <button class="btn-trocas-empresarial me-1" id="btnAgendarTrocasRioEs" style="display: none; background: #fff8f0; border: none; border-left: 4px solid #ff9800; color: #e68900; border-radius: 8px; padding: 0.5rem 1rem; font-size: 0.85rem; font-weight: 500;" onclick="toggleModoTrocaEmpresarial('rio_es')">
+            <i class="bi bi-arrow-left-right"></i>
+            <span>Trocas</span>
+          </button>
+          <button class="calendar-nav-btn" onclick="mudarMesEmpresarial('rio_es', -1)">
+            <i class="bi bi-chevron-left"></i>
+          </button>
+          <button class="calendar-nav-btn" onclick="mudarMesEmpresarial('rio_es', 1)">
+            <i class="bi bi-chevron-right"></i>
+          </button>
+        </div>
+      </div>
+      <!-- Status de Troca Rio/Es -->
+      <div class="swap-status text-center p-1 mb-1" id="swapStatusRioEs" style="display: none; background: #fff3cd; border-radius: 4px; font-size: 0.75rem;">
+        <i class="bi bi-info-circle me-1"></i>
+        <span id="swapStatusTextRioEs">Selecione o primeiro dia...</span>
+      </div>
+      <div class="calendar-grid calendar-grid-compact" id="calendarGridRioEs">
+        <div class="calendar-weekday">S</div>
+        <div class="calendar-weekday">T</div>
+        <div class="calendar-weekday">Q</div>
+        <div class="calendar-weekday">Q</div>
+        <div class="calendar-weekday">S</div>
+        <div class="calendar-weekday">S</div>
+        <div class="calendar-weekday">D</div>
+      </div>
+    </div>
+    <!-- Mensagem quando não há dados -->
+    <div id="emptyMessageRioEs" class="empty-message" style="display: none;">
+      <i class="bi bi-calendar-x"></i>
+      <p>Nenhum dado encontrado. Faça upload da planilha Rio/ES.</p>
+    </div>
+  </div>
+
+  </div><!-- Fim tabRioEs -->
+
+  <!-- Conteúdo da Aba Leste -->
+  <div class="admin-tab-content" id="tabLeste">
+
+  <!-- Painel de Gerenciamento Escala Leste (somente Admin) -->
+  <div class="config-accordion" id="calendarioPanelLeste" style="display: none;">
+    <div class="config-header collapsed" data-bs-toggle="collapse" data-bs-target="#calendarioPanelBodyLeste">
+      <span><i class="bi bi-building me-2"></i>Gerenciar escala Leste</span>
+      <i class="bi bi-chevron-down"></i>
+    </div>
+    <div id="calendarioPanelBodyLeste" class="collapse">
+      <div class="config-body">
         <!-- Sub-escala Leste -->
         <div class="calendario-item mb-3 p-3" style="background: #f8f9fa; border-radius: 8px; border-left: 4px solid #4caf50;">
           <div class="d-flex justify-content-between align-items-center mb-2">
@@ -2178,6 +2246,7 @@
             <input type="file" id="fileInputLeste" accept=".xlsx,.xls,.csv" style="display: none;" onchange="uploadCalendarioEmpresarial('leste', this)">
           </div>
           <span class="text-muted small d-block mt-2" id="calLesteInfo">Nenhuma planilha carregada</span>
+          <small class="text-muted">Nome do arquivo define o mês (ex: Janeiro 2025.xlsx)</small>
         </div>
 
         <button class="btn btn-success btn-sm mt-3" onclick="salvarConfiguracaoCalendarios()">
@@ -2187,98 +2256,54 @@
     </div>
   </div>
 
-  <!-- Seção de Calendários Empresarial (Rio/Es e Leste lado a lado) -->
-  <div id="calendarSectionEmpresarial" style="display: none;">
-    <div class="row g-3">
-      <!-- Calendário Rio/Es -->
-      <div class="col-md-6">
-        <div class="calendar-container empresarial-calendar">
-          <div class="calendar-header" style="background: linear-gradient(135deg, #4caf50 0%, #2e7d32 100%);">
-            <div class="calendar-title-wrapper">
-              <h5 class="calendar-title" id="calendarTitleRioEs">Rio/Es</h5>
-              <span class="escala-tipo-badge empresarial" style="font-size: 0.7rem;">Rio/Es</span>
-            </div>
-            <div class="calendar-nav">
-              <button class="btn-expand-calendar me-1" id="btnExpandRioEs" onclick="toggleExpandCalendario('rio_es')" title="Expandir calendário">
-                <i class="bi bi-arrows-fullscreen"></i>
-              </button>
-              <button class="btn-trocas-empresarial me-1" id="btnAgendarTrocasRioEs" style="display: none; background: #fff8f0; border: none; border-left: 4px solid #ff9800; color: #e68900; border-radius: 8px; padding: 0.5rem 1rem; font-size: 0.85rem; font-weight: 500;" onclick="toggleModoTrocaEmpresarial('rio_es')">
-                <i class="bi bi-arrow-left-right"></i>
-                <span>Trocas</span>
-              </button>
-              <button class="calendar-nav-btn" onclick="mudarMesEmpresarial('rio_es', -1)">
-                <i class="bi bi-chevron-left"></i>
-              </button>
-              <button class="calendar-nav-btn" onclick="mudarMesEmpresarial('rio_es', 1)">
-                <i class="bi bi-chevron-right"></i>
-              </button>
-            </div>
-          </div>
-          <!-- Status de Troca Rio/Es -->
-          <div class="swap-status text-center p-1 mb-1" id="swapStatusRioEs" style="display: none; background: #fff3cd; border-radius: 4px; font-size: 0.75rem;">
-            <i class="bi bi-info-circle me-1"></i>
-            <span id="swapStatusTextRioEs">Selecione o primeiro dia...</span>
-          </div>
-          <div class="calendar-grid calendar-grid-compact" id="calendarGridRioEs">
-            <div class="calendar-weekday">S</div>
-            <div class="calendar-weekday">T</div>
-            <div class="calendar-weekday">Q</div>
-            <div class="calendar-weekday">Q</div>
-            <div class="calendar-weekday">S</div>
-            <div class="calendar-weekday">S</div>
-            <div class="calendar-weekday">D</div>
-          </div>
+  <!-- Seção de Calendário Leste -->
+  <div id="calendarSectionLeste" style="display: none;">
+    <!-- Calendário Leste -->
+    <div class="calendar-container empresarial-calendar">
+      <div class="calendar-header" style="background: linear-gradient(135deg, #4caf50 0%, #2e7d32 100%);">
+        <div class="calendar-title-wrapper">
+          <h5 class="calendar-title" id="calendarTitleLeste">Leste</h5>
+          <span class="escala-tipo-badge empresarial" style="font-size: 0.7rem;">Leste</span>
+        </div>
+        <div class="calendar-nav">
+          <button class="btn-expand-calendar me-1" id="btnExpandLeste" onclick="toggleExpandCalendario('leste')" title="Expandir calendário">
+            <i class="bi bi-arrows-fullscreen"></i>
+          </button>
+          <button class="btn-trocas-empresarial me-1" id="btnAgendarTrocasLeste" style="display: none; background: #fff8f0; border: none; border-left: 4px solid #ff9800; color: #e68900; border-radius: 8px; padding: 0.5rem 1rem; font-size: 0.85rem; font-weight: 500;" onclick="toggleModoTrocaEmpresarial('leste')">
+            <i class="bi bi-arrow-left-right"></i>
+            <span>Trocas</span>
+          </button>
+          <button class="calendar-nav-btn" onclick="mudarMesEmpresarial('leste', -1)">
+            <i class="bi bi-chevron-left"></i>
+          </button>
+          <button class="calendar-nav-btn" onclick="mudarMesEmpresarial('leste', 1)">
+            <i class="bi bi-chevron-right"></i>
+          </button>
         </div>
       </div>
-      <!-- Calendário Leste -->
-      <div class="col-md-6">
-        <div class="calendar-container empresarial-calendar">
-          <div class="calendar-header" style="background: linear-gradient(135deg, #4caf50 0%, #2e7d32 100%);">
-            <div class="calendar-title-wrapper">
-              <h5 class="calendar-title" id="calendarTitleLeste">Leste</h5>
-              <span class="escala-tipo-badge empresarial" style="font-size: 0.7rem;">Leste</span>
-            </div>
-            <div class="calendar-nav">
-              <button class="btn-expand-calendar me-1" id="btnExpandLeste" onclick="toggleExpandCalendario('leste')" title="Expandir calendário">
-                <i class="bi bi-arrows-fullscreen"></i>
-              </button>
-              <button class="btn-trocas-empresarial me-1" id="btnAgendarTrocasLeste" style="display: none; background: #fff8f0; border: none; border-left: 4px solid #ff9800; color: #e68900; border-radius: 8px; padding: 0.5rem 1rem; font-size: 0.85rem; font-weight: 500;" onclick="toggleModoTrocaEmpresarial('leste')">
-                <i class="bi bi-arrow-left-right"></i>
-                <span>Trocas</span>
-              </button>
-              <button class="calendar-nav-btn" onclick="mudarMesEmpresarial('leste', -1)">
-                <i class="bi bi-chevron-left"></i>
-              </button>
-              <button class="calendar-nav-btn" onclick="mudarMesEmpresarial('leste', 1)">
-                <i class="bi bi-chevron-right"></i>
-              </button>
-            </div>
-          </div>
-          <!-- Status de Troca Leste -->
-          <div class="swap-status text-center p-1 mb-1" id="swapStatusLeste" style="display: none; background: #fff3cd; border-radius: 4px; font-size: 0.75rem;">
-            <i class="bi bi-info-circle me-1"></i>
-            <span id="swapStatusTextLeste">Selecione o primeiro dia...</span>
-          </div>
-          <div class="calendar-grid calendar-grid-compact" id="calendarGridLeste">
-            <div class="calendar-weekday">S</div>
-            <div class="calendar-weekday">T</div>
-            <div class="calendar-weekday">Q</div>
-            <div class="calendar-weekday">Q</div>
-            <div class="calendar-weekday">S</div>
-            <div class="calendar-weekday">S</div>
-            <div class="calendar-weekday">D</div>
-          </div>
-        </div>
+      <!-- Status de Troca Leste -->
+      <div class="swap-status text-center p-1 mb-1" id="swapStatusLeste" style="display: none; background: #fff3cd; border-radius: 4px; font-size: 0.75rem;">
+        <i class="bi bi-info-circle me-1"></i>
+        <span id="swapStatusTextLeste">Selecione o primeiro dia...</span>
+      </div>
+      <div class="calendar-grid calendar-grid-compact" id="calendarGridLeste">
+        <div class="calendar-weekday">S</div>
+        <div class="calendar-weekday">T</div>
+        <div class="calendar-weekday">Q</div>
+        <div class="calendar-weekday">Q</div>
+        <div class="calendar-weekday">S</div>
+        <div class="calendar-weekday">S</div>
+        <div class="calendar-weekday">D</div>
       </div>
     </div>
     <!-- Mensagem quando não há dados -->
-    <div id="emptyMessageEmpresarial" class="empty-message" style="display: none;">
+    <div id="emptyMessageLeste" class="empty-message" style="display: none;">
       <i class="bi bi-calendar-x"></i>
-      <p>Nenhum dado encontrado. Faça upload das planilhas Rio/Es e Leste.</p>
+      <p>Nenhum dado encontrado. Faça upload da planilha Leste.</p>
     </div>
   </div>
 
-  </div><!-- Fim tabEmpresarial -->
+  </div><!-- Fim tabLeste -->
 
   <!-- Conteúdo da Aba WhatsApp -->
   <div class="admin-tab-content" id="tabTelegram">
@@ -2637,12 +2662,15 @@
           <i class="bi bi-eye mb-3" style="font-size: 3rem; color: #2e7d32;"></i>
           <h5 class="mb-3">Visualizar escala</h5>
           <p class="text-muted mb-4">Selecione qual escala deseja visualizar</p>
-          <div class="d-flex gap-2 flex-column flex-sm-row">
+          <div class="d-flex gap-2 flex-column">
             <button type="button" class="btn btn-lg flex-fill py-3" style="background: linear-gradient(135deg, #4caf50 0%, #2e7d32 100%); color: white; border: none;" onclick="entrarComoVisualizador('residencial')">
-              <i class="bi bi-house me-2"></i>Escala residencial
+              <i class="bi bi-house me-2"></i>Escala Residencial
             </button>
-            <button type="button" class="btn btn-lg flex-fill py-3" style="background: linear-gradient(135deg, #4caf50 0%, #2e7d32 100%); color: white; border: none;" onclick="entrarComoVisualizador('empresarial')">
-              <i class="bi bi-building me-2"></i>Escala empresarial
+            <button type="button" class="btn btn-lg flex-fill py-3" style="background: linear-gradient(135deg, #4caf50 0%, #2e7d32 100%); color: white; border: none;" onclick="entrarComoVisualizador('rio_es')">
+              <i class="bi bi-building me-2"></i>Escala Rio/ES
+            </button>
+            <button type="button" class="btn btn-lg flex-fill py-3" style="background: linear-gradient(135deg, #4caf50 0%, #2e7d32 100%); color: white; border: none;" onclick="entrarComoVisualizador('leste')">
+              <i class="bi bi-building me-2"></i>Escala Leste
             </button>
           </div>
         </div>
@@ -5172,7 +5200,14 @@ function processarDadosCarregados(dados) {
 
   // Ativar a aba correta após carregar os dados
   // Usar 'residencial' como padrão, ou a aba salva no localStorage
-  const abaSalva = localStorage.getItem('escala_tipo_selecionado') || 'residencial';
+  let abaSalva = localStorage.getItem('escala_tipo_selecionado') || 'residencial';
+
+  // Migração: converter 'empresarial' antigo para 'rio_es'
+  if (abaSalva === 'empresarial') {
+    abaSalva = 'rio_es';
+    localStorage.setItem('escala_tipo_selecionado', 'rio_es');
+  }
+
   setTimeout(() => {
     trocarAbaAdmin(abaSalva);
   }, 100);
@@ -5328,8 +5363,8 @@ function entrarComoVisualizador(tipo = 'residencial') {
   localStorage.setItem('escala_auth_expiry', expiryTime.toString());
 
   // Definir calendário ativo baseado no tipo selecionado
-  // residencial = calendario1, empresarial = calendario2
-  const calKey = tipo === 'empresarial' ? 'calendario2' : 'calendario1';
+  // residencial = calendario1, rio_es/leste = calendario2
+  const calKey = (tipo === 'rio_es' || tipo === 'leste') ? 'calendario2' : 'calendario1';
   calendarioAtivo = calKey;
   localStorage.setItem('escala_tipo_selecionado', tipo);
 
@@ -5353,7 +5388,9 @@ function entrarComoVisualizador(tipo = 'residencial') {
     await carregarAlertas();
   }, 1000);
 
-  const nomeEscala = tipo === 'empresarial' ? 'Empresarial' : 'Residencial';
+  let nomeEscala = 'Residencial';
+  if (tipo === 'rio_es') nomeEscala = 'Rio/ES';
+  else if (tipo === 'leste') nomeEscala = 'Leste';
   showToast(`🔍 Visualizando escala ${nomeEscala}`, 'info');
 }
 
@@ -8107,12 +8144,15 @@ function trocarAbaAdmin(abaId) {
 
   // Obter elementos das abas
   const tabResidencial = document.getElementById('tabResidencial');
-  const tabEmpresarial = document.getElementById('tabEmpresarial');
+  const tabRioEs = document.getElementById('tabRioEs');
+  const tabLeste = document.getElementById('tabLeste');
   const tabTelegram = document.getElementById('tabTelegram');
   const calendarSection = document.getElementById('calendarSection');
-  const calendarSectionEmpresarial = document.getElementById('calendarSectionEmpresarial');
+  const calendarSectionRioEs = document.getElementById('calendarSectionRioEs');
+  const calendarSectionLeste = document.getElementById('calendarSectionLeste');
   const calendarioPanelResidencial = document.getElementById('calendarioPanelResidencial');
-  const calendarioPanelEmpresarial = document.getElementById('calendarioPanelEmpresarial');
+  const calendarioPanelRioEs = document.getElementById('calendarioPanelRioEs');
+  const calendarioPanelLeste = document.getElementById('calendarioPanelLeste');
   const telegramPanel = document.getElementById('telegramPanel');
 
   // Parar auto-refresh quando sair da aba Telegram
@@ -8131,37 +8171,63 @@ function trocarAbaAdmin(abaId) {
 
     // Mostrar conteúdo - apenas calendário Residencial
     if (calendarSection) calendarSection.style.display = 'block';
-    if (calendarSectionEmpresarial) calendarSectionEmpresarial.style.display = 'none';
+    if (calendarSectionRioEs) calendarSectionRioEs.style.display = 'none';
+    if (calendarSectionLeste) calendarSectionLeste.style.display = 'none';
     if (calendarioPanelResidencial) calendarioPanelResidencial.style.display = isAdmin ? 'block' : 'none';
-    if (calendarioPanelEmpresarial) calendarioPanelEmpresarial.style.display = 'none';
+    if (calendarioPanelRioEs) calendarioPanelRioEs.style.display = 'none';
+    if (calendarioPanelLeste) calendarioPanelLeste.style.display = 'none';
     if (telegramPanel) telegramPanel.style.display = 'none';
 
     // Atualizar calendário
     carregarCalendarioAtivo();
 
-  } else if (abaId === 'empresarial') {
-    // Mostrar aba Empresarial
-    if (tabEmpresarial) tabEmpresarial.classList.add('active');
+  } else if (abaId === 'rio_es') {
+    // Mostrar aba Rio/ES
+    if (tabRioEs) tabRioEs.classList.add('active');
 
-    // Alternar para calendário empresarial
+    // Alternar para calendário empresarial Rio/ES
     calendarioAtivo = 'calendario2';
-    localStorage.setItem('escala_tipo_selecionado', 'empresarial');
+    localStorage.setItem('escala_tipo_selecionado', 'rio_es');
 
-    // Mostrar conteúdo - calendários Rio/Es e Leste lado a lado
+    // Mostrar conteúdo - apenas calendário Rio/ES
     if (calendarSection) calendarSection.style.display = 'none';
-    if (calendarSectionEmpresarial) calendarSectionEmpresarial.style.display = 'block';
+    if (calendarSectionRioEs) calendarSectionRioEs.style.display = 'block';
+    if (calendarSectionLeste) calendarSectionLeste.style.display = 'none';
     if (calendarioPanelResidencial) calendarioPanelResidencial.style.display = 'none';
-    if (calendarioPanelEmpresarial) calendarioPanelEmpresarial.style.display = isAdmin ? 'block' : 'none';
+    if (calendarioPanelRioEs) calendarioPanelRioEs.style.display = isAdmin ? 'block' : 'none';
+    if (calendarioPanelLeste) calendarioPanelLeste.style.display = 'none';
     if (telegramPanel) telegramPanel.style.display = 'none';
 
-    // Mostrar botões de troca para admin
+    // Mostrar botão de troca para admin
     const btnAgendarTrocasRioEs = document.getElementById('btnAgendarTrocasRioEs');
-    const btnAgendarTrocasLeste = document.getElementById('btnAgendarTrocasLeste');
     if (btnAgendarTrocasRioEs) btnAgendarTrocasRioEs.style.display = isAdmin ? 'inline-flex' : 'none';
+
+    // Carregar calendário Rio/ES
+    carregarCalendarioEmpresarialGrid('rio_es');
+
+  } else if (abaId === 'leste') {
+    // Mostrar aba Leste
+    if (tabLeste) tabLeste.classList.add('active');
+
+    // Alternar para calendário empresarial Leste
+    calendarioAtivo = 'calendario2';
+    localStorage.setItem('escala_tipo_selecionado', 'leste');
+
+    // Mostrar conteúdo - apenas calendário Leste
+    if (calendarSection) calendarSection.style.display = 'none';
+    if (calendarSectionRioEs) calendarSectionRioEs.style.display = 'none';
+    if (calendarSectionLeste) calendarSectionLeste.style.display = 'block';
+    if (calendarioPanelResidencial) calendarioPanelResidencial.style.display = 'none';
+    if (calendarioPanelRioEs) calendarioPanelRioEs.style.display = 'none';
+    if (calendarioPanelLeste) calendarioPanelLeste.style.display = isAdmin ? 'block' : 'none';
+    if (telegramPanel) telegramPanel.style.display = 'none';
+
+    // Mostrar botão de troca para admin
+    const btnAgendarTrocasLeste = document.getElementById('btnAgendarTrocasLeste');
     if (btnAgendarTrocasLeste) btnAgendarTrocasLeste.style.display = isAdmin ? 'inline-flex' : 'none';
 
-    // Carregar ambos os calendários Empresarial
-    carregarCalendariosEmpresarial();
+    // Carregar calendário Leste
+    carregarCalendarioEmpresarialGrid('leste');
 
   } else if (abaId === 'telegram') {
     // Mostrar aba Telegram
@@ -8169,9 +8235,11 @@ function trocarAbaAdmin(abaId) {
 
     // Ocultar calendários
     if (calendarSection) calendarSection.style.display = 'none';
-    if (calendarSectionEmpresarial) calendarSectionEmpresarial.style.display = 'none';
+    if (calendarSectionRioEs) calendarSectionRioEs.style.display = 'none';
+    if (calendarSectionLeste) calendarSectionLeste.style.display = 'none';
     if (calendarioPanelResidencial) calendarioPanelResidencial.style.display = 'none';
-    if (calendarioPanelEmpresarial) calendarioPanelEmpresarial.style.display = 'none';
+    if (calendarioPanelRioEs) calendarioPanelRioEs.style.display = 'none';
+    if (calendarioPanelLeste) calendarioPanelLeste.style.display = 'none';
 
     // Mostrar conteúdo do Telegram
     if (telegramPanel) telegramPanel.style.display = 'block';
