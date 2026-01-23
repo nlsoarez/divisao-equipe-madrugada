@@ -129,35 +129,36 @@ const CONFIG = {
   // ============================================
   //
   // Prioridade:
-  // Fernanda, Igor e Sandro prioritários para MG/NO
+  // IGOR tem prioridade TOTAL para áreas com MG
+  // Fernanda e Sandro prioritários para MG/NO
   // Gabriela, Magno e Aldenes prioritários para CO/NE/BA
   //
   PRIORIDADES_LESTE: {
     2: {
       areas: {
-        'CO/MG': ['FERNANDA', 'IGOR', 'SANDRO', 'GABRIELA', 'MAGNO', 'ALDENES'],
+        'CO/MG': ['IGOR', 'FERNANDA', 'SANDRO', 'GABRIELA', 'MAGNO', 'ALDENES'],
         'NE/NO/BA': ['GABRIELA', 'MAGNO', 'ALDENES', 'FERNANDA', 'IGOR', 'SANDRO']
       }
     },
     3: {
       areas: {
-        'NE/NO': ['FERNANDA', 'IGOR', 'SANDRO', 'GABRIELA', 'MAGNO', 'ALDENES'],
-        'MG/NO': ['FERNANDA', 'IGOR', 'SANDRO', 'GABRIELA', 'MAGNO', 'ALDENES'],
+        'NE/NO': ['FERNANDA', 'SANDRO', 'GABRIELA', 'MAGNO', 'ALDENES', 'IGOR'],
+        'MG/NO': ['IGOR', 'FERNANDA', 'SANDRO', 'GABRIELA', 'MAGNO', 'ALDENES'],
         'CO/BA': ['GABRIELA', 'MAGNO', 'ALDENES', 'FERNANDA', 'IGOR', 'SANDRO']
       }
     },
     4: {
       areas: {
-        'MG/NO': ['FERNANDA', 'IGOR', 'SANDRO', 'GABRIELA', 'MAGNO', 'ALDENES'],
-        'NO/MG': ['FERNANDA', 'IGOR', 'SANDRO', 'GABRIELA', 'MAGNO', 'ALDENES'],
+        'MG/NO': ['IGOR', 'FERNANDA', 'SANDRO', 'GABRIELA', 'MAGNO', 'ALDENES'],
+        'NO/MG': ['IGOR', 'FERNANDA', 'SANDRO', 'GABRIELA', 'MAGNO', 'ALDENES'],
         'NE/BA': ['GABRIELA', 'MAGNO', 'ALDENES', 'FERNANDA', 'IGOR', 'SANDRO'],
         'CO/BA': ['GABRIELA', 'MAGNO', 'ALDENES', 'FERNANDA', 'IGOR', 'SANDRO']
       }
     },
     5: {
       areas: {
-        'MG/NO': ['FERNANDA', 'IGOR', 'SANDRO', 'GABRIELA', 'MAGNO', 'ALDENES'],
-        'NO/MG': ['FERNANDA', 'IGOR', 'SANDRO', 'GABRIELA', 'MAGNO', 'ALDENES'],
+        'MG/NO': ['IGOR', 'FERNANDA', 'SANDRO', 'GABRIELA', 'MAGNO', 'ALDENES'],
+        'NO/MG': ['IGOR', 'FERNANDA', 'SANDRO', 'GABRIELA', 'MAGNO', 'ALDENES'],
         'NE/CO': ['GABRIELA', 'MAGNO', 'ALDENES', 'FERNANDA', 'IGOR', 'SANDRO'],
         'CO/NE': ['GABRIELA', 'MAGNO', 'ALDENES', 'FERNANDA', 'IGOR', 'SANDRO'],
         'APOIO SIR/BA': ['ALDENES', 'MAGNO', 'GABRIELA', 'FERNANDA', 'IGOR', 'SANDRO']
@@ -175,41 +176,50 @@ const CONFIG = {
   },
 
   // ============================================
-  // REGRAS DE DIVISÃO - RIO/ES (Residencial)
+  // REGRAS DE DIVISÃO - RIO/ES (Empresarial)
   // ============================================
   //
-  // Áreas: ES, NO2, NO3, NO1, MTP, BX1, OE1, CZS, SU2, SEF, SUF, NOF, LGS
+  // Prioridade:
+  // SUELLEN tem prioridade TOTAL para áreas com ES
+  // Se Suellen não estiver, MONICA tem prioridade para ES
+  // Demais funcionários mantêm sempre na mesma área
   //
   PRIORIDADES_RIO_ES: {
     2: {
       areas: {
-        'ES/NO3/NO1/CZS/SU2/SEF': [],
-        'NO2/MTP/BX1/OE1/SUF/NOF/LGS': []
+        'ES/NO3/NO1/CZS/SU2/SEF': ['SUELLEN', 'MONICA', 'RODRIGO'],
+        'NO2/MTP/BX1/OE1/SUF/NOF/LGS': ['RODRIGO', 'MONICA', 'SUELLEN']
       }
     },
     3: {
       areas: {
-        'ES/OE1/SUF/LGS': [],
-        'NO2/BX1/NO1': [],
-        'MTP/NO3/CZS/SU2/SEF/NOF': []
+        'NO2/BX1/OE1/SUF/CZS': ['RODRIGO', 'MONICA', 'SUELLEN'],
+        'MTP/NO1/NOF/NO3': ['MONICA', 'RODRIGO', 'SUELLEN'],
+        'ES/SU2/SEF/LGS': ['SUELLEN', 'MONICA', 'RODRIGO']
       }
     },
     4: {
       areas: {
-        'ES/SU2/SEF': [],
-        'NO2/BX1/OE1/SUF': [],
-        'MTP/NO1/NOF': [],
-        'NO3/CZS/LGS': []
+        'ES/SU2/SEF': ['SUELLEN', 'MONICA', 'RODRIGO'],
+        'NO2/BX1/OE1/SUF': ['RODRIGO', 'MONICA', 'SUELLEN'],
+        'MTP/NO1/NOF': ['MONICA', 'RODRIGO', 'SUELLEN'],
+        'NO3/CZS/LGS': ['RODRIGO', 'MONICA', 'SUELLEN']
       }
     },
     5: {
       areas: {
-        'ES': [],
-        'NO2/BX1/OE1/SUF': [],
-        'MTP/NO1/NOF/SU2': [],
-        'NO3/CZS/LGS/SEF': []
+        'ES': ['SUELLEN', 'MONICA', 'RODRIGO'],
+        'NO2/BX1/OE1/SUF': ['RODRIGO', 'MONICA', 'SUELLEN'],
+        'MTP/NO1/NOF/SU2': ['MONICA', 'RODRIGO', 'SUELLEN'],
+        'NO3/CZS/LGS/SEF': ['RODRIGO', 'MONICA', 'SUELLEN']
       }
     }
+  },
+
+  FUNCIONARIOS_RIO_ES: {
+    'SUELLEN': 'SUELLEN',
+    'MONICA': 'MONICA',
+    'RODRIGO': 'RODRIGO'
   },
 
   // ============================================
