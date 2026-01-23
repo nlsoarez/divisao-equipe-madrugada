@@ -179,6 +179,8 @@ const CONFIG = {
   // REGRAS DE DIVISÃO - RIO/ES (Empresarial)
   // ============================================
   //
+  // Analistas: Roberto, Rodrigo, Jefferson, Monica, Suellen
+  //
   // Prioridade:
   // SUELLEN tem prioridade TOTAL para áreas com ES
   // Se Suellen não estiver, MONICA tem prioridade para ES
@@ -187,39 +189,41 @@ const CONFIG = {
   PRIORIDADES_RIO_ES: {
     2: {
       areas: {
-        'ES/NO3/NO1/CZS/SU2/SEF': ['SUELLEN', 'MONICA', 'RODRIGO'],
-        'NO2/MTP/BX1/OE1/SUF/NOF/LGS': ['RODRIGO', 'MONICA', 'SUELLEN']
+        'ES/NO3/NO1/CZS/SU2/SEF': ['SUELLEN', 'MONICA', 'ROBERTO', 'RODRIGO', 'JEFFERSON'],
+        'NO2/MTP/BX1/OE1/SUF/NOF/LGS': ['RODRIGO', 'ROBERTO', 'JEFFERSON', 'MONICA', 'SUELLEN']
       }
     },
     3: {
       areas: {
-        'NO2/BX1/OE1/SUF/CZS': ['RODRIGO', 'MONICA', 'SUELLEN'],
-        'MTP/NO1/NOF/NO3': ['MONICA', 'RODRIGO', 'SUELLEN'],
-        'ES/SU2/SEF/LGS': ['SUELLEN', 'MONICA', 'RODRIGO']
+        'NO2/BX1/OE1/SUF/CZS': ['RODRIGO', 'ROBERTO', 'JEFFERSON', 'MONICA', 'SUELLEN'],
+        'MTP/NO1/NOF/NO3': ['ROBERTO', 'JEFFERSON', 'MONICA', 'RODRIGO', 'SUELLEN'],
+        'ES/SU2/SEF/LGS': ['SUELLEN', 'MONICA', 'ROBERTO', 'RODRIGO', 'JEFFERSON']
       }
     },
     4: {
       areas: {
-        'ES/SU2/SEF': ['SUELLEN', 'MONICA', 'RODRIGO'],
-        'NO2/BX1/OE1/SUF': ['RODRIGO', 'MONICA', 'SUELLEN'],
-        'MTP/NO1/NOF': ['MONICA', 'RODRIGO', 'SUELLEN'],
-        'NO3/CZS/LGS': ['RODRIGO', 'MONICA', 'SUELLEN']
+        'ES/SU2/SEF': ['SUELLEN', 'MONICA', 'ROBERTO', 'RODRIGO', 'JEFFERSON'],
+        'NO2/BX1/OE1/SUF': ['RODRIGO', 'ROBERTO', 'JEFFERSON', 'MONICA', 'SUELLEN'],
+        'MTP/NO1/NOF': ['ROBERTO', 'JEFFERSON', 'MONICA', 'RODRIGO', 'SUELLEN'],
+        'NO3/CZS/LGS': ['JEFFERSON', 'RODRIGO', 'ROBERTO', 'MONICA', 'SUELLEN']
       }
     },
     5: {
       areas: {
-        'ES': ['SUELLEN', 'MONICA', 'RODRIGO'],
-        'NO2/BX1/OE1/SUF': ['RODRIGO', 'MONICA', 'SUELLEN'],
-        'MTP/NO1/NOF/SU2': ['MONICA', 'RODRIGO', 'SUELLEN'],
-        'NO3/CZS/LGS/SEF': ['RODRIGO', 'MONICA', 'SUELLEN']
+        'ES': ['SUELLEN', 'MONICA', 'ROBERTO', 'RODRIGO', 'JEFFERSON'],
+        'NO2/BX1/OE1/SUF': ['RODRIGO', 'ROBERTO', 'JEFFERSON', 'MONICA', 'SUELLEN'],
+        'MTP/NO1/NOF/SU2': ['ROBERTO', 'JEFFERSON', 'MONICA', 'RODRIGO', 'SUELLEN'],
+        'NO3/CZS/LGS/SEF': ['JEFFERSON', 'RODRIGO', 'ROBERTO', 'MONICA', 'SUELLEN']
       }
     }
   },
 
   FUNCIONARIOS_RIO_ES: {
-    'SUELLEN': 'SUELLEN',
+    'ROBERTO': 'ROBERTO',
+    'RODRIGO': 'RODRIGO',
+    'JEFFERSON': 'JEFFERSON',
     'MONICA': 'MONICA',
-    'RODRIGO': 'RODRIGO'
+    'SUELLEN': 'SUELLEN'
   },
 
   // ============================================
