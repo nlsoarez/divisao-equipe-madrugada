@@ -3116,6 +3116,14 @@ function uploadCalendarioEmpresarial(subEscala, inputElement) {
       // Se na aba Empresarial, atualizar o calendário específico
       if (calendarioAtivo === 'calendario2') {
         carregarCalendarioEmpresarialGrid(subEscala);
+
+        // Mostrar a seção do calendário correspondente
+        const calendarSection = document.getElementById(
+          subEscala === 'rio_es' ? 'calendarSectionRioEs' : 'calendarSectionLeste'
+        );
+        if (calendarSection) {
+          calendarSection.style.display = 'block';
+        }
       }
 
       hideLoading();
@@ -3200,8 +3208,10 @@ function carregarCalendariosEmpresarial() {
 function carregarCalendarioEmpresarialGrid(subEscala) {
   const gridId = subEscala === 'rio_es' ? 'calendarGridRioEs' : 'calendarGridLeste';
   const titleId = subEscala === 'rio_es' ? 'calendarTitleRioEs' : 'calendarTitleLeste';
+  const emptyMsgId = subEscala === 'rio_es' ? 'emptyMessageRioEs' : 'emptyMessageLeste';
   const grid = document.getElementById(gridId);
   const title = document.getElementById(titleId);
+  const emptyMsg = document.getElementById(emptyMsgId);
 
   if (!grid) return;
 
@@ -3217,6 +3227,7 @@ function carregarCalendarioEmpresarialGrid(subEscala) {
 
   if (!subEscalaDados || !subEscalaDados.dadosOriginais) {
     // Mostrar mensagem de vazio
+    if (emptyMsg) emptyMsg.style.display = 'block';
     const emptyCell = document.createElement('div');
     emptyCell.className = 'calendar-day empty';
     emptyCell.style.gridColumn = 'span 7';
@@ -3226,6 +3237,9 @@ function carregarCalendarioEmpresarialGrid(subEscala) {
     grid.appendChild(emptyCell);
     return;
   }
+
+  // Ocultar mensagem de vazio quando há dados
+  if (emptyMsg) emptyMsg.style.display = 'none';
 
   const dados = subEscalaDados.dadosOriginais;
   const mes = subEscalaDados.mes;
@@ -3256,6 +3270,7 @@ function carregarCalendarioEmpresarialGrid(subEscala) {
   for (let dia = 1; dia <= diasNoMes; dia++) {
     const cell = document.createElement('div');
     cell.className = 'calendar-day';
+    cell.setAttribute('data-dia', dia);
 
     const dadosDia = dados[dia];
     const isToday = dia === hoje.getDate() && mes === hoje.getMonth() && ano === hoje.getFullYear();
@@ -3263,26 +3278,25 @@ function carregarCalendarioEmpresarialGrid(subEscala) {
     if (isToday) cell.classList.add('today');
     if (dadosDia) cell.classList.add('has-data');
 
-    // Número do dia
-    const dayNumber = document.createElement('div');
-    dayNumber.className = 'calendar-day-number';
-    dayNumber.textContent = dia;
-    cell.appendChild(dayNumber);
-
     // Dia da semana
     const dataAtual = new Date(ano, mes, dia);
-    const diaSemana = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'][dataAtual.getDay()];
-    const weekLabel = document.createElement('div');
-    weekLabel.className = 'calendar-day-week';
-    weekLabel.textContent = diaSemana;
-    cell.appendChild(weekLabel);
+    const diaSemanaAbrev = ['DOM', 'SEG', 'TER', 'QUA', 'QUI', 'SEX', 'SÁB'][dataAtual.getDay()];
 
-    // Stats (número de pessoas)
+    // Construir conteúdo HTML
+    let content = `
+      <div class="calendar-day-number">${dia}</div>
+      <div class="calendar-day-week">${diaSemanaAbrev}</div>
+    `;
+
     if (dadosDia) {
-      const stats = document.createElement('div');
-      stats.className = 'calendar-day-stats';
-      stats.innerHTML = `<span title="Pessoas">${dadosDia.numPessoas || 0}p</span>`;
-      cell.appendChild(stats);
+      // Número de pessoas
+      content += `<div class="calendar-day-stats">${dadosDia.numPessoas || 0} pessoa(s)</div>`;
+
+      // Número de ausentes
+      const numAusentes = dadosDia.ausentes ? dadosDia.ausentes.length : 0;
+      if (numAusentes > 0) {
+        content += `<div class="calendar-day-absent">${numAusentes} ausente(s)</div>`;
+      }
 
       // Verificar se é dia selecionado para troca
       const selecao = selecaoTrocaEmpresarial[subEscala];
@@ -3292,10 +3306,10 @@ function carregarCalendarioEmpresarialGrid(subEscala) {
 
       // Click para ver detalhes ou agendar troca
       cell.style.cursor = 'pointer';
-      cell.setAttribute('data-dia', dia);
       cell.onclick = () => handleDiaClickEmpresarial(subEscala, dia);
     }
 
+    cell.innerHTML = content;
     grid.appendChild(cell);
   }
 }
