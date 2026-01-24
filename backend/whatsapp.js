@@ -231,25 +231,53 @@ async function buscarHistorico(limite = 100) {
 }
 
 /**
+ * Extrai texto de uma mensagem da Evolution API
+ * Suporta múltiplos formatos de mensagem
+ */
+function extrairTextoMensagem(webhookData) {
+  const data = webhookData.data || webhookData;
+  const message = data.message || data;
+
+  // Tentar extrair texto de múltiplos campos possíveis
+  const texto = message?.conversation ||
+                message?.extendedTextMessage?.text ||
+                message?.text ||
+                message?.body ||
+                data?.body ||
+                data?.text ||
+                webhookData?.body ||
+                webhookData?.text ||
+                null;
+
+  return { texto, data, message };
+}
+
+/**
  * Processa mensagem recebida via webhook
  */
 async function processarWebhook(webhookData) {
   try {
-    const data = webhookData.data || webhookData;
-    const message = data.message || data;
+    const { texto, data, message } = extrairTextoMensagem(webhookData);
 
-    const texto = message?.conversation ||
-                  message?.extendedTextMessage?.text ||
-                  data?.body ||
-                  null;
-
+    // Log detalhado para debug
     if (!texto) {
+      console.log('[WhatsApp Webhook] Texto não encontrado na mensagem');
+      console.log('[WhatsApp Webhook] Estrutura recebida:', JSON.stringify({
+        hasData: !!webhookData.data,
+        hasMessage: !!(webhookData.data?.message || webhookData.message),
+        keys: Object.keys(webhookData.data || webhookData || {}).slice(0, 10)
+      }));
       return null;
     }
 
+    // Log do texto recebido (primeiros 100 chars)
+    console.log('[WhatsApp Webhook] Texto extraído:', texto.substring(0, 100).replace(/\n/g, '\\n'));
+
+    const chatId = data.key?.remoteJid;
+
     if (EVOLUTION_CONFIG.SOURCE_CHAT_ID) {
-      const chatId = data.key?.remoteJid;
       if (chatId !== EVOLUTION_CONFIG.SOURCE_CHAT_ID) {
+        console.log(`[WhatsApp Webhook] Chat ignorado: ${chatId} (esperado: ${EVOLUTION_CONFIG.SOURCE_CHAT_ID})`);
         return null;
       }
     }
@@ -267,12 +295,21 @@ async function processarWebhook(webhookData) {
     const resultado = processarMensagem(msgCompativel);
 
     if (!resultado) {
+      // Log para debug quando mensagem não é reconhecida
+      const primeiraLinha = texto.split('\n')[0].substring(0, 80);
+      console.log(`[WhatsApp Webhook] Mensagem não reconhecida. Primeira linha: "${primeiraLinha}"`);
       return null;
     }
+
+    console.log(`[WhatsApp Webhook] Mensagem reconhecida como: ${resultado.tipo}`);
 
     if (resultado.tipo === 'COP_REDE_INFORMA') {
       await adicionarCopRedeInforma(resultado.dados);
       console.log('[WhatsApp] COP REDE INFORMA salvo');
+      // Log dos clusters extraídos
+      if (resultado.dados.resumo?.grupo) {
+        console.log('[WhatsApp] Clusters:', JSON.stringify(resultado.dados.resumo.grupo));
+      }
     } else if (resultado.tipo === 'NOVO_EVENTO') {
       await adicionarAlerta(resultado.dados);
       console.log('[WhatsApp] Alerta salvo');
