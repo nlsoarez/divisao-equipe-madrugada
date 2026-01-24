@@ -35,7 +35,13 @@ function identificarTipoMensagem(texto) {
   // Remove markdown bold markers para comparação
   const primeiraLinhaSemMarkdown = primeiraLinha.replace(/\*\*/g, '');
 
-  // COP REDE INFORMA
+  // COP REDE - INFORMA (novo formato)
+  if (primeiraLinha.includes('📢 COP REDE - INFORMA') ||
+      primeiraLinha.includes('COP REDE - INFORMA')) {
+    return 'COP_REDE_INFORMA';
+  }
+
+  // COP REDE INFORMA (formato antigo)
   if (primeiraLinha === MESSAGE_TITLES.COP_REDE_INFORMA ||
       primeiraLinha.includes('COP REDE INFORMA') ||
       primeiraLinhaSemMarkdown.includes('COP REDE INFORMA')) {
@@ -305,6 +311,96 @@ function extrairSecaoLista(texto, secao) {
 }
 
 /**
+ * Parser para novo formato COP REDE - INFORMA (2026)
+ * Formato:
+ * 📢 COP REDE - INFORMA
+ * 🏷️ TIPO: OTG FIBRA HFC - GPON
+ * 🕒 Horário de envio: 24/01/2026 00:00:25
+ * 📊 Volume Total: 45
+ * 🏢 Totais por Cluster: ...
+ * 📌 Totais por Status: ...
+ * 🧪 Totais por Sintoma: ...
+ */
+function parseCopRedeInformaNovoFormato(texto, dataMensagem, messageId) {
+  console.log('[Parser] Parsing NOVO formato COP REDE - INFORMA (2026)...');
+
+  // Extrair campos principais
+  const tipo = extrairCampoComEmoji(texto, ['🏷️'], 'TIPO');
+  const horarioEnvio = extrairCampoComEmoji(texto, ['🕒'], 'Horário de envio');
+  const volumeTotal = extrairCampoComEmoji(texto, ['📊'], 'Volume Total');
+
+  // Extrair seções com listas
+  const cluster = extrairSecaoLista(texto, 'Totais por Cluster');
+  const status = extrairSecaoLista(texto, 'Totais por Status');
+  const sintoma = extrairSecaoLista(texto, 'Totais por Sintoma');
+  const incidentes24h = extrairSecaoLista(texto, 'Incidentes >24h por Cluster');
+
+  console.log('[Parser] Clusters extraídos:', cluster);
+  console.log('[Parser] Status extraídos:', status);
+  console.log('[Parser] Sintomas extraídos:', sintoma);
+
+  // Calcular total (usar volumeTotal se disponível, senão somar clusters)
+  let totalGeral = volumeTotal ? parseInt(volumeTotal) : 0;
+  if (!totalGeral && cluster?.total) {
+    totalGeral = cluster.total;
+  }
+
+  // Identificar áreas afetadas e calcular volume por área
+  const areasAfetadas = [];
+  const volumePorArea = {};
+
+  if (cluster?.itens) {
+    for (const [clusterNome, quantidade] of Object.entries(cluster.itens)) {
+      const { areaPainel } = mapearGrupoParaArea(clusterNome);
+      if (areaPainel) {
+        if (!areasAfetadas.includes(areaPainel)) {
+          areasAfetadas.push(areaPainel);
+        }
+        volumePorArea[areaPainel] = (volumePorArea[areaPainel] || 0) + quantidade;
+      }
+    }
+  }
+
+  // Criar descrição resumida
+  const descricaoPartes = [];
+  if (tipo) descricaoPartes.push(`Tipo: ${tipo}`);
+  if (sintoma?.itens) {
+    descricaoPartes.push('Sintomas: ' + Object.entries(sintoma.itens).map(([k, v]) => `${k} (${v})`).join(', '));
+  }
+  if (status?.itens) {
+    descricaoPartes.push('Status: ' + Object.entries(status.itens).map(([k, v]) => `${k} (${v})`).join(', '));
+  }
+
+  return {
+    id: `cop_${messageId}_${Date.now()}`,
+    messageId,
+    dataRecebimento: dataMensagem.toISOString(),
+    dataGeracao: horarioEnvio,
+    empresa: 'Resumo COP',
+    grupo: cluster?.itens ? Object.keys(cluster.itens).join(', ') : null,
+    areaMapeada: areasAfetadas.length > 0 ? areasAfetadas.join(', ') : null,
+    sigla: null,
+    descricao: descricaoPartes.join('\n') || null,
+    resumo: {
+      mercado: {}, // Não tem mercado no novo formato
+      tipo: tipo ? { [tipo]: totalGeral } : {},
+      natureza: {}, // Não tem natureza no novo formato
+      sintoma: sintoma?.itens || {},
+      grupo: cluster?.itens || {}, // Usa clusters como grupos
+      status: status?.itens || {},
+      incidentes24h: incidentes24h?.itens || {},
+      totalGeral
+    },
+    volumePorArea,
+    areasAfetadas,
+    totalEventos: totalGeral,
+    mensagemOriginal: texto,
+    origem: 'COP_REDE_INFORMA',
+    processadoEm: new Date().toISOString()
+  };
+}
+
+/**
  * Faz parsing completo de uma mensagem COP REDE INFORMA (formato resumo)
  * @param {string} texto - Texto completo da mensagem
  * @param {Date} dataMensagem - Data/hora da mensagem no Telegram
@@ -317,6 +413,12 @@ function parseCopRedeInforma(texto, dataMensagem, messageId) {
   console.log('[Parser] Texto completo (primeiros 800 chars):');
   console.log(texto.substring(0, 800));
   console.log('[Parser] ================================================');
+
+  // Detectar NOVO formato 2026 (📢 COP REDE - INFORMA)
+  if (texto.includes('📢 COP REDE - INFORMA') || texto.includes('Totais por Cluster')) {
+    console.log('[Parser] Detectado NOVO formato 2026');
+    return parseCopRedeInformaNovoFormato(texto, dataMensagem, messageId);
+  }
 
   // Detectar tipo de formato
   // Formato 1: Resumo com seções (📊 COP REDE INFORMA 📊 + 🏢 MERCADO + 📍 GRUPO)
