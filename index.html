@@ -3314,6 +3314,71 @@ function carregarCalendarioEmpresarialGrid(subEscala) {
   }
 }
 
+// Gerar divisão de TOA/DP baseado no número de analistas
+function gerarDivisaoTOADP(analistas) {
+  const numAnalistas = analistas.length;
+
+  if (numAnalistas === 0) return [];
+  if (numAnalistas === 1) {
+    return [
+      { horario: '22:30 - 06:30', analista: analistas[0] }
+    ];
+  }
+  if (numAnalistas === 2) {
+    return [
+      { horario: '22:30 - 23:50', analista: analistas[0] },
+      { horario: '23:51 - 01:10', analista: analistas[1] },
+      { horario: '01:11 - 02:30', analista: analistas[0] },
+      { horario: '02:31 - 03:50', analista: analistas[1] },
+      { horario: '03:51 - 05:10', analista: analistas[0] },
+      { horario: '05:11 - 06:30', analista: analistas[1] }
+    ];
+  }
+  if (numAnalistas === 3) {
+    return [
+      { horario: '22:30 - 23:50', analista: analistas[0] },
+      { horario: '23:51 - 01:10', analista: analistas[1] },
+      { horario: '01:11 - 02:30', analista: analistas[2] },
+      { horario: '02:31 - 03:50', analista: analistas[0] },
+      { horario: '03:51 - 05:10', analista: analistas[1] },
+      { horario: '05:11 - 06:30', analista: analistas[2] }
+    ];
+  }
+  if (numAnalistas === 4) {
+    return [
+      { horario: '22:30 - 23:30', analista: analistas[0] },
+      { horario: '23:31 - 00:30', analista: analistas[1] },
+      { horario: '00:31 - 01:30', analista: analistas[2] },
+      { horario: '01:31 - 02:30', analista: analistas[3] },
+      { horario: '02:31 - 03:30', analista: analistas[0] },
+      { horario: '03:31 - 04:30', analista: analistas[1] },
+      { horario: '04:31 - 05:30', analista: analistas[2] },
+      { horario: '05:31 - 06:30', analista: analistas[3] }
+    ];
+  }
+  if (numAnalistas === 5) {
+    return [
+      { horario: '22:30 - 00:06', analista: analistas[0] },
+      { horario: '00:07 - 01:42', analista: analistas[1] },
+      { horario: '01:43 - 03:18', analista: analistas[2] },
+      { horario: '03:19 - 04:54', analista: analistas[3] },
+      { horario: '04:55 - 06:30', analista: analistas[4] }
+    ];
+  }
+  if (numAnalistas >= 6) {
+    return [
+      { horario: '22:30 - 23:50', analista: analistas[0] },
+      { horario: '23:51 - 01:10', analista: analistas[1] },
+      { horario: '01:11 - 02:30', analista: analistas[2] },
+      { horario: '02:31 - 03:50', analista: analistas[3] },
+      { horario: '03:51 - 05:10', analista: analistas[4] },
+      { horario: '05:11 - 06:30', analista: analistas[5] }
+    ];
+  }
+
+  return [];
+}
+
 // Mostrar detalhes de um dia da escala Empresarial
 function mostrarDetalhesDiaEmpresarial(subEscala, dia) {
   const subEscalaDados = calendarios.calendario2?.[subEscala];
@@ -3359,16 +3424,11 @@ function mostrarDetalhesDiaEmpresarial(subEscala, dia) {
   `;
 
   if (dadosDia.divisao && Object.keys(dadosDia.divisao).length > 0) {
-    // Ordenar as entradas alfabeticamente pelo primeiro nome da pessoa
-    const entradasOrdenadas = Object.entries(dadosDia.divisao)
-      .filter(([area, pessoa]) => pessoa)
-      .sort((a, b) => {
-        const nomeA = obterPrimeiroNome(a[1]).toLowerCase();
-        const nomeB = obterPrimeiroNome(b[1]).toLowerCase();
-        return nomeA.localeCompare(nomeB, 'pt-BR');
-      });
+    // Manter a ordem original das áreas (não ordenar por pessoa)
+    const entradas = Object.entries(dadosDia.divisao)
+      .filter(([area, pessoa]) => pessoa);
 
-    entradasOrdenadas.forEach(([area, pessoa]) => {
+    entradas.forEach(([area, pessoa]) => {
       const pessoaEmTroca = trocasDia.some(t => t.pessoa_a === pessoa || t.pessoa_b === pessoa);
       const nomeExibir = pessoa.includes(' / ')
         ? pessoa.split(' / ').map(n => obterPrimeiroNome(n)).join(' / ')
@@ -3394,32 +3454,43 @@ function mostrarDetalhesDiaEmpresarial(subEscala, dia) {
 
       <div class="status-section">
         <div class="status-title">
-          <i class="bi bi-people"></i>
-          <span>Status da Equipe</span>
+          <i class="bi bi-clock-history"></i>
+          <span>Divisão do TOA/DP</span>
         </div>
 
-        <div class="status-group">
-          <div class="status-group-title">Trabalhando (${dadosDia.trabalhando?.length || 0})</div>
-          <div class="status-list">
+        <div class="toa-schedule">
+          <table class="table table-sm table-striped mb-0">
+            <thead>
+              <tr style="background: linear-gradient(135deg, #4caf50 0%, #2e7d32 100%); color: white;">
+                <th style="border: none; padding: 0.5rem;">Horário</th>
+                <th style="border: none; padding: 0.5rem;">Analista</th>
+              </tr>
+            </thead>
+            <tbody>
   `;
 
-  // Ordenar trabalhando alfabeticamente pelo primeiro nome
+  // Gerar divisão de TOA/DP
   const trabalhandoOrdenado = ordenarNomesAlfabeticamente(dadosDia.trabalhando || []);
+  const divisaoTOA = gerarDivisaoTOADP(trabalhandoOrdenado);
 
-  trabalhandoOrdenado.forEach(nome => {
-    const pessoaEmTroca = trocasDia.some(t => t.pessoa_a === nome || t.pessoa_b === nome);
-    const primeiroNome = obterPrimeiroNome(nome);
+  divisaoTOA.forEach(({horario, analista}) => {
+    const primeiroNome = obterPrimeiroNome(analista);
+    const pessoaEmTroca = trocasDia.some(t => t.pessoa_a === analista || t.pessoa_b === analista);
 
     html += `
-      <div class="status-item">
-        <span class="status-badge badge-presente">✓</span>
-        <span>${primeiroNome} ${pessoaEmTroca ? '<i class="bi bi-arrow-left-right text-purple ms-1"></i>' : ''}</span>
-      </div>
+      <tr>
+        <td style="padding: 0.4rem; font-weight: 500;">${horario}</td>
+        <td style="padding: 0.4rem;">
+          ${primeiroNome}
+          ${pessoaEmTroca ? '<i class="bi bi-arrow-left-right text-purple ms-1"></i>' : ''}
+        </td>
+      </tr>
     `;
   });
 
   html += `
-          </div>
+            </tbody>
+          </table>
         </div>
   `;
 
