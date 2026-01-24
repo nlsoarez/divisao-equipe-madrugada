@@ -20,7 +20,7 @@ const CONFIG = {
    *
    * Exemplo: BIN_ID: "67acf6e1ad19ca34f89c1234"
    */
-  BIN_ID: null,  // Será criado automaticamente com as novas credenciais
+  BIN_ID: "697531c843b1c97be9474ae9",
 
   /**
    * Credenciais JSONBin.io
