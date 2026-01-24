@@ -54,6 +54,8 @@ const MESSAGE_TITLES = {
 // ÁREAS: CO/NO/NE, MG/ES/BA, RIO
 const GRUPO_PARA_AREA = {
   // RIO - Rio de Janeiro (inclui cluster "Rio / Espírito Santo")
+  'rio capital': 'RIO',
+  'grande rio': 'RIO',
   'rio / espirito santo': 'RIO',
   'rio/espirito santo': 'RIO',
   'rio / espírito santo': 'RIO',
