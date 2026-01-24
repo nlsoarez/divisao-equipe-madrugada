@@ -920,36 +920,149 @@
       .day-content {
         grid-template-columns: 1fr;
       }
-      
+
       .calendar-day {
         min-height: 80px;
         padding: 0.4rem;
       }
-      
+
       .calendar-day-number {
         font-size: 0.8rem;
       }
-      
+
       .calendar-day-week {
         font-size: 0.7rem;
       }
-      
+
       .calendar-day-stats,
       .calendar-day-absent {
         font-size: 0.65rem;
         padding: 0.1rem 0.3rem;
       }
-      
+
+      /* Admin/User controls - LAYOUT MOBILE */
       .admin-controls,
       .user-controls {
-        flex-wrap: wrap;
-        justify-content: center;
+        flex-direction: column;
+        align-items: stretch;
+        padding: 0.75rem;
+        gap: 0.75rem;
       }
-      
+
+      .admin-controls .buttons-group,
+      .user-controls .buttons-group {
+        position: static;
+        justify-content: center;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+      }
+
       .mode-indicator {
         width: 100%;
         justify-content: center;
-        margin-bottom: 0.5rem;
+        margin-bottom: 0;
+        text-align: center;
+      }
+
+      /* Botões de ação - tamanho mobile */
+      .refresh-btn {
+        width: 44px;
+        height: 44px;
+        min-width: 44px;
+      }
+
+      /* Header mobile */
+      .app-header {
+        margin: 10px 10px 0 10px;
+        padding: 1rem 0;
+      }
+
+      .app-header h1 {
+        font-size: 1.1rem;
+      }
+
+      /* Container mobile */
+      .main-container {
+        padding: 0 0.5rem;
+      }
+
+      /* Abas de navegação mobile */
+      .admin-nav-tabs.show {
+        flex-direction: column;
+        gap: 0.5rem;
+      }
+
+      .admin-nav-tab {
+        justify-content: center;
+        padding: 0.6rem 0.75rem;
+        font-size: 0.85rem;
+      }
+    }
+
+    /* Extra small devices */
+    @media (max-width: 480px) {
+      .app-header h1 {
+        font-size: 1rem;
+      }
+
+      .admin-controls,
+      .user-controls {
+        margin: 0.5rem auto 1rem auto;
+        width: calc(100% - 20px);
+      }
+
+      .mode-indicator {
+        font-size: 0.8rem;
+        padding: 0.4rem 0.75rem;
+      }
+
+      .refresh-btn {
+        width: 40px;
+        height: 40px;
+        min-width: 40px;
+      }
+
+      .refresh-btn i {
+        font-size: 1rem;
+      }
+
+      /* Calendar grid mobile */
+      .calendar-grid {
+        gap: 2px;
+      }
+
+      .calendar-day {
+        min-height: 65px;
+        padding: 0.25rem;
+      }
+
+      .calendar-day-number {
+        font-size: 0.75rem;
+      }
+
+      /* Telegram section mobile */
+      .telegram-section {
+        margin: 0.5rem;
+        padding: 0.75rem;
+      }
+
+      .telegram-header {
+        flex-direction: column;
+        gap: 0.5rem;
+        text-align: center;
+      }
+
+      .telegram-title {
+        font-size: 1rem;
+      }
+
+      .telegram-tabs {
+        flex-direction: column;
+      }
+
+      .telegram-tab {
+        justify-content: center;
+        font-size: 0.85rem;
       }
     }
     
@@ -1916,6 +2029,24 @@
     }
 
     @media (max-width: 768px) {
+      .telegram-panel {
+        margin: 0 0.5rem 1rem 0.5rem;
+        border-radius: 8px;
+      }
+
+      .telegram-header {
+        padding: 0.6rem 0.75rem;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        font-size: 0.9rem;
+      }
+
+      .telegram-header > div {
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        justify-content: center;
+      }
+
       .telegram-tabs {
         flex-wrap: wrap;
       }
@@ -1923,10 +2054,18 @@
       .telegram-tab {
         flex: 1;
         justify-content: center;
+        padding: 0.6rem 0.75rem;
+        font-size: 0.85rem;
+        min-width: 120px;
+      }
+
+      .telegram-content {
+        padding: 0.75rem;
       }
 
       .telegram-filters {
         flex-direction: column;
+        gap: 0.5rem;
       }
 
       .telegram-filters select,
@@ -1937,10 +2076,20 @@
       .telegram-table {
         display: block;
         overflow-x: auto;
+        font-size: 0.85rem;
       }
 
       .telegram-stats {
         flex-direction: column;
+      }
+
+      .backend-status {
+        font-size: 0.75rem;
+        padding: 0.25rem 0.5rem;
+      }
+
+      .auto-refresh-indicator {
+        font-size: 0.75rem;
       }
     }
 
@@ -2022,10 +2171,36 @@
     @media (max-width: 768px) {
       .admin-nav-tabs {
         flex-direction: column;
+        margin: 0 0.5rem 1rem 0.5rem;
+        padding: 0.4rem;
+        gap: 0.4rem;
       }
 
       .admin-nav-tab {
-        justify-content: flex-start;
+        justify-content: center;
+        padding: 0.65rem 0.75rem;
+        font-size: 0.9rem;
+      }
+
+      .admin-nav-tab i {
+        font-size: 1rem;
+      }
+
+      .admin-nav-tab .badge {
+        font-size: 0.65rem;
+      }
+    }
+
+    @media (max-width: 480px) {
+      .admin-nav-tabs {
+        margin: 0 0.25rem 0.75rem 0.25rem;
+        padding: 0.3rem;
+        gap: 0.3rem;
+      }
+
+      .admin-nav-tab {
+        padding: 0.55rem 0.5rem;
+        font-size: 0.85rem;
       }
     }
   </style>
