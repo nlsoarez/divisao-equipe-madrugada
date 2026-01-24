@@ -5728,6 +5728,10 @@ function iniciarComoAdmin() {
   const adminNavTabs = document.getElementById('adminNavTabs');
   if (adminNavTabs) adminNavTabs.classList.add('show');
 
+  // Mostrar aba COP Rede Informa (telegram) para admin
+  const telegramTabNav = document.querySelector('.admin-nav-tab[data-admin-tab="telegram"]');
+  if (telegramTabNav) telegramTabNav.style.display = '';
+
   // Mostrar painel de gerenciamento baseado no calendário ativo
   const calendarioPanelResidencial = document.getElementById('calendarioPanelResidencial');
   const calendarioPanelEmpresarial = document.getElementById('calendarioPanelEmpresarial');
@@ -5790,6 +5794,10 @@ function iniciarComoVisualizador() {
   // Mostrar navegação de abas para visualizadores também
   const adminNavTabs = document.getElementById('adminNavTabs');
   if (adminNavTabs) adminNavTabs.classList.add('show');
+
+  // Esconder aba COP Rede Informa (telegram) para visualizadores
+  const telegramTabNav = document.querySelector('.admin-nav-tab[data-admin-tab="telegram"]');
+  if (telegramTabNav) telegramTabNav.style.display = 'none';
 
   // Esconder painéis de gerenciamento (somente admin)
   const calendarioPanelResidencial = document.getElementById('calendarioPanelResidencial');
@@ -7976,7 +7984,7 @@ function cancelarTroca(trocaId) {
     showToast('❌ Apenas administradores podem cancelar trocas', 'danger');
     return;
   }
-  
+
   const troca = trocasRegistradas.find(t => t.id === trocaId);
   if (troca) {
     troca.status = 'cancelada';
@@ -7996,7 +8004,7 @@ function limparTodasTrocas() {
     showToast('❌ Apenas administradores podem limpar trocas', 'danger');
     return;
   }
-  
+
   if (confirm('Tem certeza que deseja limpar TODAS as trocas registradas?')) {
     trocasRegistradas.forEach(troca => {
       troca.status = 'cancelada';
@@ -8546,6 +8554,12 @@ function trocarAbaAdmin(abaId) {
     carregarCalendarioEmpresarialGrid('leste');
 
   } else if (abaId === 'telegram') {
+    // COP Rede Informa é exclusivo do admin
+    if (!isAdmin) {
+      showToast('❌ COP Rede Informa é exclusivo do administrador', 'danger');
+      return;
+    }
+
     // Mostrar aba Telegram
     if (tabTelegram) tabTelegram.classList.add('active');
 
