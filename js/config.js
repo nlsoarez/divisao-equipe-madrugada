@@ -20,7 +20,7 @@ const CONFIG = {
    *
    * Exemplo: BIN_ID: "67acf6e1ad19ca34f89c1234"
    */
-  BIN_ID: "693a8a43ae596e708f923822",
+  BIN_ID: null,  // Será criado automaticamente com as novas credenciais
 
   /**
    * Credenciais JSONBin.io
@@ -28,8 +28,8 @@ const CONFIG = {
    */
   JSONBIN: {
     API_URL: 'https://api.jsonbin.io/v3/b',
-    MASTER_KEY: '$2a$10$dQyAV006kSDh2CvPh8cBCu2yspqnkCb4Dpm.A7wby6q.tZAKQHNce',
-    ACCESS_KEY: '$2a$10$oo.QiJ4MvOeVCqfzC19p7OcJgzUVEU7eWINJO1EZefPScNpfBIRKC'
+    MASTER_KEY: '$2a$10$tGExKDQ1CS6U/A7JPWOlRerdm4XUs6sQcChusEUmlqiVdkugQ/MZW',
+    ACCESS_KEY: '$2a$10$2dbmigUDE0MQ/2jxympm8eyPQzRdC/Ts4FIksSn/F9Pb4Qu8Mg0wm'
   },
 
   // ============================================
