@@ -8848,10 +8848,19 @@ function mapearGrupoParaAreaFrontend(grupo, numPessoas = null) {
   const grupoLower = grupo.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
   const num = numPessoas || 4; // Padrão 4 pessoas
 
+  // Mapeamento específico de clusters para regiões
+  // VITÓRIA (cidade capital do ES) -> Espírito Santo
+  const isVitoria = grupoLower === 'vitoria' || grupoLower === 'vitória';
+  const isRio = grupoLower.includes('rio');
+  const isES = isVitoria || grupoLower.includes('espirito santo') || grupoLower.includes('espírito santo') || grupoLower.includes(' es');
+  const isMG = grupoLower.includes('minas') || grupoLower.includes('mg');
+  const isBA = grupoLower.includes('bahia') || grupoLower.includes('sergipe') || grupoLower.includes(' ba') || grupoLower.includes(' se');
+  const isNE = grupoLower.includes('nordeste') || grupoLower.includes(' ne');
+
   // Para 2 pessoas: CO/NO/NE/BA/MG + RIO/ES
   if (num === 2) {
     // RIO/ES - Rio de Janeiro e Espírito Santo
-    if (grupoLower.includes('rio') || grupoLower.includes('espirito santo') || grupoLower.includes('espírito santo') || grupoLower.includes(' es')) {
+    if (isRio || isES) {
       return 'RIO/ES';
     }
     // CO/NO/NE/BA/MG - Todas as outras regiões
@@ -8861,13 +8870,11 @@ function mapearGrupoParaAreaFrontend(grupo, numPessoas = null) {
   // Para 3 pessoas: CO/NO/NE + MG/ES/BA + RIO
   if (num === 3) {
     // RIO - Rio de Janeiro
-    if (grupoLower.includes('rio')) {
+    if (isRio) {
       return 'RIO';
     }
     // MG/ES/BA - Minas Gerais, Espírito Santo, Bahia/Sergipe
-    if (grupoLower.includes('minas') || grupoLower.includes('mg') ||
-        grupoLower.includes('espirito santo') || grupoLower.includes('espírito santo') || grupoLower.includes(' es') ||
-        grupoLower.includes('bahia') || grupoLower.includes('sergipe') || grupoLower.includes(' ba') || grupoLower.includes(' se')) {
+    if (isMG || isES || isBA) {
       return 'MG/ES/BA';
     }
     // CO/NO/NE - Centro-Oeste, Norte, Nordeste
@@ -8877,17 +8884,15 @@ function mapearGrupoParaAreaFrontend(grupo, numPessoas = null) {
   // Para 4 pessoas: CO/NO + NE/BA + MG/ES + RIO
   if (num === 4) {
     // RIO - Rio de Janeiro
-    if (grupoLower.includes('rio')) {
+    if (isRio) {
       return 'RIO';
     }
     // MG/ES - Minas Gerais e Espírito Santo
-    if (grupoLower.includes('minas') || grupoLower.includes('mg') ||
-        grupoLower.includes('espirito santo') || grupoLower.includes('espírito santo') || grupoLower.includes(' es')) {
+    if (isMG || isES) {
       return 'MG/ES';
     }
     // NE/BA - Bahia/Sergipe e Nordeste
-    if (grupoLower.includes('bahia') || grupoLower.includes('sergipe') || grupoLower.includes(' ba') || grupoLower.includes(' se') ||
-        grupoLower.includes('nordeste') || grupoLower.includes(' ne')) {
+    if (isBA || isNE) {
       return 'NE/BA';
     }
     // CO/NO - Centro-Oeste e Norte
@@ -8896,17 +8901,15 @@ function mapearGrupoParaAreaFrontend(grupo, numPessoas = null) {
 
   // Para 5+ pessoas: CO/NO + NE/BA + MG + RIO (com RIO duplo)
   // RIO - Rio de Janeiro
-  if (grupoLower.includes('rio')) {
+  if (isRio) {
     return 'RIO';
   }
   // MG - Minas Gerais e Espírito Santo
-  if (grupoLower.includes('minas') || grupoLower.includes('mg') ||
-      grupoLower.includes('espirito santo') || grupoLower.includes('espírito santo') || grupoLower.includes(' es')) {
+  if (isMG || isES) {
     return 'MG';
   }
   // NE/BA - Bahia/Sergipe e Nordeste
-  if (grupoLower.includes('bahia') || grupoLower.includes('sergipe') || grupoLower.includes(' ba') || grupoLower.includes(' se') ||
-      grupoLower.includes('nordeste') || grupoLower.includes(' ne')) {
+  if (isBA || isNE) {
     return 'NE/BA';
   }
   // CO/NO - Centro-Oeste e Norte
