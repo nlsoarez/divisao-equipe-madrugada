@@ -29,6 +29,61 @@ app.use((req, res, next) => {
   next();
 });
 
+/**
+ * Diagnóstico - Ver estrutura dos dados salvos
+ * Útil para debugar problemas com volumetria
+ */
+app.get('/api/diagnostico/dados', async (req, res) => {
+  try {
+    const dados = await storage.obterCopRedeInforma({}, true);
+
+    // Analisar estrutura dos dados
+    const diagnostico = {
+      totalMensagens: dados.length,
+      mensagensComResumoGrupo: dados.filter(d => d.resumo?.grupo && Object.keys(d.resumo.grupo).length > 0).length,
+      mensagensSemResumoGrupo: dados.filter(d => !d.resumo?.grupo || Object.keys(d.resumo.grupo).length === 0).length,
+      ultimaMensagem: dados.length > 0 ? {
+        id: dados[0].id,
+        dataRecebimento: dados[0].dataRecebimento,
+        temResumoGrupo: !!(dados[0].resumo?.grupo && Object.keys(dados[0].resumo.grupo).length > 0),
+        resumoGrupo: dados[0].resumo?.grupo || {},
+        areaMapeada: dados[0].areaMapeada,
+        totalEventos: dados[0].totalEventos,
+        volumePorArea: dados[0].volumePorArea || {}
+      } : null,
+      primeiras5: dados.slice(0, 5).map(d => ({
+        id: d.id,
+        dataRecebimento: d.dataRecebimento,
+        temResumoGrupo: !!(d.resumo?.grupo && Object.keys(d.resumo.grupo).length > 0),
+        clusters: d.resumo?.grupo ? Object.keys(d.resumo.grupo) : [],
+        totalGrupo: d.resumo?.grupo ? Object.values(d.resumo.grupo).reduce((a, b) => a + b, 0) : 0
+      }))
+    };
+
+    res.json({ sucesso: true, diagnostico });
+  } catch (error) {
+    res.status(500).json({ sucesso: false, erro: error.message });
+  }
+});
+
+/**
+ * Reprocessar todas as mensagens do histórico
+ * Útil após correções no parser
+ */
+app.post('/api/diagnostico/reprocessar', async (req, res) => {
+  try {
+    console.log('[Diagnóstico] Iniciando reprocessamento do histórico...');
+    const resultado = await whatsapp.buscarHistorico(200);
+    res.json({
+      sucesso: true,
+      mensagem: 'Histórico reprocessado',
+      resultado
+    });
+  } catch (error) {
+    res.status(500).json({ sucesso: false, erro: error.message });
+  }
+});
+
 // ============================================
 // ROTAS DE STATUS E HEALTH
 // ============================================

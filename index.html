@@ -3315,65 +3315,88 @@ function carregarCalendarioEmpresarialGrid(subEscala) {
   }
 }
 
+// Função para embaralhar array com seed (para ser consistente por dia)
+function embaralharComSeed(array, seed) {
+  const arr = [...array]; // Clonar para não modificar original
+  // Gerador pseudo-aleatório simples baseado em seed
+  let s = seed;
+  const random = () => {
+    s = (s * 9301 + 49297) % 233280;
+    return s / 233280;
+  };
+  // Fisher-Yates shuffle
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
 // Gerar divisão de TOA/DP baseado no número de analistas
-function gerarDivisaoTOADP(analistas) {
+// NOTA: A ordem dos analistas é ALEATÓRIA para cada dia (usando dia como seed)
+function gerarDivisaoTOADP(analistas, dia = null) {
   const numAnalistas = analistas.length;
 
   if (numAnalistas === 0) return [];
+
+  // Embaralhar analistas usando o dia como seed (ou timestamp se não informado)
+  const seed = dia || new Date().getDate();
+  const analistasEmbaralhados = embaralharComSeed(analistas, seed);
+
   if (numAnalistas === 1) {
     return [
-      { horario: '22:30 - 06:30', analista: analistas[0] }
+      { horario: '22:30 - 06:30', analista: analistasEmbaralhados[0] }
     ];
   }
   if (numAnalistas === 2) {
     return [
-      { horario: '22:30 - 23:50', analista: analistas[0] },
-      { horario: '23:51 - 01:10', analista: analistas[1] },
-      { horario: '01:11 - 02:30', analista: analistas[0] },
-      { horario: '02:31 - 03:50', analista: analistas[1] },
-      { horario: '03:51 - 05:10', analista: analistas[0] },
-      { horario: '05:11 - 06:30', analista: analistas[1] }
+      { horario: '22:30 - 23:50', analista: analistasEmbaralhados[0] },
+      { horario: '23:51 - 01:10', analista: analistasEmbaralhados[1] },
+      { horario: '01:11 - 02:30', analista: analistasEmbaralhados[0] },
+      { horario: '02:31 - 03:50', analista: analistasEmbaralhados[1] },
+      { horario: '03:51 - 05:10', analista: analistasEmbaralhados[0] },
+      { horario: '05:11 - 06:30', analista: analistasEmbaralhados[1] }
     ];
   }
   if (numAnalistas === 3) {
     return [
-      { horario: '22:30 - 23:50', analista: analistas[0] },
-      { horario: '23:51 - 01:10', analista: analistas[1] },
-      { horario: '01:11 - 02:30', analista: analistas[2] },
-      { horario: '02:31 - 03:50', analista: analistas[0] },
-      { horario: '03:51 - 05:10', analista: analistas[1] },
-      { horario: '05:11 - 06:30', analista: analistas[2] }
+      { horario: '22:30 - 23:50', analista: analistasEmbaralhados[0] },
+      { horario: '23:51 - 01:10', analista: analistasEmbaralhados[1] },
+      { horario: '01:11 - 02:30', analista: analistasEmbaralhados[2] },
+      { horario: '02:31 - 03:50', analista: analistasEmbaralhados[0] },
+      { horario: '03:51 - 05:10', analista: analistasEmbaralhados[1] },
+      { horario: '05:11 - 06:30', analista: analistasEmbaralhados[2] }
     ];
   }
   if (numAnalistas === 4) {
     return [
-      { horario: '22:30 - 23:30', analista: analistas[0] },
-      { horario: '23:31 - 00:30', analista: analistas[1] },
-      { horario: '00:31 - 01:30', analista: analistas[2] },
-      { horario: '01:31 - 02:30', analista: analistas[3] },
-      { horario: '02:31 - 03:30', analista: analistas[0] },
-      { horario: '03:31 - 04:30', analista: analistas[1] },
-      { horario: '04:31 - 05:30', analista: analistas[2] },
-      { horario: '05:31 - 06:30', analista: analistas[3] }
+      { horario: '22:30 - 23:30', analista: analistasEmbaralhados[0] },
+      { horario: '23:31 - 00:30', analista: analistasEmbaralhados[1] },
+      { horario: '00:31 - 01:30', analista: analistasEmbaralhados[2] },
+      { horario: '01:31 - 02:30', analista: analistasEmbaralhados[3] },
+      { horario: '02:31 - 03:30', analista: analistasEmbaralhados[0] },
+      { horario: '03:31 - 04:30', analista: analistasEmbaralhados[1] },
+      { horario: '04:31 - 05:30', analista: analistasEmbaralhados[2] },
+      { horario: '05:31 - 06:30', analista: analistasEmbaralhados[3] }
     ];
   }
   if (numAnalistas === 5) {
     return [
-      { horario: '22:30 - 00:06', analista: analistas[0] },
-      { horario: '00:07 - 01:42', analista: analistas[1] },
-      { horario: '01:43 - 03:18', analista: analistas[2] },
-      { horario: '03:19 - 04:54', analista: analistas[3] },
-      { horario: '04:55 - 06:30', analista: analistas[4] }
+      { horario: '22:30 - 00:06', analista: analistasEmbaralhados[0] },
+      { horario: '00:07 - 01:42', analista: analistasEmbaralhados[1] },
+      { horario: '01:43 - 03:18', analista: analistasEmbaralhados[2] },
+      { horario: '03:19 - 04:54', analista: analistasEmbaralhados[3] },
+      { horario: '04:55 - 06:30', analista: analistasEmbaralhados[4] }
     ];
   }
   if (numAnalistas >= 6) {
     return [
-      { horario: '22:30 - 23:50', analista: analistas[0] },
-      { horario: '23:51 - 01:10', analista: analistas[1] },
-      { horario: '01:11 - 02:30', analista: analistas[2] },
-      { horario: '02:31 - 03:50', analista: analistas[3] },
-      { horario: '03:51 - 05:10', analista: analistas[4] },
-      { horario: '05:11 - 06:30', analista: analistas[5] }
+      { horario: '22:30 - 23:50', analista: analistasEmbaralhados[0] },
+      { horario: '23:51 - 01:10', analista: analistasEmbaralhados[1] },
+      { horario: '01:11 - 02:30', analista: analistasEmbaralhados[2] },
+      { horario: '02:31 - 03:50', analista: analistasEmbaralhados[3] },
+      { horario: '03:51 - 05:10', analista: analistasEmbaralhados[4] },
+      { horario: '05:11 - 06:30', analista: analistasEmbaralhados[5] }
     ];
   }
 
@@ -3470,9 +3493,9 @@ function mostrarDetalhesDiaEmpresarial(subEscala, dia) {
             <tbody>
   `;
 
-  // Gerar divisão de TOA/DP
+  // Gerar divisão de TOA/DP (ordem aleatória baseada no dia)
   const trabalhandoOrdenado = ordenarNomesAlfabeticamente(dadosDia.trabalhando || []);
-  const divisaoTOA = gerarDivisaoTOADP(trabalhandoOrdenado);
+  const divisaoTOA = gerarDivisaoTOADP(trabalhandoOrdenado, dia);
 
   divisaoTOA.forEach(({horario, analista}) => {
     const primeiroNome = obterPrimeiroNome(analista);
@@ -8989,6 +9012,10 @@ function atualizarBadgeCopRede(total) {
 // NOVOS ALERTAS - Funções
 // ============================================
 
+// Alertas são apenas em TEMPO REAL - não carrega histórico do servidor
+// Variável para guardar IDs já notificados nesta sessão
+let alertasNotificadosSessao = new Set();
+
 async function carregarAlertas() {
   if (!backendUrl) {
     return; // Silenciosamente ignorar se não há backend configurado
@@ -9003,44 +9030,52 @@ async function carregarAlertas() {
     if (!response.ok) throw new Error('Erro ao carregar alertas');
 
     const data = await response.json();
-    const novosAlertasRecebidos = data.dados || [];
+    const todosAlertas = data.dados || [];
 
-    console.log(`[Alertas] Recebidos ${novosAlertasRecebidos.length} alertas do servidor`);
-
-    // Detectar novos alertas (apenas após a primeira carga)
-    if (!primeiraCargatAlertas && novosAlertasRecebidos.length > 0) {
-      // Criar conjunto de IDs anteriores para comparação rápida
-      const idsAnteriores = new Set(alertasAnteriores.map(a => a.id));
-
-      // Filtrar alertas que são realmente novos (não existiam antes)
-      const alertasNovos = novosAlertasRecebidos.filter(a => !idsAnteriores.has(a.id));
-
-      console.log(`[Alertas] Detectados ${alertasNovos.length} novos alertas`);
-
-      if (alertasNovos.length > 0) {
-        console.log(`🔔 ${alertasNovos.length} novo(s) alerta(s) detectado(s)!`, alertasNovos);
-        tocarAlarme();
-        showToast(`🔔 ${alertasNovos.length} novo(s) alerta(s)!`, 'warning');
-
-        // Mostrar notificação do navegador também
-        mostrarNotificacao(`${alertasNovos.length} novo(s) alerta(s)!`,
-          alertasNovos[0].areaMapeada ? `Área: ${alertasNovos[0].areaMapeada}` : 'Novo alerta recebido');
-      }
-    }
-
-    // Marcar primeira carga como concluída
+    // Na primeira carga, apenas registra os IDs existentes mas NÃO exibe
+    // Isso garante que alertas antigos não apareçam
     if (primeiraCargatAlertas) {
+      // Registrar todos alertas existentes como "já vistos"
+      todosAlertas.forEach(a => alertasNotificadosSessao.add(a.id));
       primeiraCargatAlertas = false;
-      console.log('[Alertas] Primeira carga concluída - notificações ativadas');
+      alertasAnteriores = [...todosAlertas];
+      console.log(`[Alertas] Primeira carga: ${todosAlertas.length} alertas existentes marcados como vistos`);
+      console.log('[Alertas] Somente NOVOS alertas (tempo real) serão exibidos a partir de agora');
+
+      // Mostrar lista vazia inicialmente
+      dadosAlertas = [];
+      atualizarTabelaAlertas(dadosAlertas);
+      atualizarBadgeAlertas();
+      atualizarEstatisticasAlertas();
+      return;
     }
 
-    // Atualizar lista de alertas
-    alertasAnteriores = [...novosAlertasRecebidos];
-    dadosAlertas = novosAlertasRecebidos;
+    // Filtrar apenas alertas NOVOS (recebidos durante esta sessão)
+    const alertasNovos = todosAlertas.filter(a => !alertasNotificadosSessao.has(a.id));
 
-    atualizarTabelaAlertas(dadosAlertas);
-    atualizarBadgeAlertas();
-    atualizarEstatisticasAlertas();
+    if (alertasNovos.length > 0) {
+      console.log(`🔔 ${alertasNovos.length} novo(s) alerta(s) em tempo real!`, alertasNovos);
+
+      // Adicionar novos alertas à lista exibida
+      alertasNovos.forEach(a => {
+        alertasNotificadosSessao.add(a.id);
+        dadosAlertas.unshift(a); // Adicionar no início
+      });
+
+      tocarAlarme();
+      showToast(`🔔 ${alertasNovos.length} novo(s) alerta(s)!`, 'warning');
+
+      // Mostrar notificação do navegador também
+      mostrarNotificacao(`${alertasNovos.length} novo(s) alerta(s)!`,
+        alertasNovos[0].areaMapeada ? `Área: ${alertasNovos[0].areaMapeada}` : 'Novo alerta recebido');
+
+      atualizarTabelaAlertas(dadosAlertas);
+      atualizarBadgeAlertas();
+      atualizarEstatisticasAlertas();
+    }
+
+    // Atualizar lista de referência
+    alertasAnteriores = [...todosAlertas];
 
   } catch (error) {
     // Só mostrar erro se for um erro persistente (mais de 5 erros consecutivos)
