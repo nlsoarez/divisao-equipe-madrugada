@@ -182,22 +182,59 @@ function extrairSecaoLista(texto, secao) {
 
   let conteudo = null;
 
-  // Método 1: Busca por seção markdown **SECAO:**
-  const regexBold = new RegExp(`\\*\\*${secao}:\\*\\*`, 'i');
-  const matchBold = texto.match(regexBold);
+  // Método 0: Busca por emoji + nome da seção (ex: "🏢 Totais por Cluster:")
+  const emojisSecao = {
+    'Totais por Cluster': ['🏢', '📍', '🗺️'],
+    'Cluster': ['🏢', '📍', '🗺️'],
+    'CLUSTER': ['🏢', '📍', '🗺️'],
+    'Por Cluster': ['🏢', '📍', '🗺️'],
+    'Totais por Status': ['📌', '📊', '✅'],
+    'Status': ['📌', '📊', '✅'],
+    'Totais por Sintoma': ['🧪', '⚠️', '🔍'],
+    'Sintoma': ['🧪', '⚠️', '🔍']
+  };
 
-  if (matchBold) {
-    const posInicio = texto.indexOf(matchBold[0]) + matchBold[0].length;
-    const restoTexto = texto.substring(posInicio);
-    const regexProximaSecao = /\n\*\*[A-ZÁÉÍÓÚÂÊÎÔÛÃÕÇ][A-ZÁÉÍÓÚÂÊÎÔÛÃÕÇA-Z\s/]*:\*\*/i;
-    const matchProxima = restoTexto.match(regexProximaSecao);
+  const emojisParaSecao = emojisSecao[secao] || [];
+  for (const emoji of emojisParaSecao) {
+    // Busca: emoji + texto da seção + ":" + nova linha
+    const regexEmoji = new RegExp(`${emoji}\\s*[^\\n]*${secao.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}[^\\n]*:\\s*\\n`, 'i');
+    const matchEmoji = texto.match(regexEmoji);
 
-    if (matchProxima) {
-      conteudo = restoTexto.substring(0, matchProxima.index);
-    } else {
-      conteudo = restoTexto;
+    if (matchEmoji) {
+      const posInicio = texto.indexOf(matchEmoji[0]) + matchEmoji[0].length;
+      const restoTexto = texto.substring(posInicio);
+      // Encontra próxima seção (emoji + texto + dois pontos)
+      const regexProxima = /\n[📊🏢📂🍃🔍📍🗓️🚨📌🧪⚠️✅]+\s*[^\n:]+:/;
+      const matchProxima = restoTexto.match(regexProxima);
+
+      if (matchProxima) {
+        conteudo = restoTexto.substring(0, matchProxima.index);
+      } else {
+        conteudo = restoTexto;
+      }
+      console.log(`[Parser] Encontrado com emoji ${emoji}, conteúdo tem ${conteudo?.length || 0} chars`);
+      break;
     }
-    console.log(`[Parser] Encontrado com markdown bold, conteúdo tem ${conteudo?.length || 0} chars`);
+  }
+
+  // Método 1: Busca por seção markdown **SECAO:**
+  if (!conteudo) {
+    const regexBold = new RegExp(`\\*\\*${secao}:\\*\\*`, 'i');
+    const matchBold = texto.match(regexBold);
+
+    if (matchBold) {
+      const posInicio = texto.indexOf(matchBold[0]) + matchBold[0].length;
+      const restoTexto = texto.substring(posInicio);
+      const regexProximaSecao = /\n\*\*[A-ZÁÉÍÓÚÂÊÎÔÛÃÕÇ][A-ZÁÉÍÓÚÂÊÎÔÛÃÕÇA-Z\s/]*:\*\*/i;
+      const matchProxima = restoTexto.match(regexProximaSecao);
+
+      if (matchProxima) {
+        conteudo = restoTexto.substring(0, matchProxima.index);
+      } else {
+        conteudo = restoTexto;
+      }
+      console.log(`[Parser] Encontrado com markdown bold, conteúdo tem ${conteudo?.length || 0} chars`);
+    }
   }
 
   // Método 2: Busca por markdown heading ## SECAO ou ### SECAO
@@ -267,42 +304,68 @@ function extrairSecaoLista(texto, secao) {
     return null;
   }
 
-  // Processa linhas que começam com "-" ou "•" ou números
+  // Processa TODAS as linhas que contêm "nome: valor" ou "nome - valor"
+  // Aceita linhas com "-", "•", números, OU emojis no início
   const linhas = conteudo.split('\n').filter(l => {
     const trimmed = l.trim();
-    return trimmed.startsWith('-') || trimmed.startsWith('•') || trimmed.match(/^\d+\./);
+    if (!trimmed) return false;
+    // Aceita linhas começando com: -, •, número, ou emoji
+    // Também aceita linhas que contenham ": número" em qualquer lugar
+    return trimmed.startsWith('-') ||
+           trimmed.startsWith('•') ||
+           trimmed.match(/^\d+\./) ||
+           trimmed.match(/:\s*\d+\s*$/) || // Qualquer linha terminando em ": número"
+           trimmed.match(/^[^\w\sÀ-ÿ]/) || // Começa com emoji ou caractere especial
+           trimmed.match(/-\s*\d+\s*$/);   // Qualquer linha terminando em "- número"
   });
-  console.log(`[Parser] Seção ${secao}: encontradas ${linhas.length} linhas com itens`);
+  console.log(`[Parser] Seção ${secao}: encontradas ${linhas.length} linhas candidatas`);
 
   const itens = {};
   let total = 0;
 
   for (const linha of linhas) {
+    const linhaOriginal = linha.trim();
+    // Remove emojis e caracteres especiais do início da linha para facilitar parsing
+    const linhaSemEmoji = linhaOriginal.replace(/^[^\w\sÀ-ÿ]+\s*/, '').trim();
+
     // Captura múltiplos formatos:
     // "- Nome do Item: 123"
     // "• Nome do Item: 123"
     // "1. Nome do Item: 123"
     // "- Nome do Item - 123"
-    let itemMatch = linha.match(/^[-•]\s*(.+?):\s*(\d+)\s*$/);
+    // "☕ Minas Gerais: 12" (emoji no início)
+    // "Nome do Item: 123" (sem marcador)
+    let itemMatch = linhaOriginal.match(/^[-•]\s*(.+?):\s*(\d+)\s*$/);
     if (!itemMatch) {
-      itemMatch = linha.match(/^\d+\.\s*(.+?):\s*(\d+)\s*$/);
+      itemMatch = linhaOriginal.match(/^\d+\.\s*(.+?):\s*(\d+)\s*$/);
     }
     if (!itemMatch) {
-      itemMatch = linha.match(/^[-•]\s*(.+?)\s*-\s*(\d+)\s*$/);
+      itemMatch = linhaOriginal.match(/^[-•]\s*(.+?)\s*-\s*(\d+)\s*$/);
     }
     // Tenta formato "- Nome do Item (123)"
     if (!itemMatch) {
-      itemMatch = linha.match(/^[-•]\s*(.+?)\s*\((\d+)\)\s*$/);
+      itemMatch = linhaOriginal.match(/^[-•]\s*(.+?)\s*\((\d+)\)\s*$/);
+    }
+    // Tenta formato com emoji: "☕ Nome do Item: 123"
+    if (!itemMatch) {
+      itemMatch = linhaSemEmoji.match(/^(.+?):\s*(\d+)\s*$/);
+    }
+    // Tenta formato com emoji e hífen: "☕ Nome do Item - 123"
+    if (!itemMatch) {
+      itemMatch = linhaSemEmoji.match(/^(.+?)\s*-\s*(\d+)\s*$/);
     }
 
     if (itemMatch) {
-      const nomeItem = itemMatch[1].trim();
+      // Remove qualquer emoji restante do nome do item
+      const nomeItem = itemMatch[1].replace(/^[^\w\sÀ-ÿ]+\s*/, '').trim();
       const valor = parseInt(itemMatch[2]);
-      itens[nomeItem] = valor;
-      total += valor;
-      console.log(`[Parser]   -> ${nomeItem}: ${valor}`);
+      if (nomeItem && valor > 0) {
+        itens[nomeItem] = valor;
+        total += valor;
+        console.log(`[Parser]   -> ${nomeItem}: ${valor}`);
+      }
     } else {
-      console.log(`[Parser]   -> Linha não parseada: "${linha.trim()}"`);
+      console.log(`[Parser]   -> Linha não parseada: "${linhaOriginal}"`);
     }
   }
 
@@ -323,17 +386,86 @@ function extrairSecaoLista(texto, secao) {
  */
 function parseCopRedeInformaNovoFormato(texto, dataMensagem, messageId) {
   console.log('[Parser] Parsing NOVO formato COP REDE - INFORMA (2026)...');
+  console.log('[Parser] Texto recebido (500 chars):', texto.substring(0, 500));
 
-  // Extrair campos principais
-  const tipo = extrairCampoComEmoji(texto, ['🏷️'], 'TIPO');
-  const horarioEnvio = extrairCampoComEmoji(texto, ['🕒'], 'Horário de envio');
-  const volumeTotal = extrairCampoComEmoji(texto, ['📊'], 'Volume Total');
+  // Extrair campos principais - tentar múltiplos emojis/nomes
+  const tipo = extrairCampoComEmoji(texto, ['🏷️', '🏷'], 'TIPO') ||
+               extrairCampoComEmoji(texto, ['🏷️', '🏷'], 'Tipo');
+  const horarioEnvio = extrairCampoComEmoji(texto, ['🕒', '⏰', '🕐'], 'Horário de envio') ||
+                       extrairCampoComEmoji(texto, ['🕒', '⏰', '🕐'], 'Horario de envio') ||
+                       extrairCampoComEmoji(texto, ['🕒', '⏰', '🕐'], 'Data');
+  const volumeTotal = extrairCampoComEmoji(texto, ['📊', '📈'], 'Volume Total') ||
+                      extrairCampoComEmoji(texto, ['📊', '📈'], 'Total');
 
-  // Extrair seções com listas
-  const cluster = extrairSecaoLista(texto, 'Totais por Cluster');
-  const status = extrairSecaoLista(texto, 'Totais por Status');
-  const sintoma = extrairSecaoLista(texto, 'Totais por Sintoma');
-  const incidentes24h = extrairSecaoLista(texto, 'Incidentes >24h por Cluster');
+  console.log('[Parser] Tipo extraído:', tipo);
+  console.log('[Parser] Horário extraído:', horarioEnvio);
+  console.log('[Parser] Volume total extraído:', volumeTotal);
+
+  // Extrair seções com listas - tentar múltiplos nomes de seção
+  let cluster = extrairSecaoLista(texto, 'Totais por Cluster');
+  if (!cluster || Object.keys(cluster.itens || {}).length === 0) {
+    cluster = extrairSecaoLista(texto, 'Cluster');
+  }
+  if (!cluster || Object.keys(cluster.itens || {}).length === 0) {
+    cluster = extrairSecaoLista(texto, 'CLUSTER');
+  }
+  if (!cluster || Object.keys(cluster.itens || {}).length === 0) {
+    cluster = extrairSecaoLista(texto, 'Por Cluster');
+  }
+
+  let status = extrairSecaoLista(texto, 'Totais por Status');
+  if (!status || Object.keys(status.itens || {}).length === 0) {
+    status = extrairSecaoLista(texto, 'Status');
+  }
+
+  let sintoma = extrairSecaoLista(texto, 'Totais por Sintoma');
+  if (!sintoma || Object.keys(sintoma.itens || {}).length === 0) {
+    sintoma = extrairSecaoLista(texto, 'Sintoma');
+  }
+
+  const incidentes24h = extrairSecaoLista(texto, 'Incidentes >24h por Cluster') ||
+                        extrairSecaoLista(texto, 'Incidentes 24h');
+
+  // FALLBACK: Se não encontrou clusters, tentar extrair diretamente do texto
+  // Busca padrões como "Minas Gerais: 12" ou "☕ Rio de Janeiro: 8"
+  if (!cluster || Object.keys(cluster.itens || {}).length === 0) {
+    console.log('[Parser] Tentando FALLBACK para extrair clusters diretamente...');
+    const clustersFallback = {};
+    let totalFallback = 0;
+
+    // Lista de nomes de regiões conhecidas
+    const regioesConhecidas = [
+      'Minas Gerais', 'Rio de Janeiro', 'Rio', 'Bahia', 'Sergipe', 'Bahia / Sergipe',
+      'Espirito Santo', 'Espírito Santo', 'Vitoria', 'Vitória', 'Centro Oeste',
+      'Centro-Oeste', 'Norte', 'Nordeste', 'Goias', 'Goiás', 'Amazonas', 'Para', 'Pará',
+      'Rio / Espirito Santo', 'Rio / Espírito Santo', 'Grande Rio', 'Rio Capital'
+    ];
+
+    // Buscar cada região no texto com seu valor
+    for (const regiao of regioesConhecidas) {
+      // Padrão: "região: número" ou "emoji região: número"
+      const regex = new RegExp(`[^\\w]?${regiao.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*[:\\-]\\s*(\\d+)`, 'gi');
+      const matches = texto.matchAll(regex);
+      for (const match of matches) {
+        const valor = parseInt(match[1]);
+        if (valor > 0) {
+          // Normalizar nome da região
+          const nomeNormalizado = regiao.trim();
+          if (!clustersFallback[nomeNormalizado]) {
+            clustersFallback[nomeNormalizado] = 0;
+          }
+          clustersFallback[nomeNormalizado] += valor;
+          totalFallback += valor;
+          console.log(`[Parser] FALLBACK encontrou: ${nomeNormalizado}: ${valor}`);
+        }
+      }
+    }
+
+    if (Object.keys(clustersFallback).length > 0) {
+      cluster = { itens: clustersFallback, total: totalFallback };
+      console.log('[Parser] FALLBACK clusters extraídos:', cluster);
+    }
+  }
 
   console.log('[Parser] Clusters extraídos:', cluster);
   console.log('[Parser] Status extraídos:', status);
