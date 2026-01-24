@@ -305,17 +305,18 @@ function extrairSecaoLista(texto, secao) {
   }
 
   // Processa TODAS as linhas que contêm "nome: valor" ou "nome - valor"
-  // Aceita linhas com "-", "•", números, OU emojis no início
+  // Aceita linhas com "-", "•", "*", números, OU emojis no início
   const linhas = conteudo.split('\n').filter(l => {
     const trimmed = l.trim();
     if (!trimmed) return false;
-    // Aceita linhas começando com: -, •, número, ou emoji
+    // Aceita linhas começando com: -, •, *, número, ou emoji
     // Também aceita linhas que contenham ": número" em qualquer lugar
     return trimmed.startsWith('-') ||
            trimmed.startsWith('•') ||
+           trimmed.startsWith('*') ||  // Asterisco como marcador de lista (WhatsApp)
            trimmed.match(/^\d+\./) ||
            trimmed.match(/:\s*\d+\s*$/) || // Qualquer linha terminando em ": número"
-           trimmed.match(/^[^\w\sÀ-ÿ]/) || // Começa com emoji ou caractere especial
+           trimmed.match(/^[^\w\sÀ-ÿ*]/) || // Começa com emoji (exceto asterisco)
            trimmed.match(/-\s*\d+\s*$/);   // Qualquer linha terminando em "- número"
   });
   console.log(`[Parser] Seção ${secao}: encontradas ${linhas.length} linhas candidatas`);
@@ -325,39 +326,40 @@ function extrairSecaoLista(texto, secao) {
 
   for (const linha of linhas) {
     const linhaOriginal = linha.trim();
-    // Remove emojis e caracteres especiais do início da linha para facilitar parsing
-    const linhaSemEmoji = linhaOriginal.replace(/^[^\w\sÀ-ÿ]+\s*/, '').trim();
+    // Remove marcadores do início: -, •, *, emojis
+    const linhaSemMarcador = linhaOriginal.replace(/^[-•*]\s*/, '').replace(/^[^\w\sÀ-ÿ]+\s*/, '').trim();
 
     // Captura múltiplos formatos:
     // "- Nome do Item: 123"
     // "• Nome do Item: 123"
+    // "* Nome do Item: 123" (formato WhatsApp)
     // "1. Nome do Item: 123"
     // "- Nome do Item - 123"
     // "☕ Minas Gerais: 12" (emoji no início)
     // "Nome do Item: 123" (sem marcador)
-    let itemMatch = linhaOriginal.match(/^[-•]\s*(.+?):\s*(\d+)\s*$/);
+    let itemMatch = linhaOriginal.match(/^[-•*]\s*(.+?):\s*(\d+)\s*$/);
     if (!itemMatch) {
       itemMatch = linhaOriginal.match(/^\d+\.\s*(.+?):\s*(\d+)\s*$/);
     }
     if (!itemMatch) {
-      itemMatch = linhaOriginal.match(/^[-•]\s*(.+?)\s*-\s*(\d+)\s*$/);
+      itemMatch = linhaOriginal.match(/^[-•*]\s*(.+?)\s*-\s*(\d+)\s*$/);
     }
     // Tenta formato "- Nome do Item (123)"
     if (!itemMatch) {
-      itemMatch = linhaOriginal.match(/^[-•]\s*(.+?)\s*\((\d+)\)\s*$/);
+      itemMatch = linhaOriginal.match(/^[-•*]\s*(.+?)\s*\((\d+)\)\s*$/);
     }
-    // Tenta formato com emoji: "☕ Nome do Item: 123"
+    // Tenta formato sem marcador: "Nome do Item: 123"
     if (!itemMatch) {
-      itemMatch = linhaSemEmoji.match(/^(.+?):\s*(\d+)\s*$/);
+      itemMatch = linhaSemMarcador.match(/^(.+?):\s*(\d+)\s*$/);
     }
-    // Tenta formato com emoji e hífen: "☕ Nome do Item - 123"
+    // Tenta formato com hífen: "Nome do Item - 123"
     if (!itemMatch) {
-      itemMatch = linhaSemEmoji.match(/^(.+?)\s*-\s*(\d+)\s*$/);
+      itemMatch = linhaSemMarcador.match(/^(.+?)\s*-\s*(\d+)\s*$/);
     }
 
     if (itemMatch) {
-      // Remove qualquer emoji restante do nome do item
-      const nomeItem = itemMatch[1].replace(/^[^\w\sÀ-ÿ]+\s*/, '').trim();
+      // Remove qualquer marcador ou emoji restante do nome do item
+      const nomeItem = itemMatch[1].replace(/^[-•*]\s*/, '').replace(/^[^\w\sÀ-ÿ]+\s*/, '').trim();
       const valor = parseInt(itemMatch[2]);
       if (nomeItem && valor > 0) {
         itens[nomeItem] = valor;
