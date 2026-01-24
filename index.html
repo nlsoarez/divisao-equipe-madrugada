@@ -1040,6 +1040,16 @@
         font-size: 0.75rem;
       }
 
+      /* Fix: Garantir que o container do calendário não corte dias */
+      .calendar-container {
+        overflow: visible;
+        padding: 0.75rem;
+      }
+
+      .calendar-grid {
+        overflow: visible;
+      }
+
       /* Telegram section mobile */
       .telegram-section {
         margin: 0.5rem;
@@ -5058,107 +5068,10 @@ async function verificarBinExiste(binId) {
 }
 
 async function salvarDadosNaNuvem() {
-  console.log('🔵 INICIANDO SALVAMENTO NA NUVEM...');
+  console.log('🔵 INICIANDO SALVAMENTO NA NUVEM (v3)...');
 
-  let binId = obterBinId();
-  console.log('📌 BIN_ID atual:', binId || 'Nenhum (será criado)');
-
-  showLoading();
-
-  try {
-    // 1. Preparar dados (garantir que mês/ano nunca sejam null)
-    const mesParaSalvar = mesSelecionado ?? new Date().getMonth();
-    const anoParaSalvar = anoSelecionado ?? new Date().getFullYear();
-
-    const dadosParaSalvar = {
-      escala_id: 'portal_escala_v2',
-      mes: mesParaSalvar,
-      ano: anoParaSalvar,
-      ultima_atualizacao: new Date().toISOString(),
-      dadosOriginais: dadosOriginais || {},
-      trocas: trocasRegistradas || [],
-      dadosPlanilha: dadosPlanilha || [],
-      metadata: {
-        criado_em: new Date().toISOString(),
-        versao: '2.0',
-        total_dias: Object.keys(dadosOriginais).length
-      }
-    };
-
-    console.log('📦 Dados preparados para salvar:', {
-      mes: MESES[mesParaSalvar],
-      ano: anoParaSalvar,
-      totalDias: Object.keys(dadosOriginais).length,
-      totalFuncionarios: dadosPlanilha.length,
-      totalTrocas: trocasRegistradas.length
-    });
-
-    // 2. Se não houver BIN_ID, criar um novo (apenas admin)
-    if (!binId) {
-      if (!isAdmin) {
-        throw new Error('Nenhum armazenamento configurado. Aguarde o admin fazer o primeiro upload.');
-      }
-      console.log('🆕 Nenhum BIN_ID encontrado. Criando novo...');
-      const novoBin = await criarNovoBin(dadosParaSalvar);
-      if (novoBin.success) {
-        salvarBinId(novoBin.binId);
-        exibirInstrucoesBinId(novoBin.binId);
-        hideLoading();
-        return novoBin.result;
-      }
-      throw new Error('Falha ao criar novo armazenamento');
-    }
-
-    // 3. Salvar no BIN existente
-    const resultado = await tentarSalvarNoBin(binId, dadosParaSalvar);
-
-    if (resultado && resultado.metadata) {
-      // Verificar se o ID mudou (novo bin criado)
-      const novoId = resultado.metadata.id;
-      if (novoId && novoId !== binId) {
-        salvarBinId(novoId);
-        exibirInstrucoesBinId(novoId);
-      }
-      console.log('✅ SALVO COM SUCESSO na nuvem! Bin:', novoId || binId);
-
-      // Salvar backup local também (para fallback)
-      localStorage.setItem('escala_backup', JSON.stringify(dadosParaSalvar));
-      localStorage.setItem('escala_ultimo_salvamento', new Date().toISOString());
-
-      hideLoading();
-      showToast('✅ Escala salva na nuvem! Todos os usuários podem visualizar.', 'success');
-      return resultado;
-    }
-
-    // 3. Se falhar, tentar backup local
-    throw new Error('Falha ao salvar na nuvem');
-
-  } catch (error) {
-    console.error('❌ ERRO ao salvar na nuvem:', error);
-
-    // SALVAMENTO LOCAL DE EMERGÊNCIA
-    try {
-      const dadosParaSalvar = {
-        escala_id: 'local_emergency',
-        mes: mesSelecionado,
-        ano: anoSelecionado,
-        ultima_atualizacao: new Date().toISOString(),
-        dadosOriginais: dadosOriginais || {},
-        trocas: trocasRegistradas || [],
-        dadosPlanilha: dadosPlanilha || []
-      };
-
-      localStorage.setItem('escala_backup', JSON.stringify(dadosParaSalvar));
-      localStorage.setItem('escala_ultimo_salvamento', new Date().toISOString());
-
-      showToast('⚠️ ATENÇÃO: Salvo apenas localmente! Outros usuários não verão os dados.', 'warning');
-    } catch (fallbackError) {
-      console.error('❌ FALHA TOTAL no salvamento:', fallbackError);
-      showToast('💥 ERRO: Não foi possível salvar os dados!', 'danger');
-    }
-  } finally {
-    hideLoading();
-  }
+  // Usar a função principal de salvamento que já está no formato v3.0
+  return await salvarConfiguracaoCalendarios();
 }
 
 async function tentarSalvarNoBin(binId, dados, tentarCriarNovo = true) {
