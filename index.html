@@ -4819,22 +4819,49 @@ async function salvarConfiguracaoCalendarios(tentativa = 1) {
 
   showLoading();
 
-  try {
-    const binId = obterBinId();
-    if (!binId) {
-      showToast('❌ Nenhum armazenamento configurado', 'danger');
-      hideLoading();
-      return;
-    }
+  const dadosParaSalvar = {
+    escala_id: 'portal_escala_v3_multi',
+    versao: '3.0',
+    calendarioAtivo: calendarioAtivo,
+    calendario1: calendarios.calendario1,
+    calendario2: calendarios.calendario2,
+    ultima_atualizacao: new Date().toISOString()
+  };
 
-    const dadosParaSalvar = {
-      escala_id: 'portal_escala_v3_multi',
-      versao: '3.0',
-      calendarioAtivo: calendarioAtivo,
-      calendario1: calendarios.calendario1,
-      calendario2: calendarios.calendario2,
-      ultima_atualizacao: new Date().toISOString()
-    };
+  try {
+    let binId = obterBinId();
+
+    // Se não houver BIN_ID, criar um novo bin
+    if (!binId) {
+      console.log('🆕 Nenhum BIN_ID configurado. Criando novo bin...');
+
+      if (!isAdmin) {
+        showToast('📭 Sistema não configurado. Aguarde o admin fazer o primeiro upload.', 'info');
+        hideLoading();
+        return;
+      }
+
+      try {
+        const novoBin = await criarNovoBin(dadosParaSalvar);
+        if (novoBin.success) {
+          showToast('✅ Novo armazenamento criado e escalas salvas!', 'success');
+          exibirInstrucoesBinId(novoBin.binId);
+
+          // Salvar backup local
+          localStorage.setItem('escala_backup', JSON.stringify(dadosParaSalvar));
+          localStorage.setItem('escala_ultimo_salvamento', new Date().toISOString());
+          localStorage.removeItem('escala_pendente_publicacao');
+
+          hideLoading();
+          return;
+        }
+      } catch (criarError) {
+        console.error('❌ Falha ao criar novo bin:', criarError);
+        showToast('❌ Erro ao criar armazenamento: ' + criarError.message, 'danger');
+        hideLoading();
+        return;
+      }
+    }
 
     console.log('📤 Enviando para nuvem:', {
       binId,
