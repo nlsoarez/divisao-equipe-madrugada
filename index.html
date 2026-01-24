@@ -3702,7 +3702,7 @@ function mostrarDetalhesDiaEmpresarial(subEscala, dia) {
 // Editar divisão de áreas para Empresarial
 function editarDivisaoAreasEmpresarial(subEscala, dia) {
   const subEscalaDados = calendarios.calendario2?.[subEscala];
-  if (!subEscalaDados || !subEscalaDados.dadosOriginais) return;
+  if (!subEscalaDados || !subEscalaDados.dadosOriginais || !isAdmin) return;
 
   const dadosDia = subEscalaDados.dadosOriginais[dia];
   if (!dadosDia) return;
@@ -3908,7 +3908,7 @@ function recalcularDivisaoAutomaticaEmpresarial(subEscala, dia) {
 
 function marcarAusenciaNaoEsperadaEmpresarial(subEscala, dia) {
   const subEscalaDados = calendarios.calendario2?.[subEscala];
-  if (!subEscalaDados || !subEscalaDados.dadosOriginais) return;
+  if (!subEscalaDados || !subEscalaDados.dadosOriginais || !isAdmin) return;
 
   const dadosDia = subEscalaDados.dadosOriginais[dia];
   if (!dadosDia) return;
@@ -5728,6 +5728,10 @@ function iniciarComoAdmin() {
   const adminNavTabs = document.getElementById('adminNavTabs');
   if (adminNavTabs) adminNavTabs.classList.add('show');
 
+  // Mostrar aba COP Rede Informa (telegram) para admin
+  const telegramTabNav = document.querySelector('.admin-nav-tab[data-admin-tab="telegram"]');
+  if (telegramTabNav) telegramTabNav.style.display = '';
+
   // Mostrar painel de gerenciamento baseado no calendário ativo
   const calendarioPanelResidencial = document.getElementById('calendarioPanelResidencial');
   const calendarioPanelEmpresarial = document.getElementById('calendarioPanelEmpresarial');
@@ -5777,19 +5781,23 @@ function iniciarComoVisualizador() {
   if (adminControls) adminControls.style.display = 'none';
   if (userControls) userControls.style.display = 'flex';
 
-  // Mostrar botão de agendar trocas para visualizadores também (trocas não são exclusivas do admin)
+  // Esconder botão de agendar trocas e desativar modo
   const btnAgendarTrocas = document.getElementById('btnAgendarTrocas');
-  if (btnAgendarTrocas) btnAgendarTrocas.style.display = 'inline-flex';
+  if (btnAgendarTrocas) btnAgendarTrocas.style.display = 'none';
 
   const swapStatus = document.getElementById('swapStatus');
   if (swapStatus) swapStatus.style.display = 'none';
 
-  // Iniciar com modo de troca desativado
+  // Desativar modo de troca
   modoTroca = false;
 
   // Mostrar navegação de abas para visualizadores também
   const adminNavTabs = document.getElementById('adminNavTabs');
   if (adminNavTabs) adminNavTabs.classList.add('show');
+
+  // Esconder aba COP Rede Informa (telegram) para visualizadores
+  const telegramTabNav = document.querySelector('.admin-nav-tab[data-admin-tab="telegram"]');
+  if (telegramTabNav) telegramTabNav.style.display = 'none';
 
   // Esconder painéis de gerenciamento (somente admin)
   const calendarioPanelResidencial = document.getElementById('calendarioPanelResidencial');
@@ -7618,7 +7626,7 @@ function mostrarDetalhesDia(dia) {
 
 function editarDivisaoAreas(dia) {
   const dadosDia = getDadosDiaComTrocas(dia);
-  if (!dadosDia) return;
+  if (!dadosDia || !isAdmin) return;
 
   const areaGrid = document.getElementById(`areaGrid-${dia}`);
   if (!areaGrid) return;
@@ -7780,7 +7788,7 @@ function recalcularDivisaoAutomatica(dia) {
 
 function marcarAusenciaNaoEsperada(dia) {
   const dadosDia = getDadosDiaComTrocas(dia);
-  if (!dadosDia) return;
+  if (!dadosDia || !isAdmin) return;
 
   const modalContent = document.getElementById('dayModalContent');
   if (!modalContent) return;
@@ -7972,6 +7980,11 @@ function atualizarPainelTrocas() {
 }
 
 function cancelarTroca(trocaId) {
+  if (!isAdmin) {
+    showToast('❌ Apenas administradores podem cancelar trocas', 'danger');
+    return;
+  }
+
   const troca = trocasRegistradas.find(t => t.id === trocaId);
   if (troca) {
     troca.status = 'cancelada';
@@ -7987,6 +8000,11 @@ function cancelarTroca(trocaId) {
 }
 
 function limparTodasTrocas() {
+  if (!isAdmin) {
+    showToast('❌ Apenas administradores podem limpar trocas', 'danger');
+    return;
+  }
+
   if (confirm('Tem certeza que deseja limpar TODAS as trocas registradas?')) {
     trocasRegistradas.forEach(troca => {
       troca.status = 'cancelada';
@@ -8504,9 +8522,9 @@ function trocarAbaAdmin(abaId) {
     if (calendarioPanelLeste) calendarioPanelLeste.style.display = 'none';
     if (telegramPanel) telegramPanel.style.display = 'none';
 
-    // Mostrar botão de troca para todos os usuários (trocas não são exclusivas do admin)
+    // Mostrar botão de troca para admin
     const btnAgendarTrocasRioEs = document.getElementById('btnAgendarTrocasRioEs');
-    if (btnAgendarTrocasRioEs) btnAgendarTrocasRioEs.style.display = 'inline-flex';
+    if (btnAgendarTrocasRioEs) btnAgendarTrocasRioEs.style.display = isAdmin ? 'inline-flex' : 'none';
 
     // Carregar calendário Rio/ES
     carregarCalendarioEmpresarialGrid('rio_es');
@@ -8528,14 +8546,20 @@ function trocarAbaAdmin(abaId) {
     if (calendarioPanelLeste) calendarioPanelLeste.style.display = isAdmin ? 'block' : 'none';
     if (telegramPanel) telegramPanel.style.display = 'none';
 
-    // Mostrar botão de troca para todos os usuários (trocas não são exclusivas do admin)
+    // Mostrar botão de troca para admin
     const btnAgendarTrocasLeste = document.getElementById('btnAgendarTrocasLeste');
-    if (btnAgendarTrocasLeste) btnAgendarTrocasLeste.style.display = 'inline-flex';
+    if (btnAgendarTrocasLeste) btnAgendarTrocasLeste.style.display = isAdmin ? 'inline-flex' : 'none';
 
     // Carregar calendário Leste
     carregarCalendarioEmpresarialGrid('leste');
 
   } else if (abaId === 'telegram') {
+    // COP Rede Informa é exclusivo do admin
+    if (!isAdmin) {
+      showToast('❌ COP Rede Informa é exclusivo do administrador', 'danger');
+      return;
+    }
+
     // Mostrar aba Telegram
     if (tabTelegram) tabTelegram.classList.add('active');
 
