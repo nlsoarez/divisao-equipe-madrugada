@@ -4811,7 +4811,7 @@ function atualizarStatusCalendarios() {
 }
 
 // Salvar configuração dos calendários na nuvem
-async function salvarConfiguracaoCalendarios() {
+async function salvarConfiguracaoCalendarios(tentativa = 1) {
   console.log('💾 Salvando configuração dos calendários...');
   console.log('📅 Calendário ativo:', calendarioAtivo);
   console.log('📦 Calendário 1:', calendarios.calendario1 ? 'Preenchido' : 'Vazio');
@@ -4855,11 +4855,20 @@ async function salvarConfiguracaoCalendarios() {
     });
 
     if (response.ok) {
-      showToast('✅ Escalas salvas e publicadas!', 'success');
+      showToast('✅ Escalas salvas e publicadas para todos!', 'success');
 
-      // Salvar backup local
+      // Salvar backup local também
       localStorage.setItem('escala_backup', JSON.stringify(dadosParaSalvar));
       localStorage.setItem('escala_ultimo_salvamento', new Date().toISOString());
+      localStorage.removeItem('escala_pendente_publicacao'); // Limpar flag de pendente
+    } else if (response.status === 429 && tentativa <= 3) {
+      // Rate limiting - aguardar e tentar novamente
+      const tempoEspera = tentativa * 2000;
+      console.warn(`⚠️ Rate limit (429). Aguardando ${tempoEspera/1000}s para retry ${tentativa}/3...`);
+      showToast(`⏳ Servidor ocupado. Tentando novamente em ${tempoEspera/1000}s...`, 'warning');
+      hideLoading();
+      await new Promise(resolve => setTimeout(resolve, tempoEspera));
+      return salvarConfiguracaoCalendarios(tentativa + 1);
     } else if (response.status === 404) {
       // Bin não existe mais, tentar criar um novo
       console.warn('⚠️ Bin não encontrado (404). Tentando criar novo...');
@@ -4870,6 +4879,7 @@ async function salvarConfiguracaoCalendarios() {
         if (novoBin.success) {
           showToast('✅ Novo armazenamento criado e escalas salvas!', 'success');
           exibirInstrucoesBinId(novoBin.binId);
+          localStorage.removeItem('escala_pendente_publicacao');
         }
       } catch (criarError) {
         console.error('❌ Falha ao criar novo bin:', criarError);
@@ -4882,24 +4892,76 @@ async function salvarConfiguracaoCalendarios() {
     }
   } catch (error) {
     console.error('❌ Erro ao salvar calendários:', error);
-    showToast('❌ Erro ao salvar: ' + error.message, 'danger');
 
     // Salvar localmente como backup de emergência
     try {
-      localStorage.setItem('escala_backup', JSON.stringify({
+      const dadosBackup = {
         escala_id: 'backup_local',
         versao: '3.0',
         calendarioAtivo: calendarioAtivo,
         calendario1: calendarios.calendario1,
         calendario2: calendarios.calendario2,
         ultima_atualizacao: new Date().toISOString()
-      }));
-      showToast('⚠️ Dados salvos localmente como backup', 'warning');
+      };
+      localStorage.setItem('escala_backup', JSON.stringify(dadosBackup));
+      localStorage.setItem('escala_pendente_publicacao', 'true'); // Marcar como pendente
+
+      // Mostrar alerta mais claro para o admin
+      showToast('⚠️ ATENÇÃO: Dados salvos APENAS localmente! Outros usuários NÃO verão as alterações. Tente "Republicar" mais tarde.', 'danger');
+
+      // Mostrar botão de republicar se não existir
+      mostrarBotaoRepublicar();
     } catch (backupError) {
       console.error('❌ Falha ao salvar backup local:', backupError);
+      showToast('❌ Erro crítico: não foi possível salvar nem localmente', 'danger');
     }
   } finally {
     hideLoading();
+  }
+}
+
+// Mostrar botão de republicar quando há dados pendentes
+function mostrarBotaoRepublicar() {
+  const pendente = localStorage.getItem('escala_pendente_publicacao');
+  if (pendente && isAdmin) {
+    // Verificar se já existe o botão
+    if (!document.getElementById('btnRepublicar')) {
+      const adminControls = document.getElementById('adminControls');
+      if (adminControls) {
+        const btnGroup = adminControls.querySelector('.buttons-group');
+        if (btnGroup) {
+          const btn = document.createElement('button');
+          btn.id = 'btnRepublicar';
+          btn.className = 'refresh-btn';
+          btn.style.background = 'linear-gradient(135deg, #ff9800 0%, #f57c00 100%)';
+          btn.title = 'Republicar dados na nuvem (há alterações pendentes)';
+          btn.innerHTML = '<i class="bi bi-cloud-upload"></i>';
+          btn.onclick = republicarDados;
+          btnGroup.insertBefore(btn, btnGroup.firstChild);
+        }
+      }
+    }
+  }
+}
+
+// Função para republicar dados pendentes
+async function republicarDados() {
+  if (!isAdmin) return;
+
+  const backup = localStorage.getItem('escala_backup');
+  if (!backup) {
+    showToast('ℹ️ Não há dados pendentes para republicar', 'info');
+    return;
+  }
+
+  showToast('🔄 Tentando republicar dados na nuvem...', 'info');
+  await salvarConfiguracaoCalendarios();
+
+  // Se publicou com sucesso, remover botão
+  const pendente = localStorage.getItem('escala_pendente_publicacao');
+  if (!pendente) {
+    const btn = document.getElementById('btnRepublicar');
+    if (btn) btn.remove();
   }
 }
 
@@ -5654,6 +5716,9 @@ function iniciarComoAdmin() {
 
   if (adminControls) adminControls.style.display = 'flex';
   if (userControls) userControls.style.display = 'none';
+
+  // Verificar se há dados pendentes de publicação
+  setTimeout(() => mostrarBotaoRepublicar(), 1000);
 
   // Mostrar botão de agendar trocas no calendário
   const btnAgendarTrocas = document.getElementById('btnAgendarTrocas');
