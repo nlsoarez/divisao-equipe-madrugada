@@ -1022,6 +1022,7 @@
     .area-item {
       display: flex;
       align-items: center;
+      gap: 0.75rem;
       min-width: 0;
       padding: 0.25rem 0;
       transition: var(--ds-transition-fast, 0.2s ease);
@@ -3492,39 +3493,6 @@ function mostrarDetalhesDiaEmpresarial(subEscala, dia) {
             </tbody>
           </table>
         </div>
-  `;
-
-  if (dadosDia.ausentes && dadosDia.ausentes.length > 0) {
-    html += `
-        <div class="status-group">
-          <div class="status-group-title">Ausentes (${dadosDia.ausentes.length})</div>
-          <div class="status-list">
-    `;
-
-    const ausentesOrdenados = [...dadosDia.ausentes].sort((a, b) => {
-      const nomeA = obterPrimeiroNome(a.nome).toLowerCase();
-      const nomeB = obterPrimeiroNome(b.nome).toLowerCase();
-      return nomeA.localeCompare(nomeB, 'pt-BR');
-    });
-
-    ausentesOrdenados.forEach(({nome, motivo}) => {
-      const primeiroNome = obterPrimeiroNome(nome);
-      html += `
-        <div class="status-item">
-          <span class="status-badge badge-ausente">✗</span>
-          <span>${primeiroNome}</span>
-          <span class="absence-reason">${motivo}</span>
-        </div>
-      `;
-    });
-
-    html += `
-          </div>
-        </div>
-    `;
-  }
-
-  html += `
       </div>
     </div>
   `;

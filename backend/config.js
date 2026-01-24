@@ -67,6 +67,8 @@ const GRUPO_PARA_AREA = {
   'rj': 'RIO',
 
   // MG/ES/BA - Minas Gerais, Espírito Santo, Bahia/Sergipe
+  'vitoria': 'MG/ES/BA',
+  'vitória': 'MG/ES/BA',
   'minas gerais': 'MG/ES/BA',
   'minas': 'MG/ES/BA',
   'mg': 'MG/ES/BA',
