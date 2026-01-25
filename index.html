@@ -1040,14 +1040,31 @@
         font-size: 0.75rem;
       }
 
-      /* Fix: Garantir que o container do calendário não corte dias */
+      /* Fix: Container com scroll horizontal para calendário no mobile */
       .calendar-container {
-        overflow: visible;
+        overflow-x: auto;
+        overflow-y: visible;
         padding: 0.75rem;
+        -webkit-overflow-scrolling: touch;
+      }
+
+      /* Barra de scroll estilizada */
+      .calendar-container::-webkit-scrollbar {
+        height: 6px;
+      }
+
+      .calendar-container::-webkit-scrollbar-track {
+        background: #e8f5e9;
+        border-radius: 3px;
+      }
+
+      .calendar-container::-webkit-scrollbar-thumb {
+        background: #81c784;
+        border-radius: 3px;
       }
 
       .calendar-grid {
-        overflow: visible;
+        min-width: 500px;
       }
 
       /* Telegram section mobile */
