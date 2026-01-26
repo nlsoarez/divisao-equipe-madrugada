@@ -7,10 +7,8 @@ const express = require('express');
 const cors = require('cors');
 require('dotenv').config();
 
-const { SERVER_CONFIG, USERBOT_CONFIG, EVOLUTION_CONFIG } = require('./config');
-const telegram = require('./telegram');
+const { SERVER_CONFIG, EVOLUTION_CONFIG } = require('./config');
 const storage = require('./storage');
-const userbot = require('./userbot');
 const whatsapp = require('./whatsapp');
 
 const app = express();
@@ -95,8 +93,7 @@ app.get('/health', (req, res) => {
   res.json({
     status: 'ok',
     timestamp: new Date().toISOString(),
-    whatsapp: whatsapp.obterStatus(),
-    telegram: telegram.obterEstatisticas()
+    whatsapp: whatsapp.obterStatus()
   });
 });
 
@@ -105,8 +102,7 @@ app.get('/api/health', (req, res) => {
   res.json({
     status: 'ok',
     timestamp: new Date().toISOString(),
-    whatsapp: whatsapp.obterStatus(),
-    telegram: telegram.obterEstatisticas()
+    whatsapp: whatsapp.obterStatus()
   });
 });
 
@@ -116,13 +112,12 @@ app.get('/api/health', (req, res) => {
 app.get('/api/estatisticas', async (req, res) => {
   try {
     const stats = await storage.obterEstatisticas();
-    const telegramStats = telegram.obterEstatisticas();
 
     res.json({
       sucesso: true,
       dados: {
         ...stats,
-        telegram: telegramStats
+        whatsapp: whatsapp.obterStatus()
       }
     });
   } catch (error) {
@@ -132,79 +127,16 @@ app.get('/api/estatisticas', async (req, res) => {
 });
 
 // ============================================
-// ROTAS DO TELEGRAM
+// ROTAS LEGADAS (mantidas para compatibilidade do frontend)
+// Telegram foi substituído por WhatsApp
 // ============================================
 
 /**
- * Testar conexão com Telegram
- */
-app.get('/api/telegram/status', async (req, res) => {
-  try {
-    const resultado = await telegram.testarConexao();
-    res.json(resultado);
-  } catch (error) {
-    res.status(500).json({ sucesso: false, erro: error.message });
-  }
-});
-
-/**
- * Iniciar polling do Telegram
- */
-app.post('/api/telegram/iniciar', async (req, res) => {
-  try {
-    await telegram.inicializar(true);
-    res.json({ sucesso: true, mensagem: 'Polling iniciado' });
-  } catch (error) {
-    res.status(500).json({ sucesso: false, erro: error.message });
-  }
-});
-
-/**
- * Parar polling do Telegram
- */
-app.post('/api/telegram/parar', async (req, res) => {
-  try {
-    await telegram.parar();
-    res.json({ sucesso: true, mensagem: 'Polling parado' });
-  } catch (error) {
-    res.status(500).json({ sucesso: false, erro: error.message });
-  }
-});
-
-/**
- * Forçar reinício do Telegram (reseta contadores e reinicia)
- */
-app.post('/api/telegram/reiniciar', async (req, res) => {
-  try {
-    console.log('[API] Forçando reinício do Telegram...');
-
-    // Parar se estiver rodando
-    await telegram.parar();
-
-    // Aguardar
-    await new Promise(resolve => setTimeout(resolve, 3000));
-
-    // Reiniciar
-    await telegram.inicializar(true);
-
-    res.json({
-      sucesso: true,
-      mensagem: 'Telegram reiniciado',
-      stats: telegram.obterEstatisticas()
-    });
-  } catch (error) {
-    res.status(500).json({ sucesso: false, erro: error.message });
-  }
-});
-
-/**
  * Sincronizar mensagens COP REDE INFORMA manualmente
- * Usa APENAS WhatsApp (Evolution API)
- * NOTA: Alertas (Novo Evento Detectado) são apenas em tempo real via webhook
+ * Rota legada mantida para compatibilidade - usa WhatsApp
  */
 app.post('/api/telegram/sincronizar', async (req, res) => {
   try {
-    // Usar APENAS WhatsApp (Evolution API)
     console.log('[Sync] Sincronizando via WhatsApp (Evolution API)...');
     const resultado = await whatsapp.buscarHistorico(100);
 
@@ -214,18 +146,6 @@ app.post('/api/telegram/sincronizar', async (req, res) => {
       mensagem: resultado.erro || 'Histórico COP REDE INFORMA sincronizado via WhatsApp',
       copRedeInforma: resultado.copRedeInforma || 0
     });
-  } catch (error) {
-    res.status(500).json({ sucesso: false, erro: error.message });
-  }
-});
-
-/**
- * Diagnóstico do bot - Verifica configurações e problemas de Privacy Mode
- */
-app.get('/api/telegram/diagnostico', async (req, res) => {
-  try {
-    const resultado = await telegram.diagnosticar();
-    res.json(resultado);
   } catch (error) {
     res.status(500).json({ sucesso: false, erro: error.message });
   }
@@ -332,7 +252,7 @@ app.post('/api/whatsapp/configurar-webhook', async (req, res) => {
 
 // ============================================
 // WEBHOOK PARA RECEBER MENSAGENS DIRETAMENTE
-// (Alternativa ao polling do Telegram)
+// WEBHOOK PARA RECEBER MENSAGENS DIRETAMENTE
 // ============================================
 
 /**
@@ -631,7 +551,7 @@ app.get('/api/alertas/resumo/status', async (req, res) => {
 // ============================================
 
 /**
- * Configurar Bin ID do Telegram (para persistência)
+ * Configurar Bin ID do WhatsApp (para persistência)
  */
 app.post('/api/config/bin-id', async (req, res) => {
   try {
@@ -713,10 +633,6 @@ app.listen(SERVER_CONFIG.PORT, async () => {
     console.log('   - EVOLUTION_INSTANCE_NAME');
     console.log('   - EVOLUTION_SOURCE_CHAT_ID');
   }
-
-  // Telegram DESATIVADO
-  console.log('');
-  console.log('ℹ️  Telegram desativado - usando apenas WhatsApp');
 
   console.log('');
   console.log('Endpoints disponíveis:');
