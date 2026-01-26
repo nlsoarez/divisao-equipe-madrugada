@@ -99,24 +99,24 @@ const CONFIG = {
         'RIO': ['ALAN', 'THIAGO', 'RAISSA', 'CRISTIANE', 'MARISTELLA', 'LEONARDO']
       }
     },
-    // 5 pessoas: CO/NO + NE/BA + MG + RIO (2 pessoas)
+    // 5 pessoas: CO/NO + NE/BA + MG/ES + RIO (2 pessoas)
     5: {
       RIO_DUPLO: true,
       areas: {
         'CO/NO': ['CRISTIANE', 'MARISTELLA', 'RAISSA', 'LEONARDO', 'THIAGO', 'ALAN'],
         'NE/BA': ['MARISTELLA', 'RAISSA', 'CRISTIANE', 'LEONARDO', 'THIAGO', 'ALAN'],
-        'MG': ['LEONARDO', 'RAISSA', 'CRISTIANE', 'ALAN', 'THIAGO', 'MARISTELLA'],
+        'MG/ES': ['LEONARDO', 'RAISSA', 'CRISTIANE', 'ALAN', 'THIAGO', 'MARISTELLA'],
         'RIO': ['ALAN', 'THIAGO', 'RAISSA', 'CRISTIANE', 'MARISTELLA', 'LEONARDO'],
         '_RIO_2': ['THIAGO', 'ALAN', 'RAISSA', 'CRISTIANE', 'MARISTELLA', 'LEONARDO']
       }
     },
-    // 6 pessoas: Atribuição fixa - CO/NO: Cristiane, NE/BA: Maristela, MG: Leonardo, RIO: Alan+Thiago, SIR: Raíssa
+    // 6 pessoas: Atribuição fixa - CO/NO: Cristiane, NE/BA: Maristela, MG/ES: Leonardo, RIO: Alan+Thiago, SIR: Raíssa
     6: {
       RIO_DUPLO: true,
       areas: {
         'CO/NO': ['CRISTIANE', 'MARISTELLA', 'RAISSA', 'LEONARDO', 'THIAGO', 'ALAN'],
         'NE/BA': ['MARISTELLA', 'RAISSA', 'CRISTIANE', 'LEONARDO', 'THIAGO', 'ALAN'],
-        'MG': ['LEONARDO', 'RAISSA', 'CRISTIANE', 'ALAN', 'THIAGO', 'MARISTELLA'],
+        'MG/ES': ['LEONARDO', 'RAISSA', 'CRISTIANE', 'ALAN', 'THIAGO', 'MARISTELLA'],
         'RIO': ['ALAN', 'THIAGO', 'RAISSA', 'CRISTIANE', 'MARISTELLA', 'LEONARDO'],
         '_RIO_2': ['THIAGO', 'ALAN', 'RAISSA', 'CRISTIANE', 'MARISTELLA', 'LEONARDO'],
         'SIR/APOIO': ['RAISSA', 'CRISTIANE', 'LEONARDO', 'MARISTELLA', 'THIAGO', 'ALAN']
