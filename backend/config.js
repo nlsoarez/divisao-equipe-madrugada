@@ -33,11 +33,11 @@ const USERBOT_CONFIG = {
 // Configurações do JSONBin.io (mesmas do projeto principal)
 const JSONBIN_CONFIG = {
   API_URL: 'https://api.jsonbin.io/v3/b',
-  MASTER_KEY: process.env.JSONBIN_MASTER_KEY || '$2a$10$dQyAV006kSDh2CvPh8cBCu2yspqnkCb4Dpm.A7wby6q.tZAKQHNce',
-  ACCESS_KEY: process.env.JSONBIN_ACCESS_KEY || '$2a$10$oo.QiJ4MvOeVCqfzC19p7OcJgzUVEU7eWINJO1EZefPScNpfBIRKC',
+  MASTER_KEY: process.env.JSONBIN_MASTER_KEY || '$2a$10$tGExKDQ1CS6U/A7JPWOlRerdm4XUs6sQcChusEUmlqiVdkugQ/MZW',
+  ACCESS_KEY: process.env.JSONBIN_ACCESS_KEY || '$2a$10$2dbmigUDE0MQ/2jxympm8eyPQzRdC/Ts4FIksSn/F9Pb4Qu8Mg0wm',
   // Bin específico para mensagens do Telegram (SEPARADO do bin da escala!)
   // Este bin armazena apenas: COP REDE INFORMA e Alertas
-  // O bin da escala (693a8a43ae596e708f923822) armazena os calendários de trabalho
+  // O bin da escala (697531c843b1c97be9474ae9) armazena os calendários de trabalho
   // Se null, um novo bin será criado automaticamente com as chaves atuais
   TELEGRAM_BIN_ID: process.env.TELEGRAM_BIN_ID || null
 };
