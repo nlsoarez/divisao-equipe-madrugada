@@ -5546,19 +5546,19 @@ function verificarAutenticacao() {
   } else if (auth === 'admin') {
     iniciarComoAdmin();
     carregarDadosDaNuvem();
-    // Limpar cache e carregar dados do Telegram ao iniciar
+    // Limpar cache e carregar dados do WhatsApp ao iniciar
     setTimeout(async () => {
       await limparCacheBackend(); // Limpar cache primeiro para garantir dados frescos
-      await carregarCopRedeInforma(true); // Sincroniza com Telegram e carrega (aguardar conclusão)
+      await carregarCopRedeInforma(true); // Sincroniza com WhatsApp e carrega (aguardar conclusão)
       await carregarAlertas();
     }, 1000);
   } else if (auth === 'viewer') {
     iniciarComoVisualizador();
     carregarDadosDaNuvem();
-    // Limpar cache e carregar dados do Telegram ao iniciar
+    // Limpar cache e carregar dados do WhatsApp ao iniciar
     setTimeout(async () => {
       await limparCacheBackend(); // Limpar cache primeiro para garantir dados frescos
-      await carregarCopRedeInforma(true); // Sincroniza com Telegram e carrega (aguardar conclusão)
+      await carregarCopRedeInforma(true); // Sincroniza com WhatsApp e carrega (aguardar conclusão)
       await carregarAlertas();
     }, 1000);
   } else {
@@ -5605,10 +5605,10 @@ function verificarPin() {
     // Iniciar como admin
     iniciarComoAdmin();
     carregarDadosDaNuvem();
-    // Limpar cache e carregar dados do Telegram ao iniciar
+    // Limpar cache e carregar dados do WhatsApp ao iniciar
     setTimeout(async () => {
       await limparCacheBackend(); // Limpar cache primeiro para garantir dados frescos
-      await carregarCopRedeInforma(true); // Sincroniza com Telegram e carrega (aguardar conclusão)
+      await carregarCopRedeInforma(true); // Sincroniza com WhatsApp e carrega (aguardar conclusão)
       await carregarAlertas();
     }, 1000);
 
@@ -5651,10 +5651,10 @@ function entrarComoVisualizador(tipo = 'residencial') {
     trocarAbaAdmin(tipo);
   }, 100);
 
-  // Limpar cache e carregar dados do Telegram ao iniciar
+  // Limpar cache e carregar dados do WhatsApp ao iniciar
   setTimeout(async () => {
     await limparCacheBackend(); // Limpar cache primeiro para garantir dados frescos
-    await carregarCopRedeInforma(true); // Sincroniza com Telegram e carrega (aguardar conclusão)
+    await carregarCopRedeInforma(true); // Sincroniza com WhatsApp e carrega (aguardar conclusão)
     await carregarAlertas();
   }, 1000);
 
@@ -8239,7 +8239,7 @@ let backendUrl = BACKEND_URL;
 let dadosCopRedeInforma = [];
 let dadosAlertas = [];
 let alertaAtual = null;
-let telegramConectado = false;
+let backendConectado = false;
 let autoRefreshInterval = null;
 const AUTO_REFRESH_MS = 10000; // 10 segundos
 let alertasAnteriores = []; // Para detectar novos alertas
@@ -8286,7 +8286,7 @@ document.addEventListener('visibilitychange', function() {
   if (document.visibilityState === 'visible') {
     console.log('[Visibility] Aba visível - verificando se precisa reconectar...');
     // Quando voltar a ser visível, forçar uma atualização
-    if (telegramConectado) {
+    if (backendConectado) {
       carregarCopRedeInforma(true);
       carregarAlertas();
     }
@@ -8532,7 +8532,7 @@ function trocarAbaAdmin(abaId) {
     if (telegramPanel) telegramPanel.style.display = 'block';
 
     // Conectar ao backend e iniciar auto-refresh
-    if (!telegramConectado) {
+    if (!backendConectado) {
       verificarConexaoBackend();
     } else {
       // Se já conectado, forçar atualização para garantir dados frescos
@@ -8550,7 +8550,7 @@ function trocarAbaAdmin(abaId) {
 function iniciarAutoRefresh() {
   if (autoRefreshInterval) return; // Já está rodando
 
-  console.log('[Telegram] Auto-refresh iniciado (a cada ' + (AUTO_REFRESH_MS/1000) + 's)');
+  console.log('[WhatsApp] Auto-refresh iniciado (a cada ' + (AUTO_REFRESH_MS/1000) + 's)');
 
   // Indicador visual
   const indicador = document.getElementById('autoRefreshIndicator');
@@ -8561,8 +8561,8 @@ function iniciarAutoRefresh() {
   carregarAlertas();
 
   autoRefreshInterval = setInterval(() => {
-    if (telegramConectado) {
-      console.log('[Telegram] Auto-refresh: atualizando dados...');
+    if (backendConectado) {
+      console.log('[WhatsApp] Auto-refresh: atualizando dados...');
       carregarCopRedeInforma(true); // Forçar atualização
       carregarAlertas();
     }
@@ -8573,7 +8573,7 @@ function pararAutoRefresh() {
   if (autoRefreshInterval) {
     clearInterval(autoRefreshInterval);
     autoRefreshInterval = null;
-    console.log('[Telegram] Auto-refresh parado');
+    console.log('[WhatsApp] Auto-refresh parado');
 
     // Indicador visual
     const indicador = document.getElementById('autoRefreshIndicator');
@@ -8584,7 +8584,7 @@ function pararAutoRefresh() {
 // Inicializar painel Telegram (chamado automaticamente)
 function inicializarTelegram() {
   // Conexão será feita quando o usuário clicar na aba
-  console.log('[Telegram] Pronto para conectar ao backend:', BACKEND_URL);
+  console.log('[WhatsApp] Pronto para conectar ao backend:', BACKEND_URL);
 }
 
 // Verificar conexão com o backend
@@ -8613,7 +8613,7 @@ async function verificarConexaoBackend() {
       if (statusEl) statusEl.className = 'backend-status online';
       if (statusText) statusText.textContent = data.telegram?.polling ? 'Online (Polling)' : 'Online';
 
-      telegramConectado = true;
+      backendConectado = true;
 
       // Carregar dados automaticamente com forçar atualização
       // para garantir dados frescos do JSONBin (não usar cache)
@@ -8630,7 +8630,7 @@ async function verificarConexaoBackend() {
     console.error('Erro ao conectar backend:', error);
     if (statusEl) statusEl.className = 'backend-status offline';
     if (statusText) statusText.textContent = 'Erro na conexão';
-    telegramConectado = false;
+    backendConectado = false;
   }
 }
 
@@ -8732,16 +8732,16 @@ async function carregarCopRedeInforma(forcarAtualizacao = false) {
   }
 
   try {
-    // Se forçar atualização, primeiro sincronizar com Telegram para buscar novas mensagens
+    // Se forçar atualização, primeiro sincronizar com WhatsApp para buscar novas mensagens
     if (forcarAtualizacao) {
       try {
-        console.log('[Telegram] Sincronizando com Telegram...');
+        console.log('[WhatsApp] Sincronizando com WhatsApp...');
         await fetch(`${backendUrl}/api/telegram/sincronizar`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' }
         });
       } catch (syncError) {
-        console.warn('[Telegram] Erro ao sincronizar (continuando com cache):', syncError.message);
+        console.warn('[WhatsApp] Erro ao sincronizar (continuando com cache):', syncError.message);
       }
     }
 
@@ -8764,7 +8764,7 @@ async function carregarCopRedeInforma(forcarAtualizacao = false) {
     atualizarTabelaCopRede(dadosCopRedeInforma);
     atualizarBadgeCopRede(dadosCopRedeInforma.length);
 
-    console.log('[Telegram] COP Rede Informa atualizado:', dadosCopRedeInforma.length, 'mensagens');
+    console.log('[WhatsApp] COP Rede Informa atualizado:', dadosCopRedeInforma.length, 'mensagens');
 
   } catch (error) {
     // Só mostrar erro se for um erro persistente (mais de 5 erros consecutivos)

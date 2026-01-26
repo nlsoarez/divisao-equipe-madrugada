@@ -13,8 +13,8 @@ let cacheLocal = {
   ultimaAtualizacao: null
 };
 
-// ID do bin para mensagens do Telegram (será criado se não existir)
-let telegramBinId = JSONBIN_CONFIG.TELEGRAM_BIN_ID;
+// ID do bin para mensagens do WhatsApp (será criado se não existir)
+let whatsappBinId = JSONBIN_CONFIG.WHATSAPP_BIN_ID;
 
 /**
  * Headers padrão para requisições ao JSONBin
@@ -32,7 +32,7 @@ function getHeaders() {
  * @returns {Promise<string>} ID do bin criado
  */
 async function criarBin() {
-  console.log('[Storage] Criando novo bin para mensagens do Telegram...');
+  console.log('[Storage] Criando novo bin para mensagens do WhatsApp...');
 
   const dadosIniciais = {
     copRedeInforma: [],
@@ -45,7 +45,7 @@ async function criarBin() {
     method: 'POST',
     headers: {
       ...getHeaders(),
-      'X-Bin-Name': 'COP_REDE_INFORMA_Telegram'
+      'X-Bin-Name': 'COP_REDE_INFORMA_WhatsApp'
     },
     body: JSON.stringify(dadosIniciais)
   });
@@ -56,12 +56,12 @@ async function criarBin() {
   }
 
   const result = await response.json();
-  telegramBinId = result.metadata.id;
+  whatsappBinId = result.metadata.id;
 
-  console.log('[Storage] Bin criado com ID:', telegramBinId);
-  console.log('[Storage] IMPORTANTE: Adicione TELEGRAM_BIN_ID=' + telegramBinId + ' ao seu .env');
+  console.log('[Storage] Bin criado com ID:', whatsappBinId);
+  console.log('[Storage] IMPORTANTE: Adicione WHATSAPP_BIN_ID=' + whatsappBinId + ' ao seu .env');
 
-  return telegramBinId;
+  return whatsappBinId;
 }
 
 /**
@@ -69,8 +69,8 @@ async function criarBin() {
  * @returns {Promise<string>} ID do bin
  */
 async function obterBinId() {
-  if (telegramBinId) {
-    return telegramBinId;
+  if (whatsappBinId) {
+    return whatsappBinId;
   }
 
   // Tentar criar um novo bin
@@ -471,7 +471,7 @@ async function obterEstatisticas() {
  * @param {string} binId - ID do bin
  */
 function setBinId(binId) {
-  telegramBinId = binId;
+  whatsappBinId = binId;
   console.log('[Storage] Bin ID definido:', binId);
 }
 
@@ -480,7 +480,7 @@ function setBinId(binId) {
  * @returns {string|null} ID do bin
  */
 function getBinId() {
-  return telegramBinId;
+  return whatsappBinId;
 }
 
 /**

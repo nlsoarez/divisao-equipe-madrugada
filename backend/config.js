@@ -5,7 +5,7 @@
 
 require('dotenv').config();
 
-// Configurações da Evolution API (WhatsApp)
+// Configurações da Evolution API (WhatsApp) - ÚNICA FONTE DE DADOS
 const EVOLUTION_CONFIG = {
   API_URL: process.env.EVOLUTION_API_URL || 'https://evolution-api-production-b976.up.railway.app',
   API_KEY: process.env.EVOLUTION_API_KEY || 'B1E0A9BC4BFF-4586-B06F-42011477C6B5',
@@ -14,32 +14,16 @@ const EVOLUTION_CONFIG = {
   SOURCE_CHAT_ID: process.env.EVOLUTION_SOURCE_CHAT_ID || null
 };
 
-// Configurações do Telegram Bot API (legado - mantido para compatibilidade)
-const TELEGRAM_CONFIG = {
-  BOT_TOKEN: process.env.TELEGRAM_BOT_TOKEN || '8450919829:AAFbu6mgwWSj_SCSryS0e-6FHRGQvkHrVRM',
-  GROUP_ID: process.env.TELEGRAM_GROUP_ID || '-1003217044000', // Grupos têm ID negativo
-  POLLING_INTERVAL: parseInt(process.env.POLLING_INTERVAL) || 5000
-};
-
-// Configurações do UserBot (Client API / MTProto)
-// Necessário para ler mensagens de outros bots
-const USERBOT_CONFIG = {
-  API_ID: parseInt(process.env.TELEGRAM_API_ID) || 35737560,
-  API_HASH: process.env.TELEGRAM_API_HASH || 'dedafbc981acacf5a555e8f3af0fae1f',
-  SESSION: process.env.TELEGRAM_SESSION || '1AQAOMTQ5LjE1NC4xNzUuNTcBu6gnnXJViPsTwVL92OrGDeLtjjajgOvBbyeeKMrECc+Djy6ZuRG4jPKbPjG8OhTSL0ATN7CeihMUHpAkK2hjxeMJ7SHqsoxtYcjrshb7IyxqDzX+q4ZAw+0w7uAq6FfnkQTYV5xNBKuq3pGslxvixb9L1sOIHfgYuM49MPGEsCCOvBPl7HM2DxjE9/wKZRTI2nQWYk+y2O23r4hXbJVO+V4UEzUW3ttbkowyZNpg3Zg6vhxxtTPy2dASD7L8lXci3Ei/mtcH8ZwM6TFPXKqDLu9H3Ncj8wNOL6GT8Zp+aIMzcHdEIrQkw1752Hl7nSNKjJSvUZBppTDYYXDbtIosq88=',
-  GROUP_ID: TELEGRAM_CONFIG.GROUP_ID
-};
-
 // Configurações do JSONBin.io (mesmas do projeto principal)
 const JSONBIN_CONFIG = {
   API_URL: 'https://api.jsonbin.io/v3/b',
   MASTER_KEY: process.env.JSONBIN_MASTER_KEY || '$2a$10$tGExKDQ1CS6U/A7JPWOlRerdm4XUs6sQcChusEUmlqiVdkugQ/MZW',
   ACCESS_KEY: process.env.JSONBIN_ACCESS_KEY || '$2a$10$2dbmigUDE0MQ/2jxympm8eyPQzRdC/Ts4FIksSn/F9Pb4Qu8Mg0wm',
-  // Bin específico para mensagens do WhatsApp/Telegram (SEPARADO do bin da escala!)
+  // Bin específico para mensagens do WhatsApp (SEPARADO do bin da escala!)
   // Este bin armazena apenas: COP REDE INFORMA e Alertas
   // O bin da escala (697531c843b1c97be9474ae9) armazena os calendários de trabalho
   // IMPORTANTE: Este ID deve ser mantido fixo para persistir os dados entre restarts
-  TELEGRAM_BIN_ID: process.env.TELEGRAM_BIN_ID || '697778b3ae596e708ff7760f'
+  WHATSAPP_BIN_ID: process.env.WHATSAPP_BIN_ID || process.env.TELEGRAM_BIN_ID || '697778b3ae596e708ff7760f'
 };
 
 // Títulos de mensagens que serão processadas
@@ -49,7 +33,7 @@ const MESSAGE_TITLES = {
   NOVO_EVENTO_ALT: 'Novo Evento Detectado'
 };
 
-// Mapeamento de GRUPO do Telegram para Área do Painel
+// Mapeamento de Cluster/Região para Área do Painel
 // Chaves normalizadas (lowercase, sem acentos)
 // ÁREAS: CO/NO/NE, MG/ES/BA, RIO
 const GRUPO_PARA_AREA = {
@@ -157,8 +141,6 @@ const SERVER_CONFIG = {
 
 module.exports = {
   EVOLUTION_CONFIG,
-  TELEGRAM_CONFIG,
-  USERBOT_CONFIG,
   JSONBIN_CONFIG,
   MESSAGE_TITLES,
   GRUPO_PARA_AREA,
