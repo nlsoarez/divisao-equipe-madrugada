@@ -1207,16 +1207,25 @@ function processarMensagem(message) {
 
   try {
     if (tipoMensagem === 'COP_REDE_INFORMA') {
+      const dados = parseCopRedeInforma(texto, dataMensagem, messageId);
+      // Se o parser retornou null (ex: formato ignorado), não retornar resultado
+      if (!dados) {
+        return null;
+      }
       return {
         tipo: 'COP_REDE_INFORMA',
-        dados: parseCopRedeInforma(texto, dataMensagem, messageId)
+        dados
       };
     }
 
     if (tipoMensagem === 'NOVO_EVENTO') {
+      const dados = parseNovoEvento(texto, dataMensagem, messageId);
+      if (!dados) {
+        return null;
+      }
       return {
         tipo: 'NOVO_EVENTO',
-        dados: parseNovoEvento(texto, dataMensagem, messageId)
+        dados
       };
     }
   } catch (error) {
