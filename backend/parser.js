@@ -653,18 +653,16 @@ function parseCopRedeInforma(texto, dataMensagem, messageId) {
   console.log(texto.substring(0, 800));
   console.log('[Parser] ================================================');
 
-  // Detectar formato "Detalhe Cluster × Status" (novo formato 2026 com status por cluster)
-  // Formato: *📢 COP REDE INFORMA* + 🔎 *Detalhe Cluster × Status:* + • CLUSTER → STATUS: N
+  // IGNORAR formato "*📢 COP REDE INFORMA*" com "Detalhe Cluster × Status"
+  // Este formato não tem os dados corretos de volumetria
   if (texto.includes('Detalhe Cluster') && (texto.includes('×') || texto.includes('x')) && texto.includes('Status')) {
-    console.log('[Parser] Detectado formato DETALHE CLUSTER × STATUS');
-    const resultado = parseCopRedeInformaDetalheStatus(texto, dataMensagem, messageId);
-    if (resultado) return resultado;
-    // Se falhar, continua para tentar outros parsers
+    console.log('[Parser] IGNORANDO formato "Detalhe Cluster × Status" - não é o formato correto');
+    return null;
   }
 
-  // Detectar NOVO formato 2026 (📢 COP REDE - INFORMA com Totais por Cluster)
+  // Detectar formato CORRETO: "📢 COP REDE - INFORMA" com "Totais por Cluster"
   if (texto.includes('📢 COP REDE - INFORMA') || texto.includes('Totais por Cluster')) {
-    console.log('[Parser] Detectado NOVO formato 2026');
+    console.log('[Parser] Detectado formato CORRETO (Totais por Cluster)');
     return parseCopRedeInformaNovoFormato(texto, dataMensagem, messageId);
   }
 
