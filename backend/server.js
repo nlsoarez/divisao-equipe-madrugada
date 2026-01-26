@@ -35,6 +35,9 @@ app.get('/api/diagnostico/dados', async (req, res) => {
   try {
     const dados = await storage.obterCopRedeInforma({}, true);
 
+    // Ordenar por data (mais recente primeiro)
+    dados.sort((a, b) => new Date(b.dataRecebimento) - new Date(a.dataRecebimento));
+
     // Analisar estrutura dos dados
     const diagnostico = {
       totalMensagens: dados.length,
@@ -45,16 +48,19 @@ app.get('/api/diagnostico/dados', async (req, res) => {
         dataRecebimento: dados[0].dataRecebimento,
         temResumoGrupo: !!(dados[0].resumo?.grupo && Object.keys(dados[0].resumo.grupo).length > 0),
         resumoGrupo: dados[0].resumo?.grupo || {},
+        resumoCompleto: dados[0].resumo || {},
         areaMapeada: dados[0].areaMapeada,
         totalEventos: dados[0].totalEventos,
-        volumePorArea: dados[0].volumePorArea || {}
+        volumePorArea: dados[0].volumePorArea || {},
+        mensagemOriginal: dados[0].mensagemOriginal ? dados[0].mensagemOriginal.substring(0, 800) : null
       } : null,
       primeiras5: dados.slice(0, 5).map(d => ({
         id: d.id,
         dataRecebimento: d.dataRecebimento,
         temResumoGrupo: !!(d.resumo?.grupo && Object.keys(d.resumo.grupo).length > 0),
         clusters: d.resumo?.grupo ? Object.keys(d.resumo.grupo) : [],
-        totalGrupo: d.resumo?.grupo ? Object.values(d.resumo.grupo).reduce((a, b) => a + b, 0) : 0
+        totalGrupo: d.resumo?.grupo ? Object.values(d.resumo.grupo).reduce((a, b) => a + b, 0) : 0,
+        primeiraLinha: d.mensagemOriginal ? d.mensagemOriginal.split('\n')[0].substring(0, 100) : null
       }))
     };
 
