@@ -8882,11 +8882,28 @@ function atualizarTabelaCopRede(dados) {
   // Esconder área vazia
   if (emptyDiv) emptyDiv.style.display = 'none';
 
-  // PEGAR APENAS A ÚLTIMA MENSAGEM (mais recente)
+  // PEGAR APENAS A ÚLTIMA MENSAGEM QUE TEM DADOS DE CLUSTER (resumo.grupo)
+  // Ignora mensagens do formato errado que não têm volumetria
   const dadosOrdenados = [...dados].sort((a, b) =>
     new Date(b.dataRecebimento) - new Date(a.dataRecebimento)
   );
-  const ultimaMensagem = dadosOrdenados[0];
+
+  // Filtrar apenas mensagens com resumo.grupo válido
+  const mensagensComCluster = dadosOrdenados.filter(d =>
+    d.resumo?.grupo && Object.keys(d.resumo.grupo).length > 0
+  );
+
+  // Se não há mensagens com cluster, mostrar área vazia
+  if (mensagensComCluster.length === 0) {
+    console.log('[COP] Nenhuma mensagem com dados de cluster encontrada');
+    if (resumoDiv) resumoDiv.style.display = 'none';
+    if (emptyDiv) emptyDiv.style.display = 'block';
+    if (infoDiv) infoDiv.style.display = 'none';
+    return;
+  }
+
+  const ultimaMensagem = mensagensComCluster[0];
+  console.log(`[COP] Usando mensagem com cluster: ${ultimaMensagem.dataRecebimento} (${Object.keys(ultimaMensagem.resumo.grupo).length} clusters)`);
 
   // Guardar referência global para o modal de detalhes
   window.ultimaMensagemCopRede = ultimaMensagem;

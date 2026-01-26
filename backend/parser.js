@@ -535,6 +535,111 @@ function parseCopRedeInformaNovoFormato(texto, dataMensagem, messageId) {
 }
 
 /**
+ * Parser para formato "Detalhe Cluster × Status" (2026)
+ * Formato:
+ * *📢 COP REDE INFORMA*
+ * ⏳ *Pendentes acima de 24h:* 7 (18%)
+ * 🔎 *Detalhe Cluster × Status:*
+ * • RIO CAPITAL → PENDENTE: 10 | EM PROGRESSO: 3 | DESIGNADO: 2
+ * • CENTRO OESTE → EM PROGRESSO: 7 | PENDENTE: 2
+ */
+function parseCopRedeInformaDetalheStatus(texto, dataMensagem, messageId) {
+  console.log('[Parser] Parsing formato DETALHE CLUSTER × STATUS...');
+
+  const clusterItens = {};
+  let totalGeral = 0;
+
+  // Extrair pendentes acima de 24h
+  const matchPendentes24h = texto.match(/Pendentes acima de 24h[:\*]*\s*(\d+)/i);
+  const pendentes24h = matchPendentes24h ? parseInt(matchPendentes24h[1]) : 0;
+  console.log('[Parser] Pendentes acima de 24h:', pendentes24h);
+
+  // Extrair linhas de cluster (formato: • CLUSTER → STATUS: N | STATUS: N)
+  // Suporta: •, -, *, ou emoji no início
+  const linhasCluster = texto.split('\n').filter(linha => {
+    const trimmed = linha.trim();
+    // Procura linhas com → ou -> que indicam cluster/status
+    return (trimmed.startsWith('•') || trimmed.startsWith('-') || trimmed.startsWith('*') || /^[^\w\s]/.test(trimmed)) &&
+           (trimmed.includes('→') || trimmed.includes('->'));
+  });
+
+  console.log('[Parser] Linhas de cluster encontradas:', linhasCluster.length);
+
+  for (const linha of linhasCluster) {
+    // Remove marcador do início (•, -, *, emoji)
+    const linhaSemMarcador = linha.trim().replace(/^[•\-\*]\s*/, '').replace(/^[^\w\sÀ-ÿ]+\s*/, '');
+
+    // Divide pelo → ou ->
+    const partes = linhaSemMarcador.split(/→|->/).map(p => p.trim());
+
+    if (partes.length >= 2) {
+      const clusterNome = partes[0].trim();
+      const statusParte = partes[1];
+
+      // Extrai todos os números da parte de status (PENDENTE: 10 | EM PROGRESSO: 3)
+      const numeros = statusParte.match(/\d+/g);
+      if (numeros) {
+        const somaCluster = numeros.reduce((acc, n) => acc + parseInt(n), 0);
+        clusterItens[clusterNome] = somaCluster;
+        totalGeral += somaCluster;
+        console.log(`[Parser] Cluster extraído: ${clusterNome} = ${somaCluster}`);
+      }
+    }
+  }
+
+  console.log('[Parser] Total clusters extraídos:', Object.keys(clusterItens).length);
+  console.log('[Parser] Total geral:', totalGeral);
+
+  // Se não encontrou nada, retornar null para tentar outro parser
+  if (Object.keys(clusterItens).length === 0) {
+    console.log('[Parser] Nenhum cluster extraído do formato Detalhe Status');
+    return null;
+  }
+
+  // Identificar áreas afetadas
+  const areasAfetadas = [];
+  const volumePorArea = {};
+
+  for (const [clusterNome, quantidade] of Object.entries(clusterItens)) {
+    const { areaPainel } = mapearGrupoParaArea(clusterNome);
+    if (areaPainel) {
+      if (!areasAfetadas.includes(areaPainel)) {
+        areasAfetadas.push(areaPainel);
+      }
+      volumePorArea[areaPainel] = (volumePorArea[areaPainel] || 0) + quantidade;
+    }
+  }
+
+  return {
+    id: `cop_${messageId}_${Date.now()}`,
+    messageId,
+    dataRecebimento: dataMensagem.toISOString(),
+    dataGeracao: null,
+    empresa: 'Resumo COP',
+    grupo: Object.keys(clusterItens).join(', '),
+    areaMapeada: areasAfetadas.length > 0 ? areasAfetadas.join(', ') : null,
+    sigla: null,
+    descricao: `Detalhe por Status - ${Object.keys(clusterItens).length} clusters, ${totalGeral} eventos`,
+    resumo: {
+      mercado: {},
+      tipo: {},
+      natureza: {},
+      sintoma: {},
+      grupo: clusterItens,
+      status: {},
+      pendentes24h,
+      totalGeral
+    },
+    volumePorArea,
+    areasAfetadas,
+    totalEventos: totalGeral,
+    mensagemOriginal: texto,
+    origem: 'COP_REDE_INFORMA',
+    processadoEm: new Date().toISOString()
+  };
+}
+
+/**
  * Faz parsing completo de uma mensagem COP REDE INFORMA (formato resumo)
  * @param {string} texto - Texto completo da mensagem
  * @param {Date} dataMensagem - Data/hora da mensagem no Telegram
@@ -548,9 +653,16 @@ function parseCopRedeInforma(texto, dataMensagem, messageId) {
   console.log(texto.substring(0, 800));
   console.log('[Parser] ================================================');
 
-  // Detectar NOVO formato 2026 (📢 COP REDE - INFORMA)
+  // IGNORAR formato "*📢 COP REDE INFORMA*" com "Detalhe Cluster × Status"
+  // Este formato não tem os dados corretos de volumetria
+  if (texto.includes('Detalhe Cluster') && (texto.includes('×') || texto.includes('x')) && texto.includes('Status')) {
+    console.log('[Parser] IGNORANDO formato "Detalhe Cluster × Status" - não é o formato correto');
+    return null;
+  }
+
+  // Detectar formato CORRETO: "📢 COP REDE - INFORMA" com "Totais por Cluster"
   if (texto.includes('📢 COP REDE - INFORMA') || texto.includes('Totais por Cluster')) {
-    console.log('[Parser] Detectado NOVO formato 2026');
+    console.log('[Parser] Detectado formato CORRETO (Totais por Cluster)');
     return parseCopRedeInformaNovoFormato(texto, dataMensagem, messageId);
   }
 
