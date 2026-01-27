@@ -8780,7 +8780,7 @@ async function carregarCopRedeInforma(forcarAtualizacao = false) {
 // - 2 pessoas: CO/NO/NE/BA/MG + RIO/ES
 // - 3 pessoas: CO/NO/NE + MG/ES/BA + RIO
 // - 4 pessoas: CO/NO + NE/BA + MG/ES + RIO
-// - 5+ pessoas: CO/NO + NE/BA + MG + RIO
+// - 5+ pessoas: CO/NO + NE/BA + MG/ES + RIO (com RIO duplo)
 const MAPEAMENTO_AREAS_TELEGRAM = {
   // Áreas diretas
   'RIO': ['RIO'],
@@ -9092,7 +9092,7 @@ function verDetalhesCopRedeResumo() {
 // - 2 pessoas: CO/NO/NE/BA/MG + RIO/ES
 // - 3 pessoas: CO/NO/NE + MG/ES/BA + RIO
 // - 4 pessoas: CO/NO + NE/BA + MG/ES + RIO
-// - 5+ pessoas: CO/NO + NE/BA + MG + RIO (com RIO duplo)
+// - 5+ pessoas: CO/NO + NE/BA + MG/ES + RIO (com RIO duplo)
 function mapearGrupoParaAreaFrontend(grupo, numPessoas = null) {
   if (!grupo) return null;
 
@@ -9150,14 +9150,14 @@ function mapearGrupoParaAreaFrontend(grupo, numPessoas = null) {
     return 'CO/NO';
   }
 
-  // Para 5+ pessoas: CO/NO + NE/BA + MG + RIO (com RIO duplo)
+  // Para 5+ pessoas: CO/NO + NE/BA + MG/ES + RIO (com RIO duplo)
   // RIO - Rio de Janeiro
   if (isRio) {
     return 'RIO';
   }
-  // MG - Minas Gerais e Espírito Santo
+  // MG/ES - Minas Gerais e Espírito Santo
   if (isMG || isES) {
-    return 'MG';
+    return 'MG/ES';
   }
   // NE/BA - Bahia/Sergipe e Nordeste
   if (isBA || isNE) {
