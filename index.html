@@ -2662,10 +2662,11 @@
         <!-- Sem dados -->
         <div id="hubEmpty" class="text-center py-4" style="display: none;">
           <i class="bi bi-inbox" style="font-size: 3rem; color: #ccc;"></i>
-          <p class="text-muted mt-2">Nenhuma alocacao encontrada</p>
+          <p class="text-muted mt-2" id="hubEmptyMessage">Nenhuma alocacao encontrada</p>
           <button class="btn btn-warning btn-sm" onclick="sincronizarHub()">
             <i class="bi bi-cloud-download me-1"></i>Sincronizar do WhatsApp
           </button>
+          <p class="text-muted mt-2 small" id="hubEmptyHint" style="display: none;"></p>
         </div>
 
         <!-- Card de alocacao -->
@@ -8863,13 +8864,13 @@ async function limparCacheBackend() {
 }
 
 // Função auxiliar para fetch com retry e tratamento de CORS
-async function fetchComRetry(url, opcoes = {}, maxRetries = 3) {
+async function fetchComRetry(url, opcoes = {}, maxRetries = 3, timeoutMs = 10000) {
   let ultimoErro = null;
 
   for (let tentativa = 0; tentativa < maxRetries; tentativa++) {
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout
+      const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
       const response = await fetch(url, {
         ...opcoes,
@@ -9776,18 +9777,24 @@ async function carregarAlocacaoHub() {
   const loading = document.getElementById('hubLoading');
   const empty = document.getElementById('hubEmpty');
   const card = document.getElementById('hubCard');
+  const emptyMessage = document.getElementById('hubEmptyMessage');
+  const emptyHint = document.getElementById('hubEmptyHint');
 
   if (loading) loading.style.display = 'block';
   if (empty) empty.style.display = 'none';
   if (card) card.style.display = 'none';
 
   try {
+    // Usar timeout maior para HUB (30s) pois pode precisar criar bin
     const response = await fetchComRetry(`${backendUrl}/api/alocacao-hub/ultima`, {
       method: 'GET',
       headers: { 'Content-Type': 'application/json' }
-    }, 2);
+    }, 2, 30000);
 
-    if (!response.ok) throw new Error('Erro ao carregar alocacao');
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.erro || 'Erro ao carregar alocacao');
+    }
 
     const data = await response.json();
     const alocacao = data.dados;
@@ -9796,6 +9803,11 @@ async function carregarAlocacaoHub() {
 
     if (!alocacao) {
       if (empty) empty.style.display = 'block';
+      if (emptyMessage) emptyMessage.textContent = 'Nenhuma alocacao encontrada';
+      if (emptyHint) {
+        emptyHint.style.display = 'block';
+        emptyHint.textContent = 'Clique em "Sincronizar do WhatsApp" para buscar as alocacoes do grupo.';
+      }
       return;
     }
 
@@ -9805,6 +9817,21 @@ async function carregarAlocacaoHub() {
     console.error('[Hub] Erro ao carregar:', error);
     if (loading) loading.style.display = 'none';
     if (empty) empty.style.display = 'block';
+
+    // Mensagem mais informativa baseada no tipo de erro
+    if (emptyMessage) {
+      if (error.name === 'AbortError' || error.message.includes('timeout')) {
+        emptyMessage.textContent = 'Timeout ao carregar (backend lento)';
+      } else if (error.message.includes('Bin ID')) {
+        emptyMessage.textContent = 'Bin do HUB nao configurado';
+      } else {
+        emptyMessage.textContent = 'Erro ao carregar alocacao';
+      }
+    }
+    if (emptyHint) {
+      emptyHint.style.display = 'block';
+      emptyHint.textContent = 'Tente clicar em "Sincronizar" ou aguarde alguns segundos e tente novamente.';
+    }
   }
 }
 
@@ -9896,18 +9923,27 @@ function exibirAlocacaoHub(alocacao) {
 }
 
 async function sincronizarHub() {
-  showToast('Sincronizando alocacoes do WhatsApp...', 'info');
+  showToast('Sincronizando alocacoes do WhatsApp (pode levar alguns segundos)...', 'info');
 
   try {
+    // Usar timeout maior para HUB (60s) pois busca histórico e pode criar bin
     const response = await fetchComRetry(`${backendUrl}/api/alocacao-hub/sincronizar`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' }
-    }, 2);
+    }, 2, 60000);
 
-    if (!response.ok) throw new Error('Erro ao sincronizar');
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.erro || 'Erro ao sincronizar');
+    }
 
     const data = await response.json();
-    showToast(`Sincronizado! ${data.alocacoes || 0} alocacoes encontradas`, 'success');
+
+    if (data.erro) {
+      showToast(`Aviso: ${data.erro}`, 'warning');
+    } else {
+      showToast(`Sincronizado! ${data.alocacoes || 0} alocacoes encontradas`, 'success');
+    }
 
     // Recarregar dados
     carregarAlocacaoHub();

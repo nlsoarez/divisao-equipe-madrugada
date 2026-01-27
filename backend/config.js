@@ -15,11 +15,16 @@ const EVOLUTION_CONFIG = {
 };
 
 // Configurações do grupo Alocação de HUB
+// IMPORTANTE: As credenciais do HUB são separadas das credenciais principais
+// para evitar problemas de limite de requisições
 const ALOCACAO_HUB_CONFIG = {
   // Chat ID do grupo de Alocação de HUB
   CHAT_ID: process.env.ALOCACAO_HUB_CHAT_ID || '120363420668199320@g.us',
   // Bin separado para dados de Alocação de HUB
+  // Se não configurado, será criado automaticamente na inicialização
+  // Para configurar manualmente, defina a variável ALOCACAO_HUB_BIN_ID
   BIN_ID: process.env.ALOCACAO_HUB_BIN_ID || null,
+  // Credenciais exclusivas para o HUB (conta separada do JSONBin)
   MASTER_KEY: process.env.ALOCACAO_HUB_MASTER_KEY || '$2a$10$PiBMNNOp1IyF1Fp5Od6xdObHbiKLvZfKRz9riFR4vUwc.mzS7pgU.',
   ACCESS_KEY: process.env.ALOCACAO_HUB_ACCESS_KEY || '$2a$10$chuVdUSu4tC83GVFpIxxyOTtIOlt9P/tey3dcYNPh83UqwL4UDljy'
 };
