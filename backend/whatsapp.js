@@ -3,14 +3,17 @@
  * Substitui a integração com Telegram para receber mensagens COP REDE INFORMA
  */
 
-const { EVOLUTION_CONFIG } = require('./config');
+const { EVOLUTION_CONFIG, ALOCACAO_HUB_CONFIG } = require('./config');
 const { processarMensagem } = require('./parser');
+const { processarMensagemHub } = require('./parserHub');
 const { adicionarCopRedeInforma, adicionarAlerta } = require('./storage');
+const storageHub = require('./storageHub');
 
 let isConnected = false;
 let instanceInfo = null;
 let pollingInterval = null;
 let lastMessageTimestamp = 0;
+let lastHubMessageTimestamp = 0;
 
 // Intervalo de polling em ms (30 segundos por padrão)
 const POLLING_INTERVAL_MS = parseInt(process.env.WHATSAPP_POLLING_INTERVAL || '30000', 10);
@@ -511,6 +514,7 @@ async function buscarNovasMensagens() {
 /**
  * Inicia polling automático de mensagens
  * Usado como fallback quando webhook não está configurado
+ * Inclui polling para COP REDE INFORMA e Alocação de HUB
  */
 function iniciarPolling() {
   if (pollingInterval) {
@@ -518,16 +522,20 @@ function iniciarPolling() {
     return;
   }
 
-  // Inicializar timestamp com momento atual para não reprocessar histórico
+  // Inicializar timestamps com momento atual para não reprocessar histórico
   lastMessageTimestamp = Math.floor(Date.now() / 1000);
+  lastHubMessageTimestamp = Math.floor(Date.now() / 1000);
 
   console.log(`[WhatsApp] Iniciando polling automático a cada ${POLLING_INTERVAL_MS / 1000}s`);
+  console.log(`[WhatsApp] Grupos monitorados: COP REDE INFORMA + Alocação de HUB`);
 
-  // Fazer primeira busca imediatamente
+  // Fazer primeira busca imediatamente para ambos os grupos
   buscarNovasMensagens();
+  buscarNovasMensagensHub();
 
   pollingInterval = setInterval(async () => {
     await buscarNovasMensagens();
+    await buscarNovasMensagensHub();
   }, POLLING_INTERVAL_MS);
 }
 
@@ -542,10 +550,283 @@ function pararPolling() {
   }
 }
 
+// ============================================
+// FUNÇÕES PARA ALOCAÇÃO DE HUB
+// ============================================
+
+/**
+ * Busca histórico de mensagens do grupo Alocação de HUB
+ * @param {number} limite - Número de mensagens para buscar
+ */
+async function buscarHistoricoHub(limite = 50) {
+  try {
+    const status = await verificarConexao();
+    if (!status.conectado) {
+      return { alocacoes: 0, erro: 'WhatsApp não conectado' };
+    }
+
+    if (!ALOCACAO_HUB_CONFIG.CHAT_ID) {
+      return { alocacoes: 0, erro: 'ALOCACAO_HUB_CHAT_ID não configurado' };
+    }
+
+    let messages = [];
+
+    // Função auxiliar para extrair mensagens do resultado
+    const extractMessages = (result) => {
+      if (Array.isArray(result)) return result;
+      if (result.messages?.records) return result.messages.records;
+      if (result.messages && Array.isArray(result.messages)) return result.messages;
+      if (result.data?.records) return result.data.records;
+      if (result.data && Array.isArray(result.data)) return result.data;
+      if (result.records) return result.records;
+      return [];
+    };
+
+    // Método 1: chat/findMessages com where clause
+    try {
+      const result = await evolutionRequest(
+        `/chat/findMessages/${encodeURIComponent(EVOLUTION_CONFIG.INSTANCE_NAME)}`,
+        'POST',
+        {
+          where: {
+            key: {
+              remoteJid: ALOCACAO_HUB_CONFIG.CHAT_ID
+            }
+          },
+          limit: limite
+        }
+      );
+
+      if (!result.instance) {
+        messages = extractMessages(result);
+      }
+    } catch (e) {
+      // Silently try next method
+    }
+
+    // Método 2: chat/findMessages com number
+    if (messages.length === 0) {
+      try {
+        const result = await evolutionRequest(
+          `/chat/findMessages/${encodeURIComponent(EVOLUTION_CONFIG.INSTANCE_NAME)}`,
+          'POST',
+          {
+            number: ALOCACAO_HUB_CONFIG.CHAT_ID,
+            limit: limite
+          }
+        );
+
+        if (!result.instance) {
+          messages = extractMessages(result);
+        }
+      } catch (e) {
+        // Silently continue
+      }
+    }
+
+    // Método 3: Listar todas e filtrar
+    if (messages.length === 0) {
+      try {
+        const result = await evolutionRequest(
+          `/chat/findMessages/${encodeURIComponent(EVOLUTION_CONFIG.INSTANCE_NAME)}`,
+          'POST',
+          { limit: 300 }
+        );
+        if (!result.instance) {
+          const allMessages = extractMessages(result);
+          messages = allMessages.filter(m =>
+            m.key?.remoteJid === ALOCACAO_HUB_CONFIG.CHAT_ID ||
+            m.remoteJid === ALOCACAO_HUB_CONFIG.CHAT_ID
+          );
+        }
+      } catch (e) {
+        // Silently continue
+      }
+    }
+
+    // Filtrar pelo grupo correto
+    if (ALOCACAO_HUB_CONFIG.CHAT_ID && messages.length > 0) {
+      messages = messages.filter(m => {
+        const remoteJid = m.key?.remoteJid || m.remoteJid;
+        return remoteJid === ALOCACAO_HUB_CONFIG.CHAT_ID;
+      });
+    }
+
+    if (messages.length === 0) {
+      return { alocacoes: 0, erro: 'Nenhuma mensagem do grupo HUB encontrada' };
+    }
+
+    let contadores = { alocacoes: 0, ignorados: 0 };
+
+    for (const msg of messages) {
+      const texto = msg.message?.conversation ||
+                    msg.message?.extendedTextMessage?.text ||
+                    msg.message?.text ||
+                    msg.body ||
+                    msg.text ||
+                    msg.content ||
+                    null;
+
+      if (!texto) continue;
+
+      try {
+        const msgCompativel = {
+          message_id: msg.key?.id || msg.id || Date.now().toString(),
+          date: Math.floor((msg.messageTimestamp || msg.timestamp || Date.now() / 1000)),
+          text: texto,
+          from: {
+            username: msg.pushName || msg.key?.participant || 'WhatsApp',
+            is_bot: false
+          },
+          chat: {
+            id: msg.key?.remoteJid || ALOCACAO_HUB_CONFIG.CHAT_ID
+          }
+        };
+
+        const resultado = processarMensagemHub(msgCompativel);
+
+        if (resultado && resultado.tipo === 'ALOCACAO_HUB') {
+          await storageHub.adicionarAlocacao(resultado.dados);
+          contadores.alocacoes++;
+        } else {
+          contadores.ignorados++;
+        }
+      } catch (msgError) {
+        // Skip message on error
+      }
+    }
+
+    console.log(`[WhatsApp HUB] Histórico: ${contadores.alocacoes} alocações salvas, ${contadores.ignorados} ignoradas`);
+
+    return { alocacoes: contadores.alocacoes };
+
+  } catch (error) {
+    console.error('[WhatsApp HUB] Erro histórico:', error.message);
+    return { alocacoes: 0, erro: error.message };
+  }
+}
+
+/**
+ * Busca novas mensagens do grupo Alocação de HUB desde o último polling
+ */
+async function buscarNovasMensagensHub() {
+  try {
+    if (!ALOCACAO_HUB_CONFIG.CHAT_ID) {
+      return { novas: 0 };
+    }
+
+    // Buscar últimas 20 mensagens do grupo HUB
+    let messages = [];
+
+    try {
+      const result = await evolutionRequest(
+        `/chat/findMessages/${encodeURIComponent(EVOLUTION_CONFIG.INSTANCE_NAME)}`,
+        'POST',
+        {
+          where: {
+            key: {
+              remoteJid: ALOCACAO_HUB_CONFIG.CHAT_ID
+            }
+          },
+          limit: 20
+        }
+      );
+
+      if (Array.isArray(result)) {
+        messages = result;
+      } else if (result.messages?.records) {
+        messages = result.messages.records;
+      } else if (result.messages && Array.isArray(result.messages)) {
+        messages = result.messages;
+      }
+    } catch (e) {
+      // Silently continue
+    }
+
+    // Filtrar pelo grupo correto
+    if (ALOCACAO_HUB_CONFIG.CHAT_ID && messages.length > 0) {
+      messages = messages.filter(m => {
+        const remoteJid = m.key?.remoteJid || m.remoteJid;
+        return remoteJid === ALOCACAO_HUB_CONFIG.CHAT_ID;
+      });
+    }
+
+    if (messages.length === 0) {
+      return { novas: 0 };
+    }
+
+    // Filtrar apenas mensagens novas (após o último timestamp)
+    const novasMensagens = messages.filter(m => {
+      const timestamp = m.messageTimestamp || m.timestamp || 0;
+      return timestamp > lastHubMessageTimestamp;
+    });
+
+    if (novasMensagens.length === 0) {
+      return { novas: 0 };
+    }
+
+    // Atualizar o timestamp mais recente
+    const maxTimestamp = Math.max(...novasMensagens.map(m => m.messageTimestamp || m.timestamp || 0));
+    if (maxTimestamp > lastHubMessageTimestamp) {
+      lastHubMessageTimestamp = maxTimestamp;
+    }
+
+    let contadores = { alocacoes: 0 };
+
+    for (const msg of novasMensagens) {
+      const texto = msg.message?.conversation ||
+                    msg.message?.extendedTextMessage?.text ||
+                    msg.message?.text ||
+                    msg.body ||
+                    msg.text ||
+                    msg.content ||
+                    null;
+
+      if (!texto) continue;
+
+      try {
+        const msgCompativel = {
+          message_id: msg.key?.id || msg.id || Date.now().toString(),
+          date: Math.floor((msg.messageTimestamp || msg.timestamp || Date.now() / 1000)),
+          text: texto,
+          from: {
+            username: msg.pushName || msg.key?.participant || 'WhatsApp',
+            is_bot: false
+          },
+          chat: {
+            id: msg.key?.remoteJid || ALOCACAO_HUB_CONFIG.CHAT_ID
+          }
+        };
+
+        const resultado = processarMensagemHub(msgCompativel);
+
+        if (resultado && resultado.tipo === 'ALOCACAO_HUB') {
+          await storageHub.adicionarAlocacao(resultado.dados);
+          contadores.alocacoes++;
+        }
+      } catch (msgError) {
+        // Skip message on error
+      }
+    }
+
+    if (contadores.alocacoes > 0) {
+      console.log(`[WhatsApp Polling HUB] Novas alocações: ${contadores.alocacoes}`);
+    }
+
+    return { novas: contadores.alocacoes, ...contadores };
+
+  } catch (error) {
+    // Silently fail - HUB polling is secondary
+    return { novas: 0, erro: error.message };
+  }
+}
+
 module.exports = {
   verificarConexao,
   buscarHistorico,
   buscarNovasMensagens,
+  buscarHistoricoHub,
+  buscarNovasMensagensHub,
   processarWebhook,
   configurarWebhook,
   listarChats,

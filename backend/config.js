@@ -14,6 +14,16 @@ const EVOLUTION_CONFIG = {
   SOURCE_CHAT_ID: process.env.EVOLUTION_SOURCE_CHAT_ID || null
 };
 
+// Configurações do grupo Alocação de HUB
+const ALOCACAO_HUB_CONFIG = {
+  // Chat ID do grupo de Alocação de HUB
+  CHAT_ID: process.env.ALOCACAO_HUB_CHAT_ID || '120363420668199320@g.us',
+  // Bin separado para dados de Alocação de HUB
+  BIN_ID: process.env.ALOCACAO_HUB_BIN_ID || null,
+  MASTER_KEY: process.env.ALOCACAO_HUB_MASTER_KEY || '$2a$10$PiBMNNOp1IyF1Fp5Od6xdObHbiKLvZfKRz9riFR4vUwc.mzS7pgU.',
+  ACCESS_KEY: process.env.ALOCACAO_HUB_ACCESS_KEY || '$2a$10$chuVdUSu4tC83GVFpIxxyOTtIOlt9P/tey3dcYNPh83UqwL4UDljy'
+};
+
 // Configurações do JSONBin.io (mesmas do projeto principal)
 const JSONBIN_CONFIG = {
   API_URL: 'https://api.jsonbin.io/v3/b',
@@ -30,7 +40,10 @@ const JSONBIN_CONFIG = {
 const MESSAGE_TITLES = {
   COP_REDE_INFORMA: 'COP REDE INFORMA',
   NOVO_EVENTO: '🚨 Novo Evento Detectado!',
-  NOVO_EVENTO_ALT: 'Novo Evento Detectado'
+  NOVO_EVENTO_ALT: 'Novo Evento Detectado',
+  // Alocação de HUB
+  ALOCACAO_DIURNO: 'ALOCAÇÃO TÉCNICA HUBS/RJO DIURNO',
+  ALOCACAO_MADRUGADA: 'ALOCAÇÃO TÉCNICA HUBS/RJO MADRUGADA'
 };
 
 // Mapeamento de Cluster/Região para Área do Painel
@@ -141,6 +154,7 @@ const SERVER_CONFIG = {
 
 module.exports = {
   EVOLUTION_CONFIG,
+  ALOCACAO_HUB_CONFIG,
   JSONBIN_CONFIG,
   MESSAGE_TITLES,
   GRUPO_PARA_AREA,

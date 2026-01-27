@@ -2181,6 +2181,21 @@
       box-shadow: 0 2px 6px rgba(37, 211, 102, 0.3);
     }
 
+    .admin-nav-tab.hub-tab-nav {
+      background: #FFF3E0;
+      color: #E65100;
+    }
+
+    .admin-nav-tab.hub-tab-nav:hover {
+      background: #FFE0B2;
+    }
+
+    .admin-nav-tab.hub-tab-nav.active {
+      background: linear-gradient(135deg, #ff9800 0%, #f57c00 100%);
+      color: white;
+      box-shadow: 0 2px 6px rgba(255, 152, 0, 0.3);
+    }
+
     .admin-nav-tab .badge {
       font-size: 0.7rem;
       padding: 0.2rem 0.5rem;
@@ -2305,6 +2320,10 @@
     <button class="admin-nav-tab telegram-tab-nav" data-admin-tab="telegram" onclick="trocarAbaAdmin('telegram')">
       <i class="bi bi-whatsapp"></i>
       COP Rede Informa
+    </button>
+    <button class="admin-nav-tab hub-tab-nav" data-admin-tab="alocacao_hub" onclick="trocarAbaAdmin('alocacao_hub')">
+      <i class="bi bi-geo-alt-fill"></i>
+      Alocacao HUB
     </button>
   </div>
 
@@ -2614,6 +2633,106 @@
   </div>
 
   </div><!-- Fim tabTelegram -->
+
+  <!-- Conteudo da Aba Alocacao de HUB -->
+  <div class="admin-tab-content" id="tabAlocacaoHub">
+    <div class="telegram-panel" id="hubPanel">
+      <div class="telegram-header" style="background: linear-gradient(135deg, #ff9800 0%, #f57c00 100%);">
+        <span><i class="bi bi-geo-alt-fill me-2"></i>Alocacao de HUB</span>
+        <div style="display: flex; align-items: center; gap: 1rem;">
+          <button class="btn btn-sm btn-light" onclick="carregarAlocacaoHub()" title="Atualizar">
+            <i class="bi bi-arrow-clockwise"></i>
+          </button>
+          <button class="btn btn-sm btn-light" onclick="sincronizarHub()" title="Sincronizar do WhatsApp">
+            <i class="bi bi-cloud-download"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- Conteudo da alocacao -->
+      <div class="telegram-content p-3" id="hubContent">
+        <!-- Carregando -->
+        <div id="hubLoading" class="text-center py-4">
+          <div class="spinner-border text-warning" role="status">
+            <span class="visually-hidden">Carregando...</span>
+          </div>
+          <p class="text-muted mt-2">Carregando alocacao...</p>
+        </div>
+
+        <!-- Sem dados -->
+        <div id="hubEmpty" class="text-center py-4" style="display: none;">
+          <i class="bi bi-inbox" style="font-size: 3rem; color: #ccc;"></i>
+          <p class="text-muted mt-2">Nenhuma alocacao encontrada</p>
+          <button class="btn btn-warning btn-sm" onclick="sincronizarHub()">
+            <i class="bi bi-cloud-download me-1"></i>Sincronizar do WhatsApp
+          </button>
+        </div>
+
+        <!-- Card de alocacao -->
+        <div id="hubCard" style="display: none;">
+          <!-- Header com tipo e data -->
+          <div class="hub-header mb-3 p-3 rounded" id="hubCardHeader" style="background: linear-gradient(135deg, #fff8e1 0%, #ffecb3 100%); border-left: 4px solid #ff9800;">
+            <div class="d-flex justify-content-between align-items-center">
+              <div>
+                <span class="badge" id="hubTipoBadge" style="font-size: 0.9rem;">DIURNO</span>
+                <span class="ms-2 text-muted" id="hubData">26/01</span>
+              </div>
+              <small class="text-muted" id="hubRecebido">Recebido: --</small>
+            </div>
+          </div>
+
+          <!-- Tabela de tecnicos (DIURNO) -->
+          <div id="hubTabelaDiurno" style="display: none;">
+            <div class="table-responsive">
+              <table class="table table-sm table-hover">
+                <thead style="background: #fff8e1;">
+                  <tr>
+                    <th style="width: 120px;">Regiao</th>
+                    <th>Horario</th>
+                    <th>Tecnico</th>
+                    <th style="width: 130px;">Telefone</th>
+                  </tr>
+                </thead>
+                <tbody id="hubTabelaDiurnoBody">
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Tabela de tecnicos (MADRUGADA) -->
+          <div id="hubTabelaMadrugada" style="display: none;">
+            <div class="table-responsive">
+              <table class="table table-sm table-hover">
+                <thead style="background: #e3f2fd;">
+                  <tr>
+                    <th>Tecnico</th>
+                    <th>Local</th>
+                    <th>Atividade</th>
+                    <th style="width: 120px;">Telefone</th>
+                  </tr>
+                </thead>
+                <tbody id="hubTabelaMadrugadaBody">
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Folgas -->
+          <div id="hubFolgas" class="mt-3 p-2 rounded" style="background: #f5f5f5; display: none;">
+            <strong><i class="bi bi-moon-stars me-1"></i>Folgas:</strong>
+            <span id="hubFolgasLista"></span>
+          </div>
+
+          <!-- Responsavel (madrugada) -->
+          <div id="hubResponsavel" class="mt-3 p-2 rounded" style="background: #e8f5e9; display: none;">
+            <strong><i class="bi bi-person-badge me-1"></i>Responsavel:</strong>
+            <span id="hubResponsavelNome"></span>
+            <a id="hubResponsavelTel" href="#" class="ms-2"><i class="bi bi-telephone"></i></a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div><!-- Fim tabAlocacaoHub -->
 
   <!-- Modal de Detalhes COP Rede Informa -->
   <div class="modal fade" id="modalDetalhesCop" tabindex="-1">
@@ -5689,6 +5808,10 @@ function iniciarComoAdmin() {
   const telegramTabNav = document.querySelector('.admin-nav-tab[data-admin-tab="telegram"]');
   if (telegramTabNav) telegramTabNav.style.display = '';
 
+  // Mostrar aba Alocacao de HUB para admin
+  const hubTabNav = document.querySelector('.admin-nav-tab[data-admin-tab="alocacao_hub"]');
+  if (hubTabNav) hubTabNav.style.display = '';
+
   // Mostrar painel de gerenciamento baseado no calendário ativo
   const calendarioPanelResidencial = document.getElementById('calendarioPanelResidencial');
   const calendarioPanelEmpresarial = document.getElementById('calendarioPanelEmpresarial');
@@ -5755,6 +5878,10 @@ function iniciarComoVisualizador() {
   // Esconder aba COP Rede Informa (telegram) para visualizadores
   const telegramTabNav = document.querySelector('.admin-nav-tab[data-admin-tab="telegram"]');
   if (telegramTabNav) telegramTabNav.style.display = 'none';
+
+  // Esconder aba Alocacao de HUB para visualizadores
+  const hubTabNav = document.querySelector('.admin-nav-tab[data-admin-tab="alocacao_hub"]');
+  if (hubTabNav) hubTabNav.style.display = 'none';
 
   // Esconder painéis de gerenciamento (somente admin)
   const calendarioPanelResidencial = document.getElementById('calendarioPanelResidencial');
@@ -8540,6 +8667,29 @@ function trocarAbaAdmin(abaId) {
       carregarAlertas();
     }
     iniciarAutoRefresh();
+
+  } else if (abaId === 'alocacao_hub') {
+    // Alocacao de HUB é exclusivo do admin
+    if (!isAdmin) {
+      showToast('Alocacao de HUB exclusivo do administrador', 'danger');
+      return;
+    }
+
+    // Mostrar aba Alocacao HUB
+    const tabAlocacaoHub = document.getElementById('tabAlocacaoHub');
+    if (tabAlocacaoHub) tabAlocacaoHub.classList.add('active');
+
+    // Ocultar calendarios
+    if (calendarSection) calendarSection.style.display = 'none';
+    if (calendarSectionRioEs) calendarSectionRioEs.style.display = 'none';
+    if (calendarSectionLeste) calendarSectionLeste.style.display = 'none';
+    if (calendarioPanelResidencial) calendarioPanelResidencial.style.display = 'none';
+    if (calendarioPanelRioEs) calendarioPanelRioEs.style.display = 'none';
+    if (calendarioPanelLeste) calendarioPanelLeste.style.display = 'none';
+    if (telegramPanel) telegramPanel.style.display = 'none';
+
+    // Carregar dados de alocacao
+    carregarAlocacaoHub();
   }
 }
 
@@ -9584,6 +9734,156 @@ function atualizarBadgeAlertas() {
   const novos = dadosAlertas.filter(a => a.status === 'novo').length;
   const badge = document.getElementById('badgeAlertas');
   if (badge) badge.textContent = novos;
+}
+
+// ============================================
+// ALOCACAO DE HUB
+// ============================================
+
+async function carregarAlocacaoHub() {
+  const loading = document.getElementById('hubLoading');
+  const empty = document.getElementById('hubEmpty');
+  const card = document.getElementById('hubCard');
+
+  if (loading) loading.style.display = 'block';
+  if (empty) empty.style.display = 'none';
+  if (card) card.style.display = 'none';
+
+  try {
+    const response = await fetchComRetry(`${backendUrl}/api/alocacao-hub/ultima`, {
+      method: 'GET',
+      headers: { 'Content-Type': 'application/json' }
+    }, 2);
+
+    if (!response.ok) throw new Error('Erro ao carregar alocacao');
+
+    const data = await response.json();
+    const alocacao = data.dados;
+
+    if (loading) loading.style.display = 'none';
+
+    if (!alocacao) {
+      if (empty) empty.style.display = 'block';
+      return;
+    }
+
+    exibirAlocacaoHub(alocacao);
+
+  } catch (error) {
+    console.error('[Hub] Erro ao carregar:', error);
+    if (loading) loading.style.display = 'none';
+    if (empty) empty.style.display = 'block';
+  }
+}
+
+function exibirAlocacaoHub(alocacao) {
+  const card = document.getElementById('hubCard');
+  const tipoBadge = document.getElementById('hubTipoBadge');
+  const dataEl = document.getElementById('hubData');
+  const recebidoEl = document.getElementById('hubRecebido');
+  const tabelaDiurno = document.getElementById('hubTabelaDiurno');
+  const tabelaMadrugada = document.getElementById('hubTabelaMadrugada');
+  const folgas = document.getElementById('hubFolgas');
+  const folgasLista = document.getElementById('hubFolgasLista');
+  const responsavel = document.getElementById('hubResponsavel');
+  const responsavelNome = document.getElementById('hubResponsavelNome');
+  const responsavelTel = document.getElementById('hubResponsavelTel');
+
+  if (card) card.style.display = 'block';
+
+  // Tipo e data
+  if (tipoBadge) {
+    tipoBadge.textContent = alocacao.tipoAlocacao;
+    tipoBadge.className = 'badge ' + (alocacao.tipoAlocacao === 'DIURNO' ? 'bg-warning text-dark' : 'bg-primary');
+  }
+  if (dataEl) dataEl.textContent = alocacao.data || '--/--';
+  if (recebidoEl) recebidoEl.textContent = 'Recebido: ' + formatarDataHora(alocacao.dataRecebimento);
+
+  // Esconder ambas tabelas primeiro
+  if (tabelaDiurno) tabelaDiurno.style.display = 'none';
+  if (tabelaMadrugada) tabelaMadrugada.style.display = 'none';
+
+  if (alocacao.tipoAlocacao === 'DIURNO') {
+    // Exibir tabela diurno
+    if (tabelaDiurno) tabelaDiurno.style.display = 'block';
+    const tbody = document.getElementById('hubTabelaDiurnoBody');
+    if (tbody && alocacao.regioes) {
+      let html = '';
+      for (const [regiao, tecnicos] of Object.entries(alocacao.regioes)) {
+        if (tecnicos.length > 0) {
+          tecnicos.forEach((t, i) => {
+            html += `<tr>`;
+            if (i === 0) {
+              html += `<td rowspan="${tecnicos.length}" style="background: #fff8e1; font-weight: 600;">${regiao}</td>`;
+            }
+            html += `<td>${t.horario || '-'}</td>`;
+            html += `<td>${t.tecnico || '-'}${t.sobreaviso ? ' <span class="badge bg-info">Sobreaviso</span>' : ''}</td>`;
+            html += `<td><a href="tel:${t.telefone}">${t.telefone || '-'}</a></td>`;
+            html += `</tr>`;
+          });
+        }
+      }
+      tbody.innerHTML = html || '<tr><td colspan="4" class="text-center text-muted">Nenhum tecnico</td></tr>';
+    }
+  } else {
+    // Exibir tabela madrugada
+    if (tabelaMadrugada) tabelaMadrugada.style.display = 'block';
+    const tbody = document.getElementById('hubTabelaMadrugadaBody');
+    if (tbody && alocacao.tecnicos) {
+      let html = alocacao.tecnicos.map(t => `
+        <tr>
+          <td><strong>${t.nome || '-'}</strong></td>
+          <td>${t.local || '-'}</td>
+          <td>${t.atividade || '-'}${t.observacao ? '<br><small class="text-muted">' + t.observacao + '</small>' : ''}</td>
+          <td><a href="tel:${t.telefone}">${t.telefone || '-'}</a></td>
+        </tr>
+      `).join('');
+      tbody.innerHTML = html || '<tr><td colspan="4" class="text-center text-muted">Nenhum tecnico</td></tr>';
+    }
+
+    // Responsavel (apenas madrugada)
+    if (responsavel && alocacao.responsavel) {
+      responsavel.style.display = 'block';
+      if (responsavelNome) responsavelNome.textContent = alocacao.responsavel.nome || '-';
+      if (responsavelTel) {
+        responsavelTel.href = 'tel:' + (alocacao.responsavel.telefone || '');
+        responsavelTel.innerHTML = '<i class="bi bi-telephone"></i> ' + (alocacao.responsavel.telefone || '-');
+      }
+    } else if (responsavel) {
+      responsavel.style.display = 'none';
+    }
+  }
+
+  // Folgas
+  if (folgas && alocacao.folgas && alocacao.folgas.length > 0) {
+    folgas.style.display = 'block';
+    if (folgasLista) folgasLista.textContent = alocacao.folgas.join(', ');
+  } else if (folgas) {
+    folgas.style.display = 'none';
+  }
+}
+
+async function sincronizarHub() {
+  showToast('Sincronizando alocacoes do WhatsApp...', 'info');
+
+  try {
+    const response = await fetchComRetry(`${backendUrl}/api/alocacao-hub/sincronizar`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' }
+    }, 2);
+
+    if (!response.ok) throw new Error('Erro ao sincronizar');
+
+    const data = await response.json();
+    showToast(`Sincronizado! ${data.alocacoes || 0} alocacoes encontradas`, 'success');
+
+    // Recarregar dados
+    carregarAlocacaoHub();
+
+  } catch (error) {
+    console.error('[Hub] Erro ao sincronizar:', error);
+    showToast('Erro ao sincronizar: ' + error.message, 'danger');
+  }
 }
 
 function atualizarEstatisticasAlertas() {
