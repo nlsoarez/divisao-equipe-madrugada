@@ -653,11 +653,10 @@ function parseCopRedeInforma(texto, dataMensagem, messageId) {
   console.log(texto.substring(0, 800));
   console.log('[Parser] ================================================');
 
-  // IGNORAR formato "*📢 COP REDE INFORMA*" com "Detalhe Cluster × Status"
-  // Este formato não tem os dados corretos de volumetria
+  // Processar formato "Detalhe Cluster × Status" - usar parser específico
   if (texto.includes('Detalhe Cluster') && (texto.includes('×') || texto.includes('x')) && texto.includes('Status')) {
-    console.log('[Parser] IGNORANDO formato "Detalhe Cluster × Status" - não é o formato correto');
-    return null;
+    console.log('[Parser] Detectado formato "Detalhe Cluster × Status"');
+    return parseCopRedeInformaDetalheStatus(texto, dataMensagem, messageId);
   }
 
   // Detectar formato CORRETO: "📢 COP REDE - INFORMA" com "Totais por Cluster"
