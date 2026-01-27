@@ -256,6 +256,38 @@ app.post('/api/whatsapp/configurar-webhook', async (req, res) => {
   }
 });
 
+/**
+ * Iniciar polling automático de mensagens
+ */
+app.post('/api/whatsapp/polling/iniciar', async (req, res) => {
+  try {
+    whatsapp.iniciarPolling();
+    res.json({
+      sucesso: true,
+      mensagem: 'Polling automático iniciado',
+      status: whatsapp.obterStatus()
+    });
+  } catch (error) {
+    res.status(500).json({ sucesso: false, erro: error.message });
+  }
+});
+
+/**
+ * Parar polling automático de mensagens
+ */
+app.post('/api/whatsapp/polling/parar', async (req, res) => {
+  try {
+    whatsapp.pararPolling();
+    res.json({
+      sucesso: true,
+      mensagem: 'Polling automático parado',
+      status: whatsapp.obterStatus()
+    });
+  } catch (error) {
+    res.status(500).json({ sucesso: false, erro: error.message });
+  }
+});
+
 // ============================================
 // WEBHOOK PARA RECEBER MENSAGENS DIRETAMENTE
 // WEBHOOK PARA RECEBER MENSAGENS DIRETAMENTE
@@ -622,7 +654,18 @@ app.listen(SERVER_CONFIG.PORT, async () => {
       if (status.conectado) {
         console.log('✅ WhatsApp conectado!');
         console.log('');
-        console.log('   Para receber mensagens em TEMPO REAL, configure o webhook:');
+
+        // Iniciar polling automático como fallback (funciona mesmo sem webhook)
+        const pollingDisabled = process.env.WHATSAPP_POLLING_DISABLED === 'true';
+        if (!pollingDisabled) {
+          whatsapp.iniciarPolling();
+          console.log('🔄 Polling automático ativado (fallback para webhook)');
+        } else {
+          console.log('⏸️  Polling desativado via WHATSAPP_POLLING_DISABLED=true');
+        }
+
+        console.log('');
+        console.log('   Para receber mensagens via webhook (mais rápido):');
         console.log('   URL: https://seu-backend.railway.app/api/whatsapp/webhook');
         console.log('   Eventos: MESSAGES_UPSERT');
       } else {
@@ -650,6 +693,8 @@ app.listen(SERVER_CONFIG.PORT, async () => {
   console.log('  GET  /api/whatsapp/chats');
   console.log('  POST /api/whatsapp/sincronizar');
   console.log('  POST /api/whatsapp/webhook');
+  console.log('  POST /api/whatsapp/polling/iniciar');
+  console.log('  POST /api/whatsapp/polling/parar');
   console.log('');
   console.log('  Dados:');
   console.log('  GET  /api/cop-rede-informa');

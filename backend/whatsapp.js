@@ -9,6 +9,11 @@ const { adicionarCopRedeInforma, adicionarAlerta } = require('./storage');
 
 let isConnected = false;
 let instanceInfo = null;
+let pollingInterval = null;
+let lastMessageTimestamp = 0;
+
+// Intervalo de polling em ms (30 segundos por padrão)
+const POLLING_INTERVAL_MS = parseInt(process.env.WHATSAPP_POLLING_INTERVAL || '30000', 10);
 
 /**
  * Faz requisição para a Evolution API
@@ -371,15 +376,180 @@ function obterStatus() {
     conectado: isConnected,
     instancia: EVOLUTION_CONFIG.INSTANCE_NAME,
     apiUrl: EVOLUTION_CONFIG.API_URL,
-    sourceChatId: EVOLUTION_CONFIG.SOURCE_CHAT_ID
+    sourceChatId: EVOLUTION_CONFIG.SOURCE_CHAT_ID,
+    pollingAtivo: pollingInterval !== null,
+    pollingIntervalo: POLLING_INTERVAL_MS
   };
+}
+
+/**
+ * Busca novas mensagens desde o último polling
+ * Usado pelo polling automático para evitar reprocessar mensagens antigas
+ */
+async function buscarNovasMensagens() {
+  try {
+    const status = await verificarConexao();
+    if (!status.conectado) {
+      return { novas: 0, erro: 'WhatsApp não conectado' };
+    }
+
+    if (!EVOLUTION_CONFIG.SOURCE_CHAT_ID) {
+      return { novas: 0, erro: 'SOURCE_CHAT_ID não configurado' };
+    }
+
+    // Buscar últimas 50 mensagens
+    let messages = [];
+
+    try {
+      const result = await evolutionRequest(
+        `/chat/findMessages/${encodeURIComponent(EVOLUTION_CONFIG.INSTANCE_NAME)}`,
+        'POST',
+        {
+          where: {
+            key: {
+              remoteJid: EVOLUTION_CONFIG.SOURCE_CHAT_ID
+            }
+          },
+          limit: 50
+        }
+      );
+
+      if (Array.isArray(result)) {
+        messages = result;
+      } else if (result.messages?.records) {
+        messages = result.messages.records;
+      } else if (result.messages && Array.isArray(result.messages)) {
+        messages = result.messages;
+      }
+    } catch (e) {
+      // Silently continue
+    }
+
+    // Filtrar pelo grupo correto
+    if (EVOLUTION_CONFIG.SOURCE_CHAT_ID && messages.length > 0) {
+      messages = messages.filter(m => {
+        const remoteJid = m.key?.remoteJid || m.remoteJid;
+        return remoteJid === EVOLUTION_CONFIG.SOURCE_CHAT_ID;
+      });
+    }
+
+    if (messages.length === 0) {
+      return { novas: 0 };
+    }
+
+    // Filtrar apenas mensagens novas (após o último timestamp)
+    const novasMensagens = messages.filter(m => {
+      const timestamp = m.messageTimestamp || m.timestamp || 0;
+      return timestamp > lastMessageTimestamp;
+    });
+
+    if (novasMensagens.length === 0) {
+      return { novas: 0 };
+    }
+
+    // Atualizar o timestamp mais recente
+    const maxTimestamp = Math.max(...novasMensagens.map(m => m.messageTimestamp || m.timestamp || 0));
+    if (maxTimestamp > lastMessageTimestamp) {
+      lastMessageTimestamp = maxTimestamp;
+    }
+
+    let contadores = { copRedeInforma: 0, alertas: 0 };
+
+    for (const msg of novasMensagens) {
+      const texto = msg.message?.conversation ||
+                    msg.message?.extendedTextMessage?.text ||
+                    msg.message?.text ||
+                    msg.body ||
+                    msg.text ||
+                    msg.content ||
+                    null;
+
+      if (!texto) continue;
+
+      try {
+        const msgCompativel = {
+          message_id: msg.key?.id || msg.id || Date.now().toString(),
+          date: Math.floor((msg.messageTimestamp || msg.timestamp || Date.now() / 1000)),
+          text: texto,
+          from: {
+            username: msg.pushName || msg.key?.participant || 'WhatsApp',
+            is_bot: false
+          },
+          chat: {
+            id: msg.key?.remoteJid || EVOLUTION_CONFIG.SOURCE_CHAT_ID
+          }
+        };
+
+        const resultado = processarMensagem(msgCompativel);
+
+        if (resultado) {
+          if (resultado.tipo === 'COP_REDE_INFORMA') {
+            await adicionarCopRedeInforma(resultado.dados);
+            contadores.copRedeInforma++;
+          } else if (resultado.tipo === 'NOVO_EVENTO') {
+            await adicionarAlerta(resultado.dados);
+            contadores.alertas++;
+          }
+        }
+      } catch (msgError) {
+        // Skip message on error
+      }
+    }
+
+    if (contadores.copRedeInforma > 0 || contadores.alertas > 0) {
+      console.log(`[WhatsApp Polling] Novas mensagens: ${contadores.copRedeInforma} COP REDE INFORMA, ${contadores.alertas} alertas`);
+    }
+
+    return { novas: contadores.copRedeInforma + contadores.alertas, ...contadores };
+
+  } catch (error) {
+    console.error('[WhatsApp Polling] Erro:', error.message);
+    return { novas: 0, erro: error.message };
+  }
+}
+
+/**
+ * Inicia polling automático de mensagens
+ * Usado como fallback quando webhook não está configurado
+ */
+function iniciarPolling() {
+  if (pollingInterval) {
+    console.log('[WhatsApp] Polling já está ativo');
+    return;
+  }
+
+  // Inicializar timestamp com momento atual para não reprocessar histórico
+  lastMessageTimestamp = Math.floor(Date.now() / 1000);
+
+  console.log(`[WhatsApp] Iniciando polling automático a cada ${POLLING_INTERVAL_MS / 1000}s`);
+
+  // Fazer primeira busca imediatamente
+  buscarNovasMensagens();
+
+  pollingInterval = setInterval(async () => {
+    await buscarNovasMensagens();
+  }, POLLING_INTERVAL_MS);
+}
+
+/**
+ * Para o polling automático
+ */
+function pararPolling() {
+  if (pollingInterval) {
+    clearInterval(pollingInterval);
+    pollingInterval = null;
+    console.log('[WhatsApp] Polling automático parado');
+  }
 }
 
 module.exports = {
   verificarConexao,
   buscarHistorico,
+  buscarNovasMensagens,
   processarWebhook,
   configurarWebhook,
   listarChats,
-  obterStatus
+  obterStatus,
+  iniciarPolling,
+  pararPolling
 };
