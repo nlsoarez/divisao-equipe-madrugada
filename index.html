@@ -8368,7 +8368,9 @@ let dadosAlertas = [];
 let alertaAtual = null;
 let backendConectado = false;
 let autoRefreshInterval = null;
+let autoRefreshHubInterval = null;
 const AUTO_REFRESH_MS = 10000; // 10 segundos
+const AUTO_REFRESH_HUB_MS = 30000; // 30 segundos para HUB
 let alertasAnteriores = []; // Para detectar novos alertas
 let primeiraCargatAlertas = true; // Flag para evitar tocar som na primeira carga
 let errosConsecutivos = 0; // Contador de erros para backoff
@@ -8568,6 +8570,11 @@ function trocarAbaAdmin(abaId) {
     pararAutoRefresh();
   }
 
+  // Parar auto-refresh HUB quando sair da aba HUB
+  if (abaId !== 'alocacao_hub') {
+    pararAutoRefreshHub();
+  }
+
   // Ativar conteúdo correspondente
   if (abaId === 'residencial') {
     // Mostrar aba Residencial
@@ -8688,8 +8695,8 @@ function trocarAbaAdmin(abaId) {
     if (calendarioPanelLeste) calendarioPanelLeste.style.display = 'none';
     if (telegramPanel) telegramPanel.style.display = 'none';
 
-    // Carregar dados de alocacao
-    carregarAlocacaoHub();
+    // Iniciar auto-refresh para HUB (carrega dados automaticamente)
+    iniciarAutoRefreshHub();
   }
 }
 
@@ -8728,6 +8735,31 @@ function pararAutoRefresh() {
     // Indicador visual
     const indicador = document.getElementById('autoRefreshIndicator');
     if (indicador) indicador.style.display = 'none';
+  }
+}
+
+// Auto-refresh para aba HUB
+function iniciarAutoRefreshHub() {
+  if (autoRefreshHubInterval) return; // Já está rodando
+
+  console.log('[HUB] Auto-refresh iniciado (a cada ' + (AUTO_REFRESH_HUB_MS/1000) + 's)');
+
+  // Primeira carga imediata
+  carregarAlocacaoHub();
+
+  autoRefreshHubInterval = setInterval(() => {
+    if (backendConectado) {
+      console.log('[HUB] Auto-refresh: atualizando dados...');
+      carregarAlocacaoHub();
+    }
+  }, AUTO_REFRESH_HUB_MS);
+}
+
+function pararAutoRefreshHub() {
+  if (autoRefreshHubInterval) {
+    clearInterval(autoRefreshHubInterval);
+    autoRefreshHubInterval = null;
+    console.log('[HUB] Auto-refresh parado');
   }
 }
 

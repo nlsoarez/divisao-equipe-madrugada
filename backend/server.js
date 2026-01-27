@@ -799,7 +799,36 @@ app.listen(SERVER_CONFIG.PORT, async () => {
   console.log('');
   console.log('📋 Alocação de HUB:');
   console.log(`   CHAT_ID: ${ALOCACAO_HUB_CONFIG.CHAT_ID}`);
-  console.log(`   BIN_ID: ${storageHub.getBinId() || 'NÃO CONFIGURADO (use /api/alocacao-hub/config/criar-bin)'}`);
+
+  // Criar bin automaticamente se não existir
+  if (!storageHub.getBinId()) {
+    console.log('   BIN_ID: Criando automaticamente...');
+    try {
+      const novoBinId = await storageHub.criarBin();
+      console.log(`   ✅ Bin criado: ${novoBinId}`);
+    } catch (binError) {
+      console.log(`   ⚠️  Erro ao criar bin: ${binError.message}`);
+    }
+  } else {
+    console.log(`   BIN_ID: ${storageHub.getBinId()}`);
+  }
+
+  // Carregar histórico de HUB automaticamente no startup
+  if (ALOCACAO_HUB_CONFIG.CHAT_ID && storageHub.getBinId()) {
+    try {
+      console.log('   📥 Carregando histórico de alocações...');
+      const resultadoHub = await whatsapp.buscarHistoricoHub(20);
+      if (resultadoHub.alocacoes > 0) {
+        console.log(`   ✅ ${resultadoHub.alocacoes} alocações carregadas do histórico`);
+      } else if (resultadoHub.erro) {
+        console.log(`   ⚠️  ${resultadoHub.erro}`);
+      } else {
+        console.log('   ℹ️  Nenhuma nova alocação no histórico');
+      }
+    } catch (hubError) {
+      console.log(`   ⚠️  Erro ao carregar histórico HUB: ${hubError.message}`);
+    }
+  }
 
   console.log('');
   console.log('Endpoints disponíveis:');
