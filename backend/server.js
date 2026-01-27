@@ -7,8 +7,9 @@ const express = require('express');
 const cors = require('cors');
 require('dotenv').config();
 
-const { SERVER_CONFIG, EVOLUTION_CONFIG } = require('./config');
+const { SERVER_CONFIG, EVOLUTION_CONFIG, ALOCACAO_HUB_CONFIG } = require('./config');
 const storage = require('./storage');
+const storageHub = require('./storageHub');
 const whatsapp = require('./whatsapp');
 
 const app = express();
@@ -585,6 +586,117 @@ app.get('/api/alertas/resumo/status', async (req, res) => {
 });
 
 // ============================================
+// ROTAS DE ALOCAÇÃO DE HUB
+// ============================================
+
+/**
+ * Obter última alocação de HUB
+ * Retorna apenas a mensagem mais recente
+ */
+app.get('/api/alocacao-hub/ultima', async (req, res) => {
+  try {
+    const alocacao = await storageHub.obterUltimaAlocacao();
+    res.json({
+      sucesso: true,
+      dados: alocacao,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('[API] Erro ao obter última alocação:', error);
+    res.status(500).json({ sucesso: false, erro: error.message });
+  }
+});
+
+/**
+ * Listar todas as alocações de HUB
+ * Query params: tipo (DIURNO/MADRUGADA), data
+ */
+app.get('/api/alocacao-hub', async (req, res) => {
+  try {
+    const filtros = {
+      tipo: req.query.tipo,
+      data: req.query.data
+    };
+
+    // Remover filtros vazios
+    Object.keys(filtros).forEach(key => {
+      if (!filtros[key]) delete filtros[key];
+    });
+
+    const alocacoes = await storageHub.obterAlocacoes(filtros);
+
+    res.json({
+      sucesso: true,
+      total: alocacoes.length,
+      dados: alocacoes,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('[API] Erro ao listar alocações:', error);
+    res.status(500).json({ sucesso: false, erro: error.message });
+  }
+});
+
+/**
+ * Sincronizar alocações de HUB manualmente
+ */
+app.post('/api/alocacao-hub/sincronizar', async (req, res) => {
+  try {
+    const limite = req.body.limite || 50;
+    const resultado = await whatsapp.buscarHistoricoHub(limite);
+    res.json({
+      sucesso: !resultado.erro,
+      ...resultado
+    });
+  } catch (error) {
+    res.status(500).json({ sucesso: false, erro: error.message });
+  }
+});
+
+/**
+ * Estatísticas de alocação de HUB
+ */
+app.get('/api/alocacao-hub/estatisticas', async (req, res) => {
+  try {
+    const stats = await storageHub.obterEstatisticas();
+    res.json({
+      sucesso: true,
+      dados: stats
+    });
+  } catch (error) {
+    res.status(500).json({ sucesso: false, erro: error.message });
+  }
+});
+
+/**
+ * Configurar Bin ID do Alocação de HUB
+ */
+app.post('/api/alocacao-hub/config/bin-id', async (req, res) => {
+  try {
+    const { binId } = req.body;
+    if (!binId) {
+      return res.status(400).json({ sucesso: false, erro: 'binId é obrigatório' });
+    }
+    storageHub.setBinId(binId);
+    res.json({ sucesso: true, mensagem: 'Bin ID do HUB configurado' });
+  } catch (error) {
+    res.status(500).json({ sucesso: false, erro: error.message });
+  }
+});
+
+/**
+ * Criar novo bin para Alocação de HUB
+ */
+app.post('/api/alocacao-hub/config/criar-bin', async (req, res) => {
+  try {
+    const binId = await storageHub.criarBin();
+    res.json({ sucesso: true, binId });
+  } catch (error) {
+    res.status(500).json({ sucesso: false, erro: error.message });
+  }
+});
+
+// ============================================
 // ROTA DE CONFIGURAÇÃO
 // ============================================
 
@@ -683,6 +795,12 @@ app.listen(SERVER_CONFIG.PORT, async () => {
     console.log('   - EVOLUTION_SOURCE_CHAT_ID');
   }
 
+  // Alocação de HUB
+  console.log('');
+  console.log('📋 Alocação de HUB:');
+  console.log(`   CHAT_ID: ${ALOCACAO_HUB_CONFIG.CHAT_ID}`);
+  console.log(`   BIN_ID: ${storageHub.getBinId() || 'NÃO CONFIGURADO (use /api/alocacao-hub/config/criar-bin)'}`);
+
   console.log('');
   console.log('Endpoints disponíveis:');
   console.log('  GET  /health');
@@ -696,9 +814,14 @@ app.listen(SERVER_CONFIG.PORT, async () => {
   console.log('  POST /api/whatsapp/polling/iniciar');
   console.log('  POST /api/whatsapp/polling/parar');
   console.log('');
-  console.log('  Dados:');
+  console.log('  Dados COP REDE:');
   console.log('  GET  /api/cop-rede-informa');
   console.log('  GET  /api/alertas');
+  console.log('');
+  console.log('  Alocação de HUB:');
+  console.log('  GET  /api/alocacao-hub/ultima');
+  console.log('  GET  /api/alocacao-hub');
+  console.log('  POST /api/alocacao-hub/sincronizar');
   console.log('============================================');
 });
 
