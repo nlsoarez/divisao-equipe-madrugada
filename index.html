@@ -8714,14 +8714,17 @@ function iniciarAutoRefresh() {
   const indicador = document.getElementById('autoRefreshIndicator');
   if (indicador) indicador.style.display = 'inline-flex';
 
-  // Primeira carga imediata
+  // Primeira carga imediata (com sincronização)
   carregarCopRedeInforma(true);
   carregarAlertas();
 
   autoRefreshInterval = setInterval(() => {
     if (backendConectado) {
       console.log('[WhatsApp] Auto-refresh: atualizando dados...');
-      carregarCopRedeInforma(true); // Forçar atualização
+      // IMPORTANTE: Não forçar sincronização no auto-refresh para evitar
+      // reprocessamento constante que causa mudança nos dados exibidos.
+      // Usar apenas refresh do cache (false = não sincronizar com WhatsApp)
+      carregarCopRedeInforma(false);
       carregarAlertas();
     }
   }, AUTO_REFRESH_MS);
@@ -9067,9 +9070,26 @@ function atualizarTabelaCopRede(dados) {
 
   // PEGAR APENAS A ÚLTIMA MENSAGEM QUE TEM DADOS DE CLUSTER (resumo.grupo)
   // Ignora mensagens do formato errado que não têm volumetria
-  const dadosOrdenados = [...dados].sort((a, b) =>
-    new Date(b.dataRecebimento) - new Date(a.dataRecebimento)
-  );
+  // IMPORTANTE: Ordenar por dataGeracao ou messageId para garantir consistência
+  // (não usar dataRecebimento pois muda quando o sistema reprocessa)
+  const dadosOrdenados = [...dados].sort((a, b) => {
+    // Prioridade 1: dataGeracao (quando a mensagem foi gerada no sistema COP)
+    const dataA = a.dataGeracao || a.dataMensagem || a.dataRecebimento;
+    const dataB = b.dataGeracao || b.dataMensagem || b.dataRecebimento;
+
+    const dateA = new Date(dataA);
+    const dateB = new Date(dataB);
+
+    // Se as datas são diferentes, ordenar por data (mais recente primeiro)
+    if (dateB.getTime() !== dateA.getTime()) {
+      return dateB - dateA;
+    }
+
+    // Se as datas são iguais, usar messageId como desempate (maior = mais recente)
+    const msgIdA = parseInt(a.messageId) || 0;
+    const msgIdB = parseInt(b.messageId) || 0;
+    return msgIdB - msgIdA;
+  });
 
   // Filtrar apenas mensagens com resumo.grupo válido
   const mensagensComCluster = dadosOrdenados.filter(d =>
