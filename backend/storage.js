@@ -17,6 +17,37 @@ let cacheLocal = {
 let whatsappBinId = JSONBIN_CONFIG.WHATSAPP_BIN_ID;
 
 /**
+ * Parseia uma string de data que pode estar em diferentes formatos
+ * Suporta: ISO, brasileiro "dd/mm/yyyy HH:mm" e outros
+ * @param {string} dataStr - String da data
+ * @returns {Date} Objeto Date parseado
+ */
+function parsearData(dataStr) {
+  if (!dataStr) return new Date(0); // Data mínima para ordenação
+
+  // Se já é um Date válido em formato ISO ou compatível
+  const dataISO = new Date(dataStr);
+  if (!isNaN(dataISO.getTime())) {
+    return dataISO;
+  }
+
+  // Tentar formato brasileiro "dd/mm/yyyy HH:mm" ou "dd/mm/yyyy"
+  const matchBR = dataStr.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:\s+(\d{1,2}):(\d{2})(?::(\d{2}))?)?/);
+  if (matchBR) {
+    const dia = parseInt(matchBR[1], 10);
+    const mes = parseInt(matchBR[2], 10) - 1; // Mês é 0-indexed
+    const ano = parseInt(matchBR[3], 10);
+    const hora = matchBR[4] ? parseInt(matchBR[4], 10) : 0;
+    const minuto = matchBR[5] ? parseInt(matchBR[5], 10) : 0;
+    const segundo = matchBR[6] ? parseInt(matchBR[6], 10) : 0;
+    return new Date(ano, mes, dia, hora, minuto, segundo);
+  }
+
+  // Fallback: retornar data mínima
+  return new Date(0);
+}
+
+/**
  * Headers padrão para requisições ao JSONBin
  */
 function getHeaders() {
@@ -340,16 +371,18 @@ async function obterCopRedeInforma(filtros = {}, forcarAtualizacao = false) {
 
   // Aplicar filtros
   if (filtros.dataInicio) {
+    const dataInicioRef = parsearData(filtros.dataInicio);
     mensagens = mensagens.filter(m => {
       const data = m.dataGeracao || m.dataRecebimento || m.dataMensagem;
-      return new Date(data) >= new Date(filtros.dataInicio);
+      return parsearData(data) >= dataInicioRef;
     });
   }
 
   if (filtros.dataFim) {
+    const dataFimRef = parsearData(filtros.dataFim);
     mensagens = mensagens.filter(m => {
       const data = m.dataGeracao || m.dataRecebimento || m.dataMensagem;
-      return new Date(data) <= new Date(filtros.dataFim);
+      return parsearData(data) <= dataFimRef;
     });
   }
 
@@ -379,11 +412,13 @@ async function obterCopRedeInforma(filtros = {}, forcarAtualizacao = false) {
   // IMPORTANTE: Usar dataGeracao (quando a mensagem foi criada no COP) como prioridade,
   // depois dataRecebimento, e messageId como desempate para consistência
   mensagens.sort((a, b) => {
-    const dataA = a.dataGeracao || a.dataRecebimento || a.dataMensagem;
-    const dataB = b.dataGeracao || b.dataRecebimento || b.dataMensagem;
+    // Usar dataGeracao como prioridade (é a data real da mensagem COP)
+    const dataStrA = a.dataGeracao || a.dataRecebimento || a.dataMensagem;
+    const dataStrB = b.dataGeracao || b.dataRecebimento || b.dataMensagem;
 
-    const dateA = new Date(dataA);
-    const dateB = new Date(dataB);
+    // Usar parsearData para lidar com formato brasileiro "dd/mm/yyyy HH:mm"
+    const dateA = parsearData(dataStrA);
+    const dateB = parsearData(dataStrB);
 
     // Se as datas são diferentes, ordenar por data
     if (dateB.getTime() !== dateA.getTime()) {
@@ -410,16 +445,18 @@ async function obterAlertas(filtros = {}) {
 
   // Aplicar filtros
   if (filtros.dataInicio) {
+    const dataInicioRef = parsearData(filtros.dataInicio);
     alertas = alertas.filter(a => {
       const data = a.dataRecebimento || a.dataMensagem;
-      return new Date(data) >= new Date(filtros.dataInicio);
+      return parsearData(data) >= dataInicioRef;
     });
   }
 
   if (filtros.dataFim) {
+    const dataFimRef = parsearData(filtros.dataFim);
     alertas = alertas.filter(a => {
       const data = a.dataRecebimento || a.dataMensagem;
-      return new Date(data) <= new Date(filtros.dataFim);
+      return parsearData(data) <= dataFimRef;
     });
   }
 
@@ -439,11 +476,11 @@ async function obterAlertas(filtros = {}) {
 
   // Ordenar por data decrescente (mais recente primeiro)
   alertas.sort((a, b) => {
-    const dataA = a.dataRecebimento || a.dataMensagem;
-    const dataB = b.dataRecebimento || b.dataMensagem;
+    const dataStrA = a.dataRecebimento || a.dataMensagem;
+    const dataStrB = b.dataRecebimento || b.dataMensagem;
 
-    const dateA = new Date(dataA);
-    const dateB = new Date(dataB);
+    const dateA = parsearData(dataStrA);
+    const dateB = parsearData(dataStrB);
 
     if (dateB.getTime() !== dateA.getTime()) {
       return dateB - dateA;
@@ -472,7 +509,7 @@ async function obterEstatisticas() {
   const copHoje = dados.copRedeInforma.filter(m => {
     const data = m.dataGeracao || m.dataRecebimento || m.dataMensagem;
     if (!data) return false;
-    const dataMensagem = new Date(data);
+    const dataMensagem = parsearData(data);
     dataMensagem.setHours(0, 0, 0, 0);
     return dataMensagem.getTime() === hoje.getTime();
   });
@@ -481,7 +518,7 @@ async function obterEstatisticas() {
   const alertasHoje = dados.alertas.filter(a => {
     const data = a.dataRecebimento || a.dataMensagem;
     if (!data) return false;
-    const dataMensagem = new Date(data);
+    const dataMensagem = parsearData(data);
     dataMensagem.setHours(0, 0, 0, 0);
     return dataMensagem.getTime() === hoje.getTime();
   });
