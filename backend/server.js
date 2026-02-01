@@ -669,6 +669,47 @@ app.get('/api/alocacao-hub/estatisticas', async (req, res) => {
 });
 
 /**
+ * Diagnóstico de alocação de HUB
+ * Retorna informações sobre a configuração e status
+ */
+app.get('/api/alocacao-hub/diagnostico', async (req, res) => {
+  try {
+    const stats = await storageHub.obterEstatisticas();
+    const whatsappStatus = whatsapp.obterStatus();
+
+    res.json({
+      sucesso: true,
+      diagnostico: {
+        config: {
+          CHAT_ID: ALOCACAO_HUB_CONFIG.CHAT_ID || 'NÃO CONFIGURADO',
+          BIN_ID: storageHub.getBinId() || 'NÃO CONFIGURADO',
+          MASTER_KEY: ALOCACAO_HUB_CONFIG.MASTER_KEY ? 'CONFIGURADO' : 'NÃO CONFIGURADO',
+          ACCESS_KEY: ALOCACAO_HUB_CONFIG.ACCESS_KEY ? 'CONFIGURADO' : 'NÃO CONFIGURADO'
+        },
+        whatsapp: {
+          conectado: whatsappStatus.conectado,
+          instancia: whatsappStatus.instancia,
+          pollingAtivo: whatsappStatus.pollingAtivo
+        },
+        dados: {
+          totalAlocacoes: stats.total,
+          diurno: stats.diurno,
+          madrugada: stats.madrugada,
+          ultimaAtualizacao: stats.ultimaAtualizacao
+        },
+        instrucoes: {
+          problema_comum: 'Se não estiver recebendo dados, verifique se o ALOCACAO_HUB_CHAT_ID está correto',
+          como_obter_chat_id: 'Use GET /api/whatsapp/chats para listar todos os grupos disponíveis',
+          como_sincronizar: 'Use POST /api/alocacao-hub/sincronizar para forçar uma sincronização'
+        }
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ sucesso: false, erro: error.message });
+  }
+});
+
+/**
  * Configurar Bin ID do Alocação de HUB
  */
 app.post('/api/alocacao-hub/config/bin-id', async (req, res) => {
