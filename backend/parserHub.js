@@ -15,13 +15,27 @@ function identificarTipoAlocacao(texto) {
 
   const textoUpper = texto.toUpperCase();
 
+  // Detecta DIURNO - múltiplos formatos possíveis
   if (textoUpper.includes('ALOCAÇÃO TÉCNICA HUBS/RJO DIURNO') ||
-      textoUpper.includes('ALOCACAO TECNICA HUBS/RJO DIURNO')) {
+      textoUpper.includes('ALOCACAO TECNICA HUBS/RJO DIURNO') ||
+      textoUpper.includes('ALOCAÇÃO TÉCNICA HUBS DIURNO') ||
+      textoUpper.includes('ALOCACAO TECNICA HUBS DIURNO') ||
+      textoUpper.includes('ALOCAÇÃO HUB DIURNO') ||
+      textoUpper.includes('ALOCACAO HUB DIURNO') ||
+      (textoUpper.includes('ALOCAÇÃO') && textoUpper.includes('HUB') && textoUpper.includes('DIURNO')) ||
+      (textoUpper.includes('ALOCACAO') && textoUpper.includes('HUB') && textoUpper.includes('DIURNO'))) {
     return 'DIURNO';
   }
 
+  // Detecta MADRUGADA - múltiplos formatos possíveis
   if (textoUpper.includes('ALOCAÇÃO TÉCNICA HUBS/RJO MADRUGADA') ||
-      textoUpper.includes('ALOCACAO TECNICA HUBS/RJO MADRUGADA')) {
+      textoUpper.includes('ALOCACAO TECNICA HUBS/RJO MADRUGADA') ||
+      textoUpper.includes('ALOCAÇÃO TÉCNICA HUBS MADRUGADA') ||
+      textoUpper.includes('ALOCACAO TECNICA HUBS MADRUGADA') ||
+      textoUpper.includes('ALOCAÇÃO HUB MADRUGADA') ||
+      textoUpper.includes('ALOCACAO HUB MADRUGADA') ||
+      (textoUpper.includes('ALOCAÇÃO') && textoUpper.includes('HUB') && textoUpper.includes('MADRUGADA')) ||
+      (textoUpper.includes('ALOCACAO') && textoUpper.includes('HUB') && textoUpper.includes('MADRUGADA'))) {
     return 'MADRUGADA';
   }
 
@@ -35,10 +49,24 @@ function identificarTipoAlocacao(texto) {
  */
 function extrairDataAlocacao(texto) {
   // Procura por padrões como "DIURNO 26/01:" ou "MADRUGADA 27/01:"
-  const match = texto.match(/(?:DIURNO|MADRUGADA)\s+(\d{1,2}\/\d{1,2})/i);
+  let match = texto.match(/(?:DIURNO|MADRUGADA)\s+(\d{1,2}\/\d{1,2})/i);
   if (match) {
     return match[1];
   }
+
+  // Tenta formato alternativo: "26/01" em qualquer lugar da primeira linha
+  const primeiraLinha = texto.split('\n')[0];
+  match = primeiraLinha.match(/(\d{1,2}\/\d{1,2})/);
+  if (match) {
+    return match[1];
+  }
+
+  // Tenta formato com ano: "26/01/2025"
+  match = texto.match(/(\d{1,2}\/\d{1,2})\/\d{2,4}/);
+  if (match) {
+    return match[1];
+  }
+
   return null;
 }
 
@@ -65,10 +93,10 @@ function processarDiurno(texto) {
       // Ignora linhas de cabeçalho
       if (linhaLimpa.toUpperCase().includes('ALOCAÇÃO TÉCNICA')) continue;
 
-      // Detecta região
-      const regiaoMatch = linhaLimpa.match(/^(NORTE|SUL|METROPOLITANA|OESTE|BAIXADA|LESTE|CENTRO)\s*:?\s*$/i);
+      // Detecta região - incluindo variações comuns
+      const regiaoMatch = linhaLimpa.match(/^(NORTE|SUL|METROPOLITANA|OESTE|BAIXADA|LESTE|CENTRO|ZONA\s*NORTE|ZONA\s*SUL|ZONA\s*OESTE|ZONA\s*LESTE|GRANDE\s*RIO|NITERÓI|NITEROI)\s*:?\s*$/i);
       if (regiaoMatch) {
-        regiaoAtual = regiaoMatch[1].toUpperCase();
+        regiaoAtual = regiaoMatch[1].toUpperCase().replace(/\s+/g, ' ');
         if (!regioes[regiaoAtual]) {
           regioes[regiaoAtual] = [];
         }
@@ -92,13 +120,26 @@ function processarDiurno(texto) {
       }
 
       // Processa técnico com horário
-      // Formato: "06:00 às 15:48- Diego(99333-2574)"
-      const tecnicoMatch = linhaLimpa.match(/(\d{1,2}:\d{2}\s*(?:às|as|a)\s*\d{1,2}:\d{2})\s*[-–]\s*(\w+)\s*\(?([\d\-]+)\)?/i);
+      // Formato: "06:00 às 15:48- Diego(99333-2574)" ou "06:00 às 15:48 - Paulo Alexandre (99333-2574)"
+      // Regex atualizado para capturar nomes com acentos e espaços
+      const tecnicoMatch = linhaLimpa.match(/(\d{1,2}:\d{2}\s*(?:às|as|a|-)\s*\d{1,2}:\d{2})\s*[-–]?\s*([A-Za-zÀ-ÿ][A-Za-zÀ-ÿ\s]*?)\s*\(?([\d\-\s]+)\)?$/i);
       if (tecnicoMatch && regiaoAtual && regiaoAtual !== 'FOLGAS') {
         regioes[regiaoAtual].push({
           horario: tecnicoMatch[1].trim(),
           tecnico: tecnicoMatch[2].trim(),
-          telefone: tecnicoMatch[3].trim(),
+          telefone: tecnicoMatch[3].replace(/\s/g, '').trim(),
+          sobreaviso: false
+        });
+        continue;
+      }
+
+      // Formato alternativo: "Diego - 06:00 às 15:48 (99333-2574)"
+      const tecnicoMatchAlt = linhaLimpa.match(/([A-Za-zÀ-ÿ][A-Za-zÀ-ÿ\s]*?)\s*[-–]\s*(\d{1,2}:\d{2}\s*(?:às|as|a|-)\s*\d{1,2}:\d{2})\s*\(?([\d\-\s]+)\)?$/i);
+      if (tecnicoMatchAlt && regiaoAtual && regiaoAtual !== 'FOLGAS') {
+        regioes[regiaoAtual].push({
+          horario: tecnicoMatchAlt[2].trim(),
+          tecnico: tecnicoMatchAlt[1].trim(),
+          telefone: tecnicoMatchAlt[3].replace(/\s/g, '').trim(),
           sobreaviso: false
         });
         continue;
@@ -106,12 +147,13 @@ function processarDiurno(texto) {
 
       // Processa sobreaviso
       // Formato: "- sobreaviso : Diogo(22-99255-0211)" ou "- sobreaviso: Leri(99179-2193)"
-      const sobreavisoMatch = linhaLimpa.match(/[-–]\s*sobreaviso\s*:?\s*(\w+)\s*\(?([\d\-]+)\)?/i);
+      // Regex atualizado para capturar nomes com acentos e espaços
+      const sobreavisoMatch = linhaLimpa.match(/[-–]?\s*sobreaviso\s*:?\s*([A-Za-zÀ-ÿ][A-Za-zÀ-ÿ\s]*?)\s*\(?([\d\-\s]+)\)?$/i);
       if (sobreavisoMatch && regiaoAtual && regiaoAtual !== 'FOLGAS') {
         regioes[regiaoAtual].push({
           horario: 'Sobreaviso',
           tecnico: sobreavisoMatch[1].trim(),
-          telefone: sobreavisoMatch[2].trim(),
+          telefone: sobreavisoMatch[2].replace(/\s/g, '').trim(),
           sobreaviso: true
         });
         continue;
@@ -188,9 +230,9 @@ function processarMadrugada(texto) {
       }
 
       // Detecta técnico com local
-      // Formato: "* *Paulo Alexandre: Tijuca" ou "Porfírio: Botafogo"
-      const tecnicoLocalMatch = linhaLimpa.match(/^\*?\s*\*?([A-Za-zÀ-ÿ\s]+)\s*:\s*([A-Za-zÀ-ÿ\s]+)$/);
-      if (tecnicoLocalMatch && !linhaLimpa.toLowerCase().includes('tel') && !linhaLimpa.toLowerCase().includes('headend')) {
+      // Formato: "* *Paulo Alexandre: Tijuca" ou "Porfírio: Botafogo" ou "- Paulo Alexandre: Tijuca"
+      const tecnicoLocalMatch = linhaLimpa.match(/^[-*•]?\s*\*?([A-Za-zÀ-ÿ][A-Za-zÀ-ÿ\s]*?)\s*:\s*([A-Za-zÀ-ÿ][A-Za-zÀ-ÿ\s/]+)$/);
+      if (tecnicoLocalMatch && !linhaLimpa.toLowerCase().includes('tel') && !linhaLimpa.toLowerCase().includes('headend') && !linhaLimpa.toLowerCase().includes('responsavel') && !linhaLimpa.toLowerCase().includes('responsável')) {
         // Salva técnico anterior se existir
         if (tecnicoAtual) {
           tecnicos.push({
@@ -281,10 +323,17 @@ function processarMadrugada(texto) {
 function processarMensagemHub(msg) {
   const texto = msg.text || msg.body || msg.content || '';
 
+  // Log para debug - mostra primeira linha da mensagem
+  const primeiraLinha = texto.split('\n')[0].substring(0, 100);
+  console.log(`[ParserHub] Analisando: "${primeiraLinha}"`);
+
   const tipo = identificarTipoAlocacao(texto);
   if (!tipo) {
+    console.log('[ParserHub] Mensagem não reconhecida como alocação de HUB');
     return null;
   }
+
+  console.log(`[ParserHub] Tipo identificado: ${tipo}`);
 
   const data = extrairDataAlocacao(texto);
   const timestamp = msg.date ? new Date(msg.date * 1000) : new Date();
@@ -292,8 +341,10 @@ function processarMensagemHub(msg) {
   let dados;
   if (tipo === 'DIURNO') {
     dados = processarDiurno(texto);
+    console.log(`[ParserHub] DIURNO processado: ${Object.keys(dados.regioes || {}).length} regiões, ${dados.folgas?.length || 0} folgas`);
   } else {
     dados = processarMadrugada(texto);
+    console.log(`[ParserHub] MADRUGADA processado: ${dados.tecnicos?.length || 0} técnicos, ${dados.folgas?.length || 0} folgas`);
   }
 
   return {

@@ -560,12 +560,17 @@ function pararPolling() {
  */
 async function buscarHistoricoHub(limite = 50) {
   try {
+    console.log(`[WhatsApp HUB] Iniciando busca de histórico (limite: ${limite})`);
+    console.log(`[WhatsApp HUB] CHAT_ID configurado: ${ALOCACAO_HUB_CONFIG.CHAT_ID}`);
+
     const status = await verificarConexao();
     if (!status.conectado) {
+      console.log('[WhatsApp HUB] WhatsApp não conectado');
       return { alocacoes: 0, erro: 'WhatsApp não conectado' };
     }
 
     if (!ALOCACAO_HUB_CONFIG.CHAT_ID) {
+      console.log('[WhatsApp HUB] CHAT_ID não configurado!');
       return { alocacoes: 0, erro: 'ALOCACAO_HUB_CHAT_ID não configurado' };
     }
 
@@ -584,6 +589,7 @@ async function buscarHistoricoHub(limite = 50) {
 
     // Método 1: chat/findMessages com where clause
     try {
+      console.log('[WhatsApp HUB] Tentando método 1: findMessages com where clause');
       const result = await evolutionRequest(
         `/chat/findMessages/${encodeURIComponent(EVOLUTION_CONFIG.INSTANCE_NAME)}`,
         'POST',
@@ -599,14 +605,17 @@ async function buscarHistoricoHub(limite = 50) {
 
       if (!result.instance) {
         messages = extractMessages(result);
+        console.log(`[WhatsApp HUB] Método 1: ${messages.length} mensagens encontradas`);
       }
     } catch (e) {
+      console.log(`[WhatsApp HUB] Método 1 falhou: ${e.message}`);
       // Silently try next method
     }
 
     // Método 2: chat/findMessages com number
     if (messages.length === 0) {
       try {
+        console.log('[WhatsApp HUB] Tentando método 2: findMessages com number');
         const result = await evolutionRequest(
           `/chat/findMessages/${encodeURIComponent(EVOLUTION_CONFIG.INSTANCE_NAME)}`,
           'POST',
@@ -618,8 +627,10 @@ async function buscarHistoricoHub(limite = 50) {
 
         if (!result.instance) {
           messages = extractMessages(result);
+          console.log(`[WhatsApp HUB] Método 2: ${messages.length} mensagens encontradas`);
         }
       } catch (e) {
+        console.log(`[WhatsApp HUB] Método 2 falhou: ${e.message}`);
         // Silently continue
       }
     }
@@ -627,6 +638,7 @@ async function buscarHistoricoHub(limite = 50) {
     // Método 3: Listar todas e filtrar
     if (messages.length === 0) {
       try {
+        console.log('[WhatsApp HUB] Tentando método 3: listar todas e filtrar');
         const result = await evolutionRequest(
           `/chat/findMessages/${encodeURIComponent(EVOLUTION_CONFIG.INSTANCE_NAME)}`,
           'POST',
@@ -634,12 +646,19 @@ async function buscarHistoricoHub(limite = 50) {
         );
         if (!result.instance) {
           const allMessages = extractMessages(result);
+          console.log(`[WhatsApp HUB] Método 3: ${allMessages.length} mensagens totais encontradas`);
           messages = allMessages.filter(m =>
             m.key?.remoteJid === ALOCACAO_HUB_CONFIG.CHAT_ID ||
             m.remoteJid === ALOCACAO_HUB_CONFIG.CHAT_ID
           );
+          console.log(`[WhatsApp HUB] Método 3: ${messages.length} mensagens do grupo HUB após filtro`);
+
+          // Log dos grupos únicos encontrados para debug
+          const gruposUnicos = [...new Set(allMessages.map(m => m.key?.remoteJid || m.remoteJid).filter(Boolean))];
+          console.log(`[WhatsApp HUB] Grupos disponíveis: ${gruposUnicos.slice(0, 5).join(', ')}${gruposUnicos.length > 5 ? '...' : ''}`);
         }
       } catch (e) {
+        console.log(`[WhatsApp HUB] Método 3 falhou: ${e.message}`);
         // Silently continue
       }
     }
@@ -653,8 +672,12 @@ async function buscarHistoricoHub(limite = 50) {
     }
 
     if (messages.length === 0) {
-      return { alocacoes: 0, erro: 'Nenhuma mensagem do grupo HUB encontrada' };
+      console.log(`[WhatsApp HUB] Nenhuma mensagem encontrada para o grupo: ${ALOCACAO_HUB_CONFIG.CHAT_ID}`);
+      console.log('[WhatsApp HUB] Verifique se o ALOCACAO_HUB_CHAT_ID está correto');
+      return { alocacoes: 0, erro: 'Nenhuma mensagem do grupo HUB encontrada. Verifique o CHAT_ID.' };
     }
+
+    console.log(`[WhatsApp HUB] Total de ${messages.length} mensagens para processar`);
 
     let contadores = { alocacoes: 0, ignorados: 0 };
 
