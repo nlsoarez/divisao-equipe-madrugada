@@ -9068,6 +9068,29 @@ function atualizarTabelaCopRede(dados) {
   // Esconder área vazia
   if (emptyDiv) emptyDiv.style.display = 'none';
 
+  // Função para parsear datas em formato brasileiro "dd/mm/yyyy HH:mm"
+  // JavaScript não parseia esse formato nativamente
+  function parsearDataBR(dataStr) {
+    if (!dataStr) return new Date(0);
+
+    // Se já é ISO ou formato reconhecido pelo JS
+    const dataISO = new Date(dataStr);
+    if (!isNaN(dataISO.getTime())) return dataISO;
+
+    // Tentar formato brasileiro "dd/mm/yyyy HH:mm" ou "dd/mm/yyyy"
+    const matchBR = dataStr.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:\s+(\d{1,2}):(\d{2}))?/);
+    if (matchBR) {
+      const dia = parseInt(matchBR[1], 10);
+      const mes = parseInt(matchBR[2], 10) - 1;
+      const ano = parseInt(matchBR[3], 10);
+      const hora = matchBR[4] ? parseInt(matchBR[4], 10) : 0;
+      const minuto = matchBR[5] ? parseInt(matchBR[5], 10) : 0;
+      return new Date(ano, mes, dia, hora, minuto);
+    }
+
+    return new Date(0);
+  }
+
   // PEGAR APENAS A ÚLTIMA MENSAGEM QUE TEM DADOS DE CLUSTER (resumo.grupo)
   // Ignora mensagens do formato errado que não têm volumetria
   // IMPORTANTE: Ordenar por dataGeracao ou messageId para garantir consistência
@@ -9077,8 +9100,9 @@ function atualizarTabelaCopRede(dados) {
     const dataA = a.dataGeracao || a.dataMensagem || a.dataRecebimento;
     const dataB = b.dataGeracao || b.dataMensagem || b.dataRecebimento;
 
-    const dateA = new Date(dataA);
-    const dateB = new Date(dataB);
+    // Usar parsearDataBR para lidar com formato "dd/mm/yyyy HH:mm"
+    const dateA = parsearDataBR(dataA);
+    const dateB = parsearDataBR(dataB);
 
     // Se as datas são diferentes, ordenar por data (mais recente primeiro)
     if (dateB.getTime() !== dateA.getTime()) {
