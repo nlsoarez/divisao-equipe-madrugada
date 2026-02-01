@@ -340,11 +340,17 @@ async function obterCopRedeInforma(filtros = {}, forcarAtualizacao = false) {
 
   // Aplicar filtros
   if (filtros.dataInicio) {
-    mensagens = mensagens.filter(m => new Date(m.dataMensagem) >= new Date(filtros.dataInicio));
+    mensagens = mensagens.filter(m => {
+      const data = m.dataGeracao || m.dataRecebimento || m.dataMensagem;
+      return new Date(data) >= new Date(filtros.dataInicio);
+    });
   }
 
   if (filtros.dataFim) {
-    mensagens = mensagens.filter(m => new Date(m.dataMensagem) <= new Date(filtros.dataFim));
+    mensagens = mensagens.filter(m => {
+      const data = m.dataGeracao || m.dataRecebimento || m.dataMensagem;
+      return new Date(data) <= new Date(filtros.dataFim);
+    });
   }
 
   if (filtros.areaPainel) {
@@ -353,24 +359,42 @@ async function obterCopRedeInforma(filtros = {}, forcarAtualizacao = false) {
 
   if (filtros.grupo) {
     mensagens = mensagens.filter(m =>
-      m.grupoOriginal.toLowerCase().includes(filtros.grupo.toLowerCase())
+      m.grupoOriginal?.toLowerCase().includes(filtros.grupo.toLowerCase())
     );
   }
 
   if (filtros.responsavel) {
     mensagens = mensagens.filter(m =>
-      m.responsavel.toLowerCase().includes(filtros.responsavel.toLowerCase())
+      m.responsavel?.toLowerCase().includes(filtros.responsavel.toLowerCase())
     );
   }
 
   if (filtros.tipo) {
     mensagens = mensagens.filter(m =>
-      m.tipo.toLowerCase().includes(filtros.tipo.toLowerCase())
+      m.tipo?.toLowerCase().includes(filtros.tipo.toLowerCase())
     );
   }
 
-  // Ordenar por data decrescente
-  mensagens.sort((a, b) => new Date(b.dataMensagem) - new Date(a.dataMensagem));
+  // Ordenar por data decrescente (mais recente primeiro)
+  // IMPORTANTE: Usar dataGeracao (quando a mensagem foi criada no COP) como prioridade,
+  // depois dataRecebimento, e messageId como desempate para consistência
+  mensagens.sort((a, b) => {
+    const dataA = a.dataGeracao || a.dataRecebimento || a.dataMensagem;
+    const dataB = b.dataGeracao || b.dataRecebimento || b.dataMensagem;
+
+    const dateA = new Date(dataA);
+    const dateB = new Date(dataB);
+
+    // Se as datas são diferentes, ordenar por data
+    if (dateB.getTime() !== dateA.getTime()) {
+      return dateB - dateA;
+    }
+
+    // Desempate por messageId (maior = mais recente)
+    const msgIdA = parseInt(a.messageId) || 0;
+    const msgIdB = parseInt(b.messageId) || 0;
+    return msgIdB - msgIdA;
+  });
 
   return mensagens;
 }
@@ -386,11 +410,17 @@ async function obterAlertas(filtros = {}) {
 
   // Aplicar filtros
   if (filtros.dataInicio) {
-    alertas = alertas.filter(a => new Date(a.dataMensagem) >= new Date(filtros.dataInicio));
+    alertas = alertas.filter(a => {
+      const data = a.dataRecebimento || a.dataMensagem;
+      return new Date(data) >= new Date(filtros.dataInicio);
+    });
   }
 
   if (filtros.dataFim) {
-    alertas = alertas.filter(a => new Date(a.dataMensagem) <= new Date(filtros.dataFim));
+    alertas = alertas.filter(a => {
+      const data = a.dataRecebimento || a.dataMensagem;
+      return new Date(data) <= new Date(filtros.dataFim);
+    });
   }
 
   if (filtros.areaPainel) {
@@ -403,12 +433,27 @@ async function obterAlertas(filtros = {}) {
 
   if (filtros.grupo) {
     alertas = alertas.filter(a =>
-      a.grupoOriginal.toLowerCase().includes(filtros.grupo.toLowerCase())
+      a.grupoOriginal?.toLowerCase().includes(filtros.grupo.toLowerCase())
     );
   }
 
-  // Ordenar por data decrescente
-  alertas.sort((a, b) => new Date(b.dataMensagem) - new Date(a.dataMensagem));
+  // Ordenar por data decrescente (mais recente primeiro)
+  alertas.sort((a, b) => {
+    const dataA = a.dataRecebimento || a.dataMensagem;
+    const dataB = b.dataRecebimento || b.dataMensagem;
+
+    const dateA = new Date(dataA);
+    const dateB = new Date(dataB);
+
+    if (dateB.getTime() !== dateA.getTime()) {
+      return dateB - dateA;
+    }
+
+    // Desempate por messageId
+    const msgIdA = parseInt(a.messageId) || 0;
+    const msgIdB = parseInt(b.messageId) || 0;
+    return msgIdB - msgIdA;
+  });
 
   return alertas;
 }
@@ -425,14 +470,18 @@ async function obterEstatisticas() {
 
   // COP REDE INFORMA do dia
   const copHoje = dados.copRedeInforma.filter(m => {
-    const dataMensagem = new Date(m.dataMensagem);
+    const data = m.dataGeracao || m.dataRecebimento || m.dataMensagem;
+    if (!data) return false;
+    const dataMensagem = new Date(data);
     dataMensagem.setHours(0, 0, 0, 0);
     return dataMensagem.getTime() === hoje.getTime();
   });
 
   // Alertas do dia
   const alertasHoje = dados.alertas.filter(a => {
-    const dataMensagem = new Date(a.dataMensagem);
+    const data = a.dataRecebimento || a.dataMensagem;
+    if (!data) return false;
+    const dataMensagem = new Date(data);
     dataMensagem.setHours(0, 0, 0, 0);
     return dataMensagem.getTime() === hoje.getTime();
   });
