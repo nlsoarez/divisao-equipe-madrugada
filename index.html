@@ -9095,6 +9095,15 @@ function atualizarTabelaCopRede(dados) {
   // Ignora mensagens do formato errado que não têm volumetria
   // IMPORTANTE: Ordenar por dataGeracao ou messageId para garantir consistência
   // (não usar dataRecebimento pois muda quando o sistema reprocessa)
+
+  // DEBUG: Logar antes de ordenar
+  const msgComClusterAntes = dados.filter(d => d.resumo?.grupo && Object.keys(d.resumo.grupo).length > 0);
+  console.log(`[COP DEBUG] Total: ${dados.length}, com cluster: ${msgComClusterAntes.length}`);
+  console.log('[COP DEBUG] Top 3 ANTES ordenar:');
+  msgComClusterAntes.slice(0, 3).forEach((m, i) => {
+    console.log(`  ${i+1}. dataGeracao="${m.dataGeracao}" dataRecebimento="${m.dataRecebimento}" total=${m.totalEventos}`);
+  });
+
   const dadosOrdenados = [...dados].sort((a, b) => {
     // Prioridade 1: dataGeracao (quando a mensagem foi gerada no sistema COP)
     const dataA = a.dataGeracao || a.dataMensagem || a.dataRecebimento;
@@ -9119,6 +9128,14 @@ function atualizarTabelaCopRede(dados) {
   const mensagensComCluster = dadosOrdenados.filter(d =>
     d.resumo?.grupo && Object.keys(d.resumo.grupo).length > 0
   );
+
+  // DEBUG: Logar depois de ordenar
+  console.log('[COP DEBUG] Top 3 DEPOIS ordenar:');
+  mensagensComCluster.slice(0, 3).forEach((m, i) => {
+    const dataUsada = m.dataGeracao || m.dataMensagem || m.dataRecebimento;
+    const dataParsed = parsearDataBR(dataUsada);
+    console.log(`  ${i+1}. dataGeracao="${m.dataGeracao}" parsed=${dataParsed.toISOString()} total=${m.totalEventos}`);
+  });
 
   // Se não há mensagens com cluster, mostrar área vazia
   if (mensagensComCluster.length === 0) {
