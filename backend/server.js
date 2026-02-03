@@ -34,34 +34,48 @@ app.use((req, res, next) => {
  */
 app.get('/api/diagnostico/dados', async (req, res) => {
   try {
+    // Buscar dados JÁ ORDENADOS pelo storage (usa a nova lógica de ordenação)
     const dados = await storage.obterCopRedeInforma({}, true);
 
-    // Ordenar por data (mais recente primeiro)
-    dados.sort((a, b) => new Date(b.dataRecebimento) - new Date(a.dataRecebimento));
+    // Filtrar apenas mensagens com cluster (mesma lógica do frontend)
+    const mensagensComCluster = dados.filter(d => d.resumo?.grupo && Object.keys(d.resumo.grupo).length > 0);
 
     // Analisar estrutura dos dados
     const diagnostico = {
       totalMensagens: dados.length,
-      mensagensComResumoGrupo: dados.filter(d => d.resumo?.grupo && Object.keys(d.resumo.grupo).length > 0).length,
-      mensagensSemResumoGrupo: dados.filter(d => !d.resumo?.grupo || Object.keys(d.resumo.grupo).length === 0).length,
-      ultimaMensagem: dados.length > 0 ? {
-        id: dados[0].id,
-        dataRecebimento: dados[0].dataRecebimento,
-        temResumoGrupo: !!(dados[0].resumo?.grupo && Object.keys(dados[0].resumo.grupo).length > 0),
-        resumoGrupo: dados[0].resumo?.grupo || {},
-        resumoCompleto: dados[0].resumo || {},
-        areaMapeada: dados[0].areaMapeada,
-        totalEventos: dados[0].totalEventos,
-        volumePorArea: dados[0].volumePorArea || {},
-        mensagemOriginal: dados[0].mensagemOriginal ? dados[0].mensagemOriginal.substring(0, 800) : null
+      mensagensComResumoGrupo: mensagensComCluster.length,
+      mensagensSemResumoGrupo: dados.length - mensagensComCluster.length,
+
+      // A mensagem que DEVERIA ser exibida (primeira com cluster após ordenação)
+      mensagemQueDeveSerExibida: mensagensComCluster.length > 0 ? {
+        id: mensagensComCluster[0].id,
+        messageId: mensagensComCluster[0].messageId,
+        dataGeracao: mensagensComCluster[0].dataGeracao || 'NÃO TEM',
+        dataRecebimento: mensagensComCluster[0].dataRecebimento,
+        resumoGrupo: mensagensComCluster[0].resumo?.grupo || {},
+        totalEventos: mensagensComCluster[0].totalEventos,
+        primeiraLinha: mensagensComCluster[0].mensagemOriginal ? mensagensComCluster[0].mensagemOriginal.split('\n')[0].substring(0, 100) : null
       } : null,
-      primeiras5: dados.slice(0, 5).map(d => ({
+
+      // Top 10 mensagens com cluster para debug (JÁ ORDENADAS)
+      top10ComCluster: mensagensComCluster.slice(0, 10).map(d => ({
         id: d.id,
+        messageId: d.messageId,
+        dataGeracao: d.dataGeracao || 'NÃO TEM',
         dataRecebimento: d.dataRecebimento,
-        temResumoGrupo: !!(d.resumo?.grupo && Object.keys(d.resumo.grupo).length > 0),
         clusters: d.resumo?.grupo ? Object.keys(d.resumo.grupo) : [],
         totalGrupo: d.resumo?.grupo ? Object.values(d.resumo.grupo).reduce((a, b) => a + b, 0) : 0,
-        primeiraLinha: d.mensagemOriginal ? d.mensagemOriginal.split('\n')[0].substring(0, 100) : null
+        primeiraLinha: d.mensagemOriginal ? d.mensagemOriginal.split('\n')[0].substring(0, 80) : null
+      })),
+
+      // Top 5 mensagens SEM cluster (para ver se a mais recente está sendo filtrada)
+      top5SemCluster: dados.filter(d => !d.resumo?.grupo || Object.keys(d.resumo.grupo).length === 0).slice(0, 5).map(d => ({
+        id: d.id,
+        messageId: d.messageId,
+        dataGeracao: d.dataGeracao || 'NÃO TEM',
+        dataRecebimento: d.dataRecebimento,
+        origem: d.origem,
+        primeiraLinha: d.mensagemOriginal ? d.mensagemOriginal.split('\n')[0].substring(0, 80) : null
       }))
     };
 
