@@ -146,16 +146,45 @@ async function carregarDados(forcarAtualizacao = false) {
     const result = await response.json();
     const dados = result.record;
 
-    // Atualizar cache
-    cacheLocal = {
+    // IMPORTANTE: Fazer MERGE dos dados do JSONBin com o cache local
+    // Isso preserva mensagens que foram adicionadas mas não salvas (ex: erro 403)
+    const dadosDoJSONBin = {
       copRedeInforma: dados.copRedeInforma || [],
-      alertas: dados.alertas || [],
+      alertas: dados.alertas || []
+    };
+
+    // Criar mapa de IDs existentes no JSONBin para merge rápido
+    const idsJSONBinCop = new Set(dadosDoJSONBin.copRedeInforma.map(m => m.id || m.messageId));
+    const idsJSONBinAlertas = new Set(dadosDoJSONBin.alertas.map(a => a.id || a.messageId));
+
+    // Adicionar mensagens do cache local que não existem no JSONBin
+    // (são mensagens que foram adicionadas mas não persistidas)
+    const mensagensPendentes = (cacheLocal.copRedeInforma || []).filter(
+      m => !idsJSONBinCop.has(m.id) && !idsJSONBinCop.has(m.messageId)
+    );
+    const alertasPendentes = (cacheLocal.alertas || []).filter(
+      a => !idsJSONBinAlertas.has(a.id) && !idsJSONBinAlertas.has(a.messageId)
+    );
+
+    if (mensagensPendentes.length > 0) {
+      console.log(`[Storage] Preservando ${mensagensPendentes.length} mensagens COP não salvas no cache`);
+    }
+    if (alertasPendentes.length > 0) {
+      console.log(`[Storage] Preservando ${alertasPendentes.length} alertas não salvos no cache`);
+    }
+
+    // Merge: dados do JSONBin + mensagens pendentes do cache
+    cacheLocal = {
+      copRedeInforma: [...dadosDoJSONBin.copRedeInforma, ...mensagensPendentes],
+      alertas: [...dadosDoJSONBin.alertas, ...alertasPendentes],
       ultimaAtualizacao: new Date().toISOString()
     };
 
-    console.log('[Storage] Dados carregados:', {
+    console.log('[Storage] Dados carregados (merge):', {
       copRedeInforma: cacheLocal.copRedeInforma.length,
-      alertas: cacheLocal.alertas.length
+      alertas: cacheLocal.alertas.length,
+      mensagensPendentes: mensagensPendentes.length,
+      alertasPendentes: alertasPendentes.length
     });
 
     return {
@@ -239,7 +268,17 @@ async function adicionarCopRedeInforma(mensagem) {
       dados.copRedeInforma = dados.copRedeInforma.slice(0, 1000);
     }
 
-    await salvarDados(dados);
+    // IMPORTANTE: Atualizar cache local ANTES de tentar salvar
+    // Isso garante que a mensagem fica disponível mesmo se o salvamento falhar
+    cacheLocal.copRedeInforma = dados.copRedeInforma;
+    cacheLocal.ultimaAtualizacao = new Date().toISOString();
+
+    // Tentar salvar (pode falhar com 403, mas mensagem já está no cache)
+    const salvou = await salvarDados(dados);
+    if (!salvou) {
+      console.log('[Storage] AVISO: Mensagem adicionada ao cache mas NÃO persistida no JSONBin');
+    }
+
     console.log('[Storage] Mensagem COP REDE INFORMA adicionada:', mensagem.id);
     return true;
 
@@ -272,7 +311,17 @@ async function adicionarAlerta(alerta) {
       dados.alertas = dados.alertas.slice(0, 500);
     }
 
-    await salvarDados(dados);
+    // IMPORTANTE: Atualizar cache local ANTES de tentar salvar
+    // Isso garante que o alerta fica disponível mesmo se o salvamento falhar
+    cacheLocal.alertas = dados.alertas;
+    cacheLocal.ultimaAtualizacao = new Date().toISOString();
+
+    // Tentar salvar (pode falhar com 403, mas alerta já está no cache)
+    const salvou = await salvarDados(dados);
+    if (!salvou) {
+      console.log('[Storage] AVISO: Alerta adicionado ao cache mas NÃO persistido no JSONBin');
+    }
+
     console.log('[Storage] Alerta adicionado:', alerta.id);
     return true;
 
