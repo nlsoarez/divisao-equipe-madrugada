@@ -722,6 +722,7 @@ function parseCopRedeInforma(texto, dataMensagem, messageId) {
     id: `cop_${messageId}_${Date.now()}`,
     messageId,
     dataRecebimento: dataMensagem.toISOString(),
+    dataGeracao: null, // Formato antigo não tem data de geração explícita
     empresa: 'Resumo COP',
     grupo: grupo?.itens ? Object.keys(grupo.itens).join(', ') : null,
     areaMapeada: areasAfetadas.length > 0 ? areasAfetadas.join(', ') : null,
@@ -835,6 +836,7 @@ function parseCopRedeInformaEmoji(texto, dataMensagem, messageId) {
     id: `cop_${messageId}_${Date.now()}`,
     messageId,
     dataRecebimento: dataMensagem.toISOString(),
+    dataGeracao: horarioAbertura || null, // Usar horário de abertura como data de geração
     empresa: 'COP REDE',
     grupo: grupo || null,
     areaMapeada: areaPainel || grupo || null,
