@@ -416,7 +416,7 @@ async function obterCopRedeInforma(filtros = {}, forcarAtualizacao = false) {
     const dataStrA = a.dataGeracao || a.dataRecebimento || a.dataMensagem;
     const dataStrB = b.dataGeracao || b.dataRecebimento || b.dataMensagem;
 
-    // Usar parsearData para lidar com formato brasileiro "dd/mm/yyyy HH:mm"
+    // Usar parsearData para lidar com formato brasileiro "dd/mm/yyyy HH:mm:ss"
     const dateA = parsearData(dataStrA);
     const dateB = parsearData(dataStrB);
 
@@ -425,10 +425,20 @@ async function obterCopRedeInforma(filtros = {}, forcarAtualizacao = false) {
       return dateB - dateA;
     }
 
-    // Desempate por messageId (maior = mais recente)
-    const msgIdA = parseInt(a.messageId) || 0;
-    const msgIdB = parseInt(b.messageId) || 0;
-    return msgIdB - msgIdA;
+    // Desempate melhorado: tenta parseInt primeiro, senão compara como string
+    // Isso garante ordenação estável mesmo com messageIds não numéricos (ex: WhatsApp)
+    const msgIdA = parseInt(a.messageId);
+    const msgIdB = parseInt(b.messageId);
+
+    // Se ambos são números válidos, comparar numericamente
+    if (!isNaN(msgIdA) && !isNaN(msgIdB)) {
+      return msgIdB - msgIdA;
+    }
+
+    // Fallback: comparar como string (ordem decrescente)
+    const strA = String(a.messageId || '');
+    const strB = String(b.messageId || '');
+    return strB.localeCompare(strA);
   });
 
   return mensagens;
@@ -486,10 +496,18 @@ async function obterAlertas(filtros = {}) {
       return dateB - dateA;
     }
 
-    // Desempate por messageId
-    const msgIdA = parseInt(a.messageId) || 0;
-    const msgIdB = parseInt(b.messageId) || 0;
-    return msgIdB - msgIdA;
+    // Desempate melhorado: tenta parseInt primeiro, senão compara como string
+    const msgIdA = parseInt(a.messageId);
+    const msgIdB = parseInt(b.messageId);
+
+    if (!isNaN(msgIdA) && !isNaN(msgIdB)) {
+      return msgIdB - msgIdA;
+    }
+
+    // Fallback: comparar como string (ordem decrescente)
+    const strA = String(a.messageId || '');
+    const strB = String(b.messageId || '');
+    return strB.localeCompare(strA);
   });
 
   return alertas;

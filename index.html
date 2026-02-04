@@ -9068,8 +9068,9 @@ function atualizarTabelaCopRede(dados) {
   // Esconder área vazia
   if (emptyDiv) emptyDiv.style.display = 'none';
 
-  // Função para parsear datas em formato brasileiro "dd/mm/yyyy HH:mm"
+  // Função para parsear datas em formato brasileiro "dd/mm/yyyy HH:mm:ss"
   // JavaScript não parseia esse formato nativamente
+  // IMPORTANTE: Captura segundos para ordenação precisa (mensagens COP têm segundos)
   function parsearDataBR(dataStr) {
     if (!dataStr) return new Date(0);
 
@@ -9077,15 +9078,17 @@ function atualizarTabelaCopRede(dados) {
     const dataISO = new Date(dataStr);
     if (!isNaN(dataISO.getTime())) return dataISO;
 
-    // Tentar formato brasileiro "dd/mm/yyyy HH:mm" ou "dd/mm/yyyy"
-    const matchBR = dataStr.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:\s+(\d{1,2}):(\d{2}))?/);
+    // Tentar formato brasileiro "dd/mm/yyyy HH:mm:ss" ou "dd/mm/yyyy HH:mm" ou "dd/mm/yyyy"
+    // CORRIGIDO: Agora captura segundos para ordenação precisa
+    const matchBR = dataStr.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:\s+(\d{1,2}):(\d{2})(?::(\d{2}))?)?/);
     if (matchBR) {
       const dia = parseInt(matchBR[1], 10);
       const mes = parseInt(matchBR[2], 10) - 1;
       const ano = parseInt(matchBR[3], 10);
       const hora = matchBR[4] ? parseInt(matchBR[4], 10) : 0;
       const minuto = matchBR[5] ? parseInt(matchBR[5], 10) : 0;
-      return new Date(ano, mes, dia, hora, minuto);
+      const segundo = matchBR[6] ? parseInt(matchBR[6], 10) : 0;
+      return new Date(ano, mes, dia, hora, minuto, segundo);
     }
 
     return new Date(0);
@@ -9106,10 +9109,11 @@ function atualizarTabelaCopRede(dados) {
 
   const dadosOrdenados = [...dados].sort((a, b) => {
     // Prioridade 1: dataGeracao (quando a mensagem foi gerada no sistema COP)
-    const dataA = a.dataGeracao || a.dataMensagem || a.dataRecebimento;
-    const dataB = b.dataGeracao || b.dataMensagem || b.dataRecebimento;
+    // CORRIGIDO: Ordem consistente com backend (dataRecebimento antes de dataMensagem)
+    const dataA = a.dataGeracao || a.dataRecebimento || a.dataMensagem;
+    const dataB = b.dataGeracao || b.dataRecebimento || b.dataMensagem;
 
-    // Usar parsearDataBR para lidar com formato "dd/mm/yyyy HH:mm"
+    // Usar parsearDataBR para lidar com formato "dd/mm/yyyy HH:mm:ss"
     const dateA = parsearDataBR(dataA);
     const dateB = parsearDataBR(dataB);
 
@@ -9118,10 +9122,20 @@ function atualizarTabelaCopRede(dados) {
       return dateB - dateA;
     }
 
-    // Se as datas são iguais, usar messageId como desempate (maior = mais recente)
-    const msgIdA = parseInt(a.messageId) || 0;
-    const msgIdB = parseInt(b.messageId) || 0;
-    return msgIdB - msgIdA;
+    // CORRIGIDO: Desempate melhorado - tenta parseInt primeiro, senão compara como string
+    // Isso garante ordenação estável mesmo com messageIds não numéricos
+    const msgIdA = parseInt(a.messageId);
+    const msgIdB = parseInt(b.messageId);
+
+    // Se ambos são números válidos, comparar numericamente
+    if (!isNaN(msgIdA) && !isNaN(msgIdB)) {
+      return msgIdB - msgIdA;
+    }
+
+    // Fallback: comparar como string (ordem decrescente)
+    const strA = String(a.messageId || '');
+    const strB = String(b.messageId || '');
+    return strB.localeCompare(strA);
   });
 
   // Filtrar apenas mensagens com resumo.grupo válido
