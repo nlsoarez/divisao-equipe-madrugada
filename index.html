@@ -3998,6 +3998,7 @@ function salvarDivisaoAreasEmpresarial(subEscala, dia) {
     subEscalaDados.dadosOriginais[dia] = {};
   }
   subEscalaDados.dadosOriginais[dia].divisao = novaDivisao;
+  subEscalaDados.dadosOriginais[dia].divisaoManual = true; // Flag para preservar edição manual
 
   console.log('💾 Dados atualizados, salvando na nuvem...');
 
@@ -4030,8 +4031,9 @@ function recalcularDivisaoAutomaticaEmpresarial(subEscala, dia) {
   // Recalcular usando a função existente
   const novaDivisao = calcularDivisaoPorNumero(dadosDia.numPessoas || dadosDia.trabalhando.length, dadosDia.trabalhando, tipoConfig);
 
-  // Atualizar dados
+  // Atualizar dados e remover flag de edição manual
   subEscalaDados.dadosOriginais[dia].divisao = novaDivisao;
+  subEscalaDados.dadosOriginais[dia].divisaoManual = false; // Remover flag de edição manual
 
   // Salvar na nuvem
   salvarConfiguracaoCalendarios().then(() => {
@@ -6742,6 +6744,12 @@ function recalcularDivisoesOriginais(tipoConfig = 'residencial') {
   Object.keys(dadosOriginais).forEach(dia => {
     const dadosDia = dadosOriginais[dia];
 
+    // Preservar divisões editadas manualmente
+    if (dadosDia && dadosDia.divisaoManual) {
+      console.log(`   📅 Dia ${dia}: Divisão manual preservada`);
+      return;
+    }
+
     if (dadosDia && dadosDia.trabalhando && dadosDia.trabalhando.length > 0) {
       const novaDivisao = calcularDivisaoPorNumero(dadosDia.numPessoas || dadosDia.trabalhando.length, dadosDia.trabalhando, tipoConfig);
 
@@ -6769,6 +6777,12 @@ function recalcularDivisoesEmpresarial(subEscala) {
 
   Object.keys(subEscalaDados.dadosOriginais).forEach(dia => {
     const dadosDia = subEscalaDados.dadosOriginais[dia];
+
+    // Preservar divisões editadas manualmente
+    if (dadosDia && dadosDia.divisaoManual) {
+      console.log(`   📅 Dia ${dia}: Divisão manual preservada`);
+      return;
+    }
 
     if (dadosDia && dadosDia.trabalhando && dadosDia.trabalhando.length > 0) {
       const novaDivisao = calcularDivisaoPorNumero(dadosDia.numPessoas || dadosDia.trabalhando.length, dadosDia.trabalhando, tipoConfig);
@@ -7819,9 +7833,11 @@ function salvarDivisaoAreas(dia) {
   // Atualizar dados
   if (dadosOriginais[dia]) {
     dadosOriginais[dia].divisao = novaDivisao;
+    dadosOriginais[dia].divisaoManual = true; // Flag para preservar edição manual
   }
   if (dadosProcessados[dia]) {
     dadosProcessados[dia].divisao = novaDivisao;
+    dadosProcessados[dia].divisaoManual = true;
   }
 
   // Salvar na nuvem
@@ -7847,9 +7863,11 @@ function recalcularDivisaoAutomatica(dia) {
   // Recalcular usando a função existente
   const novaDivisao = calcularDivisaoPorNumero(dadosDia.numPessoas || dadosDia.trabalhando.length, dadosDia.trabalhando);
 
-  // Atualizar dados
+  // Atualizar dados e remover flag de edição manual
   dadosOriginais[dia].divisao = novaDivisao;
+  dadosOriginais[dia].divisaoManual = false; // Remover flag de edição manual
   dadosProcessados[dia].divisao = novaDivisao;
+  dadosProcessados[dia].divisaoManual = false;
 
   // Salvar na nuvem
   salvarDadosNaNuvem().then(() => {
