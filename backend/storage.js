@@ -650,6 +650,43 @@ function limparCache() {
   console.log('[Storage] Cache limpo com sucesso');
 }
 
+/**
+ * Obtém o timestamp Unix da última mensagem armazenada
+ * Usado pelo polling para não reprocessar mensagens já salvas
+ * @returns {Promise<number>} Timestamp Unix em segundos (ou 0 se não houver mensagens)
+ */
+async function obterUltimoTimestamp() {
+  try {
+    const dados = await carregarDados(true); // Forçar atualização do cache
+    const mensagens = dados.copRedeInforma || [];
+
+    if (mensagens.length === 0) {
+      console.log('[Storage] Nenhuma mensagem encontrada, retornando timestamp 0');
+      return 0;
+    }
+
+    // Encontrar a mensagem mais recente baseada em dataRecebimento
+    let maxTimestamp = 0;
+
+    for (const msg of mensagens) {
+      const dataStr = msg.dataRecebimento || msg.dataGeracao || msg.dataMensagem;
+      if (dataStr) {
+        const date = parsearData(dataStr);
+        const timestamp = Math.floor(date.getTime() / 1000);
+        if (timestamp > maxTimestamp) {
+          maxTimestamp = timestamp;
+        }
+      }
+    }
+
+    console.log(`[Storage] Último timestamp encontrado: ${maxTimestamp} (${new Date(maxTimestamp * 1000).toISOString()})`);
+    return maxTimestamp;
+  } catch (error) {
+    console.error('[Storage] Erro ao obter último timestamp:', error.message);
+    return 0;
+  }
+}
+
 module.exports = {
   carregarDados,
   salvarDados,
@@ -664,5 +701,6 @@ module.exports = {
   setBinId,
   getBinId,
   criarBin,
-  limparCache
+  limparCache,
+  obterUltimoTimestamp
 };
