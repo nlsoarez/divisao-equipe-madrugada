@@ -237,6 +237,22 @@ async function salvarDados(dados, tentativa = 1) {
         await new Promise(resolve => setTimeout(resolve, tempoEspera));
         return salvarDados(dados, tentativa + 1);
       }
+
+      // Se erro 403 persistir após retries, tentar criar um novo bin
+      if (response.status === 403 && tentativa >= MAX_TENTATIVAS) {
+        console.warn('[Storage] Erro 403 persistente. Tentando criar novo bin...');
+        try {
+          const novoBinId = await criarNovoBinParaMensagens(dadosParaSalvar);
+          if (novoBinId) {
+            console.log('[Storage] Novo bin criado:', novoBinId);
+            console.log('[Storage] IMPORTANTE: Atualize WHATSAPP_BIN_ID=' + novoBinId + ' no Railway');
+            return true;
+          }
+        } catch (criarError) {
+          console.error('[Storage] Falha ao criar novo bin:', criarError.message);
+        }
+      }
+
       throw new Error(`Erro ao salvar dados: ${response.status}`);
     }
 
@@ -253,6 +269,48 @@ async function salvarDados(dados, tentativa = 1) {
     console.error('[Storage] Erro ao salvar dados:', error);
     return false;
   }
+}
+
+/**
+ * Cria um novo bin quando o atual está inacessível
+ * Transfere os dados existentes para o novo bin
+ */
+async function criarNovoBinParaMensagens(dados) {
+  console.log('[Storage] Criando novo bin para substituir o inacessível...');
+
+  const response = await fetch(JSONBIN_CONFIG.API_URL, {
+    method: 'POST',
+    headers: {
+      ...getHeaders(),
+      'X-Bin-Name': 'COP_REDE_INFORMA_WhatsApp_' + Date.now()
+    },
+    body: JSON.stringify(dados)
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Erro ao criar bin: ${response.status} - ${errorText}`);
+  }
+
+  const result = await response.json();
+  const novoBinId = result.metadata.id;
+
+  // Atualizar o ID em memória
+  whatsappBinId = novoBinId;
+
+  // Atualizar cache
+  cacheLocal = {
+    ...dados,
+    ultimaAtualizacao: new Date().toISOString()
+  };
+
+  console.log('========================================');
+  console.log('[Storage] NOVO BIN CRIADO COM SUCESSO!');
+  console.log('[Storage] Novo ID:', novoBinId);
+  console.log('[Storage] Configure no Railway: WHATSAPP_BIN_ID=' + novoBinId);
+  console.log('========================================');
+
+  return novoBinId;
 }
 
 /**
