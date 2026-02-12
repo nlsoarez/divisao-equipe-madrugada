@@ -205,9 +205,12 @@ async function carregarDados(forcarAtualizacao = false) {
 /**
  * Salva todos os dados no JSONBin
  * @param {object} dados - Dados a serem salvos
+ * @param {number} tentativa - Número da tentativa atual (para retry)
  * @returns {Promise<boolean>} Sucesso da operação
  */
-async function salvarDados(dados) {
+async function salvarDados(dados, tentativa = 1) {
+  const MAX_TENTATIVAS = 3;
+
   try {
     const binId = await obterBinId();
 
@@ -227,6 +230,13 @@ async function salvarDados(dados) {
     });
 
     if (!response.ok) {
+      // Retry para erros 403 (Forbidden) e 429 (Rate Limit)
+      if ((response.status === 403 || response.status === 429) && tentativa < MAX_TENTATIVAS) {
+        const tempoEspera = tentativa * 2000; // 2s, 4s, 6s
+        console.warn(`[Storage] Erro ${response.status}, aguardando ${tempoEspera/1000}s para retry ${tentativa}/${MAX_TENTATIVAS}...`);
+        await new Promise(resolve => setTimeout(resolve, tempoEspera));
+        return salvarDados(dados, tentativa + 1);
+      }
       throw new Error(`Erro ao salvar dados: ${response.status}`);
     }
 
