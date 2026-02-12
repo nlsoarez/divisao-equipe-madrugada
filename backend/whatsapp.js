@@ -6,7 +6,7 @@
 const { EVOLUTION_CONFIG, ALOCACAO_HUB_CONFIG } = require('./config');
 const { processarMensagem } = require('./parser');
 const { processarMensagemHub } = require('./parserHub');
-const { adicionarCopRedeInforma, adicionarAlerta } = require('./storage');
+const { adicionarCopRedeInforma, adicionarAlerta, obterUltimoTimestamp } = require('./storage');
 const storageHub = require('./storageHub');
 
 let isConnected = false;
@@ -516,14 +516,30 @@ async function buscarNovasMensagens() {
  * Usado como fallback quando webhook não está configurado
  * Inclui polling para COP REDE INFORMA e Alocação de HUB
  */
-function iniciarPolling() {
+async function iniciarPolling() {
   if (pollingInterval) {
     console.log('[WhatsApp] Polling já está ativo');
     return;
   }
 
-  // Inicializar timestamps com momento atual para não reprocessar histórico
-  lastMessageTimestamp = Math.floor(Date.now() / 1000);
+  // Obter timestamp da última mensagem armazenada para não perder mensagens após restart
+  try {
+    const ultimoTimestamp = await obterUltimoTimestamp();
+    if (ultimoTimestamp > 0) {
+      // Subtrair 1 hora para garantir que não perdemos mensagens em caso de diferença de timezone
+      lastMessageTimestamp = ultimoTimestamp - 3600;
+      console.log(`[WhatsApp] Usando timestamp da última mensagem: ${new Date(lastMessageTimestamp * 1000).toISOString()}`);
+    } else {
+      // Fallback: buscar mensagens dos últimos 7 dias
+      lastMessageTimestamp = Math.floor(Date.now() / 1000) - (7 * 24 * 60 * 60);
+      console.log(`[WhatsApp] Nenhuma mensagem anterior, buscando últimos 7 dias`);
+    }
+  } catch (error) {
+    console.error('[WhatsApp] Erro ao obter último timestamp, usando fallback de 7 dias:', error.message);
+    lastMessageTimestamp = Math.floor(Date.now() / 1000) - (7 * 24 * 60 * 60);
+  }
+
+  // Para Hub, usar timestamp atual (não tem persistência de timestamp ainda)
   lastHubMessageTimestamp = Math.floor(Date.now() / 1000);
 
   console.log(`[WhatsApp] Iniciando polling automático a cada ${POLLING_INTERVAL_MS / 1000}s`);
