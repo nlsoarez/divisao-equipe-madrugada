@@ -376,6 +376,98 @@ function extrairSecaoLista(texto, secao) {
 }
 
 /**
+ * Parser para formato "Detalhe Cluster × Status"
+ * Formato:
+ * *📢 COP REDE INFORMA*
+ * ⏳ *Pendentes acima de 24h:* 5 (14%)
+ * 🔎 *Detalhe Cluster × Status:*
+ * • RIO CAPITAL → EM PROGRESSO: 6 | PENDENTE: 5 | DESIGNADO: 5 | NOVO: 1
+ * • GRANDE RIO → EM PROGRESSO: 2 | PENDENTE: 1 | NOVO: 1
+ */
+function parseCopRedeInformaDetalheCluster(texto, dataMensagem, messageId) {
+  console.log('[Parser] Parsing formato "Detalhe Cluster × Status"...');
+
+  const clusters = {};
+  const statusTotais = {};
+  let totalGeral = 0;
+
+  // Regex para extrair linhas no formato: • CLUSTER → STATUS: N | STATUS: N
+  const linhas = texto.split('\n');
+
+  for (const linha of linhas) {
+    // Procurar padrão: • CLUSTER → STATUS: N
+    const match = linha.match(/[•\-\*]\s*([A-Z\s]+)\s*[→->]+\s*(.+)/i);
+    if (match) {
+      const clusterNome = match[1].trim().toUpperCase();
+      const statusPart = match[2];
+
+      // Extrair todos os pares STATUS: N da linha
+      const statusMatches = statusPart.matchAll(/([A-Z\s]+):\s*(\d+)/gi);
+      let clusterTotal = 0;
+
+      for (const statusMatch of statusMatches) {
+        const statusNome = statusMatch[1].trim().toUpperCase();
+        const quantidade = parseInt(statusMatch[2], 10);
+        clusterTotal += quantidade;
+
+        // Acumular totais por status
+        if (!statusTotais[statusNome]) {
+          statusTotais[statusNome] = 0;
+        }
+        statusTotais[statusNome] += quantidade;
+      }
+
+      if (clusterTotal > 0) {
+        clusters[clusterNome] = clusterTotal;
+        totalGeral += clusterTotal;
+        console.log(`[Parser]   -> ${clusterNome}: ${clusterTotal}`);
+      }
+    }
+  }
+
+  // Se não encontrou clusters, retornar null
+  if (Object.keys(clusters).length === 0) {
+    console.log('[Parser] Nenhum cluster extraído do formato Detalhe');
+    return null;
+  }
+
+  console.log(`[Parser] Total extraído: ${totalGeral} (${Object.keys(clusters).length} clusters)`);
+
+  // Mapear clusters para áreas do painel
+  const resumoPorArea = {};
+  for (const [cluster, volume] of Object.entries(clusters)) {
+    const area = mapearGrupoParaArea(cluster);
+    if (!resumoPorArea[area]) {
+      resumoPorArea[area] = 0;
+    }
+    resumoPorArea[area] += volume;
+  }
+
+  // Gerar ID único
+  const id = `cop_${messageId}_${Date.now()}`;
+
+  return {
+    id,
+    messageId: String(messageId),
+    tipo: 'COP REDE INFORMA',
+    formato: 'detalhe_cluster_status',
+    dataGeracao: formatarData(dataMensagem),
+    dataRecebimento: new Date().toISOString(),
+    dataMensagem: dataMensagem.toISOString(),
+    totalEventos: totalGeral,
+    resumo: {
+      grupo: clusters,
+      status: statusTotais
+    },
+    resumoPorArea,
+    grupoOriginal: Object.keys(clusters).join(', '),
+    areaPainel: Object.keys(resumoPorArea).join(', '),
+    status: STATUS_PROCESSAMENTO.SUCESSO,
+    processadoEm: new Date().toISOString()
+  };
+}
+
+/**
  * Parser para novo formato COP REDE - INFORMA (2026)
  * Formato:
  * 📢 COP REDE - INFORMA
@@ -653,11 +745,11 @@ function parseCopRedeInforma(texto, dataMensagem, messageId) {
   console.log(texto.substring(0, 800));
   console.log('[Parser] ================================================');
 
-  // IGNORAR formato "*📢 COP REDE INFORMA*" com "Detalhe Cluster × Status"
-  // Este formato não tem os dados corretos de volumetria
+  // Detectar formato "Detalhe Cluster × Status" - AGORA PROCESSAMOS em vez de ignorar
+  // Este formato tem: "• CLUSTER → STATUS1: N | STATUS2: N | ..."
   if (texto.includes('Detalhe Cluster') && (texto.includes('×') || texto.includes('x')) && texto.includes('Status')) {
-    console.log('[Parser] IGNORANDO formato "Detalhe Cluster × Status" - não é o formato correto');
-    return null;
+    console.log('[Parser] Detectado formato "Detalhe Cluster × Status" - tentando extrair dados');
+    return parseCopRedeInformaDetalheCluster(texto, dataMensagem, messageId);
   }
 
   // Detectar formato CORRETO: "📢 COP REDE - INFORMA" com "Totais por Cluster"
