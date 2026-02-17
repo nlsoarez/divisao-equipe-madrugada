@@ -396,7 +396,7 @@ function parseCopRedeInformaDetalheCluster(texto, dataMensagem, messageId) {
 
   for (const linha of linhas) {
     // Procurar padrão: • CLUSTER → STATUS: N
-    const match = linha.match(/[•\-\*]\s*([A-Z\s]+)\s*[→->]+\s*(.+)/i);
+    const match = linha.match(/[•\-*]\s*([A-Z\s]+)\s*(?:→|->)+\s*(.+)/i);
     if (match) {
       const clusterNome = match[1].trim().toUpperCase();
       const statusPart = match[2];
@@ -436,11 +436,13 @@ function parseCopRedeInformaDetalheCluster(texto, dataMensagem, messageId) {
   // Mapear clusters para áreas do painel
   const resumoPorArea = {};
   for (const [cluster, volume] of Object.entries(clusters)) {
-    const area = mapearGrupoParaArea(cluster);
-    if (!resumoPorArea[area]) {
-      resumoPorArea[area] = 0;
+    const { areaPainel } = mapearGrupoParaArea(cluster);
+    if (areaPainel) {
+      if (!resumoPorArea[areaPainel]) {
+        resumoPorArea[areaPainel] = 0;
+      }
+      resumoPorArea[areaPainel] += volume;
     }
-    resumoPorArea[area] += volume;
   }
 
   // Gerar ID único
