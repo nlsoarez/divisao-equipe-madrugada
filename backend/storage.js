@@ -278,13 +278,23 @@ async function salvarDados(dados, tentativa = 1) {
 async function criarNovoBinParaMensagens(dados) {
   console.log('[Storage] Criando novo bin para substituir o inacessível...');
 
+  // Limitar dados para caber no limite de 100KB do plano gratuito
+  const dadosLimitados = {
+    copRedeInforma: (dados.copRedeInforma || []).slice(0, 50), // Só últimas 50 mensagens
+    alertas: (dados.alertas || []).slice(0, 20), // Só últimos 20 alertas
+    ultimaAtualizacao: new Date().toISOString(),
+    versao: '1.0'
+  };
+
+  console.log(`[Storage] Dados limitados: ${dadosLimitados.copRedeInforma.length} mensagens, ${dadosLimitados.alertas.length} alertas`);
+
   const response = await fetch(JSONBIN_CONFIG.API_URL, {
     method: 'POST',
     headers: {
       ...getHeaders(),
       'X-Bin-Name': 'COP_REDE_INFORMA_WhatsApp_' + Date.now()
     },
-    body: JSON.stringify(dados)
+    body: JSON.stringify(dadosLimitados)
   });
 
   if (!response.ok) {
@@ -298,10 +308,9 @@ async function criarNovoBinParaMensagens(dados) {
   // Atualizar o ID em memória
   whatsappBinId = novoBinId;
 
-  // Atualizar cache
+  // Atualizar cache com dados limitados
   cacheLocal = {
-    ...dados,
-    ultimaAtualizacao: new Date().toISOString()
+    ...dadosLimitados
   };
 
   console.log('========================================');
@@ -331,9 +340,9 @@ async function adicionarCopRedeInforma(mensagem) {
 
     dados.copRedeInforma.unshift(mensagem); // Adiciona no início
 
-    // Limitar a 1000 registros
-    if (dados.copRedeInforma.length > 1000) {
-      dados.copRedeInforma = dados.copRedeInforma.slice(0, 1000);
+    // Limitar a 100 registros (plano gratuito JSONBin = máx 100KB)
+    if (dados.copRedeInforma.length > 100) {
+      dados.copRedeInforma = dados.copRedeInforma.slice(0, 100);
     }
 
     // IMPORTANTE: Atualizar cache local ANTES de tentar salvar
@@ -374,9 +383,9 @@ async function adicionarAlerta(alerta) {
 
     dados.alertas.unshift(alerta); // Adiciona no início
 
-    // Limitar a 500 registros
-    if (dados.alertas.length > 500) {
-      dados.alertas = dados.alertas.slice(0, 500);
+    // Limitar a 50 registros (plano gratuito JSONBin = máx 100KB)
+    if (dados.alertas.length > 50) {
+      dados.alertas = dados.alertas.slice(0, 50);
     }
 
     // IMPORTANTE: Atualizar cache local ANTES de tentar salvar
