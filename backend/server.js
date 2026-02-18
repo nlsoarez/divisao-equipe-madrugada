@@ -103,6 +103,88 @@ app.post('/api/diagnostico/reprocessar', async (req, res) => {
   }
 });
 
+/**
+ * Reprocessar histórico completo com limite maior
+ * Busca as últimas 500 mensagens para recuperar dados perdidos
+ */
+app.post('/api/diagnostico/reprocessar-completo', async (req, res) => {
+  try {
+    const limite = parseInt(req.body?.limite || 500);
+    console.log(`[Diagnóstico] Reprocessamento completo com limite ${limite}...`);
+    const resultado = await whatsapp.buscarHistorico(limite);
+    res.json({
+      sucesso: true,
+      mensagem: `Histórico reprocessado (${limite} mensagens)`,
+      resultado
+    });
+  } catch (error) {
+    res.status(500).json({ sucesso: false, erro: error.message });
+  }
+});
+
+/**
+ * Status do polling e storage
+ * Mostra timestamp atual, bin ID, estado da conexão
+ */
+app.get('/api/diagnostico/polling-status', async (req, res) => {
+  try {
+    const whatsappStatus = whatsapp.obterStatus();
+    const binId = storage.getBinId();
+
+    res.json({
+      sucesso: true,
+      polling: {
+        ativo: whatsappStatus.pollingAtivo,
+        lastMessageTimestamp: whatsappStatus.lastMessageTimestamp,
+        lastMessageDate: whatsappStatus.lastMessageDate,
+        intervalo: `${whatsappStatus.pollingIntervalo / 1000}s`
+      },
+      storage: {
+        binId: binId || 'NÃO CONFIGURADO',
+        binConfigurado: !!binId
+      },
+      whatsapp: {
+        conectado: whatsappStatus.conectado,
+        instancia: whatsappStatus.instancia,
+        sourceChatId: whatsappStatus.sourceChatId
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ sucesso: false, erro: error.message });
+  }
+});
+
+/**
+ * Limpar mensagemOriginal de todos os registros no JSONBin
+ * Reduz tamanho do bin para resolver erro 403
+ */
+app.post('/api/diagnostico/limpar-storage', async (req, res) => {
+  try {
+    console.log('[Diagnóstico] Limpando mensagemOriginal do storage...');
+    const dados = await storage.carregarDados(true);
+
+    let limpas = 0;
+    dados.copRedeInforma = dados.copRedeInforma.map(m => {
+      if (m.mensagemOriginal) {
+        const { mensagemOriginal, ...resto } = m;
+        limpas++;
+        return resto;
+      }
+      return m;
+    });
+
+    await storage.salvarDados(dados);
+
+    res.json({
+      sucesso: true,
+      mensagem: `mensagemOriginal removida de ${limpas} registros`,
+      totalRegistros: dados.copRedeInforma.length
+    });
+  } catch (error) {
+    res.status(500).json({ sucesso: false, erro: error.message });
+  }
+});
+
 // ============================================
 // ROTAS DE STATUS E HEALTH
 // ============================================

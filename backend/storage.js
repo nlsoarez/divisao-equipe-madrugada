@@ -148,8 +148,19 @@ async function carregarDados(forcarAtualizacao = false) {
 
     // IMPORTANTE: Fazer MERGE dos dados do JSONBin com o cache local
     // Isso preserva mensagens que foram adicionadas mas não salvas (ex: erro 403)
+
+    // Remover mensagemOriginal de dados já existentes no JSONBin para reduzir tamanho
+    // (dados antigos podem ter mensagemOriginal que pesam ~1KB por mensagem)
+    const limparMensagemOriginal = (msgs) => msgs.map(m => {
+      if (m.mensagemOriginal) {
+        const { mensagemOriginal, ...resto } = m;
+        return resto;
+      }
+      return m;
+    });
+
     const dadosDoJSONBin = {
-      copRedeInforma: dados.copRedeInforma || [],
+      copRedeInforma: limparMensagemOriginal(dados.copRedeInforma || []),
       alertas: dados.alertas || []
     };
 
@@ -338,11 +349,16 @@ async function adicionarCopRedeInforma(mensagem) {
       return false;
     }
 
-    dados.copRedeInforma.unshift(mensagem); // Adiciona no início
+    // Remover mensagemOriginal antes de salvar para reduzir tamanho no JSONBin
+    // (causa do erro 403: 100 msgs × ~1KB de texto original = 100KB, bate no limite)
+    const mensagemParaSalvar = { ...mensagem };
+    delete mensagemParaSalvar.mensagemOriginal;
 
-    // Limitar a 100 registros (plano gratuito JSONBin = máx 100KB)
-    if (dados.copRedeInforma.length > 100) {
-      dados.copRedeInforma = dados.copRedeInforma.slice(0, 100);
+    dados.copRedeInforma.unshift(mensagemParaSalvar); // Adiciona no início
+
+    // Limitar a 150 registros (sem mensagemOriginal, cada msg ocupa ~600 bytes → 90KB)
+    if (dados.copRedeInforma.length > 150) {
+      dados.copRedeInforma = dados.copRedeInforma.slice(0, 150);
     }
 
     // IMPORTANTE: Atualizar cache local ANTES de tentar salvar
