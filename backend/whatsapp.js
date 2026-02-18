@@ -381,7 +381,9 @@ function obterStatus() {
     apiUrl: EVOLUTION_CONFIG.API_URL,
     sourceChatId: EVOLUTION_CONFIG.SOURCE_CHAT_ID,
     pollingAtivo: pollingInterval !== null,
-    pollingIntervalo: POLLING_INTERVAL_MS
+    pollingIntervalo: POLLING_INTERVAL_MS,
+    lastMessageTimestamp,
+    lastMessageDate: lastMessageTimestamp > 0 ? new Date(lastMessageTimestamp * 1000).toISOString() : null
   };
 }
 
@@ -400,8 +402,10 @@ async function buscarNovasMensagens() {
       return { novas: 0, erro: 'SOURCE_CHAT_ID não configurado' };
     }
 
-    // Buscar últimas 50 mensagens
+    // Buscar últimas 200 mensagens (aumentado de 50 para capturar mais mensagens)
     let messages = [];
+
+    console.log(`[WhatsApp Polling] Buscando mensagens após ${new Date(lastMessageTimestamp * 1000).toISOString()} (ts=${lastMessageTimestamp})`);
 
     try {
       const result = await evolutionRequest(
@@ -413,7 +417,7 @@ async function buscarNovasMensagens() {
               remoteJid: EVOLUTION_CONFIG.SOURCE_CHAT_ID
             }
           },
-          limit: 50
+          limit: 200
         }
       );
 
@@ -425,8 +429,10 @@ async function buscarNovasMensagens() {
         messages = result.messages;
       }
     } catch (e) {
-      // Silently continue
+      console.warn('[WhatsApp Polling] Erro ao buscar mensagens:', e.message);
     }
+
+    console.log(`[WhatsApp Polling] Recebidas ${messages.length} mensagens da Evolution API`);
 
     // Filtrar pelo grupo correto
     if (EVOLUTION_CONFIG.SOURCE_CHAT_ID && messages.length > 0) {
@@ -434,9 +440,11 @@ async function buscarNovasMensagens() {
         const remoteJid = m.key?.remoteJid || m.remoteJid;
         return remoteJid === EVOLUTION_CONFIG.SOURCE_CHAT_ID;
       });
+      console.log(`[WhatsApp Polling] ${messages.length} mensagens do grupo correto`);
     }
 
     if (messages.length === 0) {
+      console.log('[WhatsApp Polling] Nenhuma mensagem encontrada no grupo');
       return { novas: 0 };
     }
 
@@ -445,6 +453,8 @@ async function buscarNovasMensagens() {
       const timestamp = m.messageTimestamp || m.timestamp || 0;
       return timestamp > lastMessageTimestamp;
     });
+
+    console.log(`[WhatsApp Polling] ${novasMensagens.length} mensagens novas (após filtro de timestamp)`);
 
     if (novasMensagens.length === 0) {
       return { novas: 0 };
@@ -483,25 +493,28 @@ async function buscarNovasMensagens() {
           }
         };
 
+        const primeiraLinha = texto.split('\n')[0].substring(0, 60);
         const resultado = processarMensagem(msgCompativel);
 
         if (resultado) {
           if (resultado.tipo === 'COP_REDE_INFORMA') {
+            const temCluster = resultado.dados.resumo?.grupo && Object.keys(resultado.dados.resumo.grupo).length > 0;
+            console.log(`[WhatsApp Polling] COP REDE salvo | cluster=${temCluster} | "${primeiraLinha}"`);
             await adicionarCopRedeInforma(resultado.dados);
             contadores.copRedeInforma++;
           } else if (resultado.tipo === 'NOVO_EVENTO') {
             await adicionarAlerta(resultado.dados);
             contadores.alertas++;
           }
+        } else {
+          console.log(`[WhatsApp Polling] Ignorada (formato desconhecido): "${primeiraLinha}"`);
         }
       } catch (msgError) {
-        // Skip message on error
+        console.error('[WhatsApp Polling] Erro ao processar mensagem:', msgError.message);
       }
     }
 
-    if (contadores.copRedeInforma > 0 || contadores.alertas > 0) {
-      console.log(`[WhatsApp Polling] Novas mensagens: ${contadores.copRedeInforma} COP REDE INFORMA, ${contadores.alertas} alertas`);
-    }
+    console.log(`[WhatsApp Polling] Resultado: ${contadores.copRedeInforma} COP REDE, ${contadores.alertas} alertas`);
 
     return { novas: contadores.copRedeInforma + contadores.alertas, ...contadores };
 
