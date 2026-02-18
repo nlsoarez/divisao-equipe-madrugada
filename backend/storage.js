@@ -776,11 +776,14 @@ async function obterUltimoTimestamp() {
       return 0;
     }
 
-    // Encontrar a mensagem mais recente baseada em dataRecebimento
+    // Encontrar a mensagem mais recente baseada em dataMensagem (timestamp original do WhatsApp)
+    // NÃO usar dataRecebimento porque é quando processamos, não quando foi enviada
+    // O polling compara com messageTimestamp do WhatsApp, então precisamos usar a mesma base
     let maxTimestamp = 0;
 
     for (const msg of mensagens) {
-      const dataStr = msg.dataRecebimento || msg.dataGeracao || msg.dataMensagem;
+      // Prioridade: dataMensagem > dataGeracao > dataRecebimento
+      const dataStr = msg.dataMensagem || msg.dataGeracao || msg.dataRecebimento;
       if (dataStr) {
         const date = parsearData(dataStr);
         const timestamp = Math.floor(date.getTime() / 1000);
