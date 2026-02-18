@@ -343,8 +343,26 @@ async function adicionarCopRedeInforma(mensagem) {
     const dados = await carregarDados(true);
 
     // Verificar duplicata pelo messageId
-    const duplicata = dados.copRedeInforma.find(m => m.messageId === mensagem.messageId);
-    if (duplicata) {
+    const indiceDuplicata = dados.copRedeInforma.findIndex(m => m.messageId === mensagem.messageId);
+
+    if (indiceDuplicata !== -1) {
+      const existente = dados.copRedeInforma[indiceDuplicata];
+      const existenteTemCluster = existente.resumo?.grupo && Object.keys(existente.resumo.grupo).length > 0;
+      const novaTemCluster = mensagem.resumo?.grupo && Object.keys(mensagem.resumo.grupo).length > 0;
+
+      // Se a nova versão tem clusters e a existente não, ATUALIZAR em vez de ignorar
+      if (novaTemCluster && !existenteTemCluster) {
+        console.log('[Storage] Atualizando mensagem existente com dados de cluster:', mensagem.messageId);
+        const mensagemAtualizada = { ...mensagem };
+        delete mensagemAtualizada.mensagemOriginal;
+        dados.copRedeInforma[indiceDuplicata] = mensagemAtualizada;
+
+        cacheLocal.copRedeInforma = dados.copRedeInforma;
+        cacheLocal.ultimaAtualizacao = new Date().toISOString();
+        await salvarDados(dados);
+        return true;
+      }
+
       console.log('[Storage] Mensagem COP REDE INFORMA já existe:', mensagem.messageId);
       return false;
     }
