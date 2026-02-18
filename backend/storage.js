@@ -19,20 +19,18 @@ let whatsappBinId = JSONBIN_CONFIG.WHATSAPP_BIN_ID;
 /**
  * Parseia uma string de data que pode estar em diferentes formatos
  * Suporta: ISO, brasileiro "dd/mm/yyyy HH:mm" e outros
+ * IMPORTANTE: Verifica formato brasileiro PRIMEIRO porque JavaScript interpreta
+ * "08/02/2026" como MM/DD/YYYY (agosto 2) em vez de DD/MM/YYYY (fevereiro 8)
  * @param {string} dataStr - String da data
  * @returns {Date} Objeto Date parseado
  */
 function parsearData(dataStr) {
   if (!dataStr) return new Date(0); // Data mínima para ordenação
 
-  // Se já é um Date válido em formato ISO ou compatível
-  const dataISO = new Date(dataStr);
-  if (!isNaN(dataISO.getTime())) {
-    return dataISO;
-  }
-
-  // Tentar formato brasileiro "dd/mm/yyyy HH:mm" ou "dd/mm/yyyy"
-  const matchBR = dataStr.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:\s+(\d{1,2}):(\d{2})(?::(\d{2}))?)?/);
+  // PRIMEIRO: Tentar formato brasileiro "dd/mm/yyyy HH:mm" ou "dd/mm/yyyy"
+  // Isso DEVE vir antes do new Date() porque JavaScript interpreta "08/02/2026"
+  // como MM/DD/YYYY (americano) em vez de DD/MM/YYYY (brasileiro)
+  const matchBR = dataStr.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:[\s,]+(\d{1,2}):(\d{2})(?::(\d{2}))?)?/);
   if (matchBR) {
     const dia = parseInt(matchBR[1], 10);
     const mes = parseInt(matchBR[2], 10) - 1; // Mês é 0-indexed
@@ -41,6 +39,12 @@ function parsearData(dataStr) {
     const minuto = matchBR[5] ? parseInt(matchBR[5], 10) : 0;
     const segundo = matchBR[6] ? parseInt(matchBR[6], 10) : 0;
     return new Date(ano, mes, dia, hora, minuto, segundo);
+  }
+
+  // SEGUNDO: Tentar ISO ou outros formatos suportados nativamente
+  const dataISO = new Date(dataStr);
+  if (!isNaN(dataISO.getTime())) {
+    return dataISO;
   }
 
   // Fallback: retornar data mínima
