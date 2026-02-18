@@ -155,6 +155,27 @@ app.get('/api/diagnostico/polling-status', async (req, res) => {
 });
 
 /**
+ * Resetar timestamp do polling para reprocessar mensagens antigas
+ * Útil quando o timestamp ficou dessincronizado
+ */
+app.post('/api/diagnostico/resetar-polling', async (req, res) => {
+  try {
+    const diasAtras = parseInt(req.body?.diasAtras || 30);
+    console.log(`[Diagnóstico] Resetando polling timestamp para ${diasAtras} dias atrás...`);
+
+    const resultado = whatsapp.resetarPollingTimestamp(diasAtras);
+
+    res.json({
+      sucesso: true,
+      mensagem: `Timestamp do polling resetado para ${diasAtras} dias atrás`,
+      resultado
+    });
+  } catch (error) {
+    res.status(500).json({ sucesso: false, erro: error.message });
+  }
+});
+
+/**
  * Limpar mensagemOriginal de todos os registros no JSONBin
  * Reduz tamanho do bin para resolver erro 403
  */

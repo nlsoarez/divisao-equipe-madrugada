@@ -388,6 +388,23 @@ function obterStatus() {
 }
 
 /**
+ * Reseta o timestamp do polling para uma data específica
+ * Útil quando o timestamp ficou dessincronizado e precisa reprocessar mensagens
+ * @param {number} diasAtras - Quantos dias voltar (padrão: 30)
+ */
+function resetarPollingTimestamp(diasAtras = 30) {
+  const novoTimestamp = Math.floor(Date.now() / 1000) - (diasAtras * 24 * 60 * 60);
+  const dataAnterior = new Date(lastMessageTimestamp * 1000).toISOString();
+  lastMessageTimestamp = novoTimestamp;
+  console.log(`[WhatsApp] Timestamp resetado: ${dataAnterior} → ${new Date(novoTimestamp * 1000).toISOString()}`);
+  return {
+    anterior: dataAnterior,
+    novo: new Date(novoTimestamp * 1000).toISOString(),
+    diasAtras
+  };
+}
+
+/**
  * Busca novas mensagens desde o último polling
  * Usado pelo polling automático para evitar reprocessar mensagens antigas
  */
@@ -884,5 +901,6 @@ module.exports = {
   listarChats,
   obterStatus,
   iniciarPolling,
-  pararPolling
+  pararPolling,
+  resetarPollingTimestamp
 };
