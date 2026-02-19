@@ -335,25 +335,58 @@ async function processarWebhook(webhookData) {
  * Configura webhook na Evolution API
  */
 async function configurarWebhook(webhookUrl) {
-  try {
-    const result = await evolutionRequest(
-      `/webhook/set/${encodeURIComponent(EVOLUTION_CONFIG.INSTANCE_NAME)}`,
-      'POST',
-      {
+  const instanceName = encodeURIComponent(EVOLUTION_CONFIG.INSTANCE_NAME);
+
+  // Tentar diferentes formatos de API (v1 e v2 da Evolution API)
+  const tentativas = [
+    // Evolution API v2 formato 1
+    {
+      endpoint: `/webhook/set/${instanceName}`,
+      body: {
         url: webhookUrl,
         webhook_by_events: false,
         webhook_base64: false,
         events: ['MESSAGES_UPSERT']
       }
-    );
+    },
+    // Evolution API v2 formato 2 (enabled: true)
+    {
+      endpoint: `/webhook/set/${instanceName}`,
+      body: {
+        url: webhookUrl,
+        enabled: true,
+        events: ['MESSAGES_UPSERT'],
+        webhook_by_events: false
+      }
+    },
+    // Evolution API v1 formato
+    {
+      endpoint: `/instance/webhook/${instanceName}`,
+      body: {
+        webhook: {
+          url: webhookUrl,
+          events: ['messages.upsert']
+        }
+      }
+    }
+  ];
 
-    console.log('[WhatsApp] Webhook configurado');
-    return result;
+  let ultimoErro = null;
 
-  } catch (error) {
-    console.error('[WhatsApp] Erro webhook config:', error.message);
-    throw error;
+  for (const tentativa of tentativas) {
+    try {
+      console.log(`[WhatsApp] Tentando configurar webhook: ${tentativa.endpoint}`);
+      const result = await evolutionRequest(tentativa.endpoint, 'POST', tentativa.body);
+      console.log('[WhatsApp] Webhook configurado com sucesso!');
+      return { sucesso: true, resultado: result, endpoint: tentativa.endpoint };
+    } catch (error) {
+      console.log(`[WhatsApp] Falhou ${tentativa.endpoint}: ${error.message}`);
+      ultimoErro = error;
+    }
   }
+
+  // Se todas falharam, lançar o último erro
+  throw ultimoErro;
 }
 
 /**
