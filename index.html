@@ -2359,7 +2359,7 @@
     </div>
   </div>
 
-  <!-- Alocacao de HUB embarcada -->
+  <!-- Alocacao de HUB embarcada (somente visualizadores; admin usa aba Alocação HUB) -->
   <div id="hubEmbedResidencial" class="mt-3"></div>
 
   </div><!-- Fim tabResidencial -->
@@ -2445,11 +2445,8 @@
     </div>
   </div>
 
-  <!-- Alocacao de HUB embarcada -->
+  <!-- Alocacao de HUB embarcada (somente visualizadores; admin usa aba Alocação HUB) -->
   <div id="hubEmbedRioEs" class="mt-3"></div>
-
-  <!-- COP Rede Empresarial embarcado -->
-  <div id="copEmpresarialEmbedRioEs" class="mt-3"></div>
 
   </div><!-- Fim tabRioEs -->
 
@@ -2534,9 +2531,6 @@
     </div>
   </div>
 
-  <!-- COP Rede Empresarial embarcado -->
-  <div id="copEmpresarialEmbedLeste" class="mt-3"></div>
-
   </div><!-- Fim tabLeste -->
 
   <!-- Conteúdo da Aba WhatsApp -->
@@ -2561,8 +2555,12 @@
     <!-- Tabs de navegação -->
     <div class="telegram-tabs">
       <button class="telegram-tab active" data-tab="cop-rede-informa" onclick="trocarAbasTelegram('cop-rede-informa')">
-        <i class="bi bi-megaphone"></i>
-        COP Rede Informa
+        <i class="bi bi-house"></i>
+        Residencial
+      </button>
+      <button class="telegram-tab" data-tab="empresarial" onclick="trocarAbasTelegram('empresarial')">
+        <i class="bi bi-building"></i>
+        Empresarial
       </button>
       <button class="telegram-tab" data-tab="novos-alertas" onclick="trocarAbasTelegram('novos-alertas')">
         <i class="bi bi-bell"></i>
@@ -2595,6 +2593,34 @@
       <!-- Info da última atualização -->
       <div id="copRedeInfo" class="text-center text-muted small mt-3" style="display:none;">
         <i class="bi bi-clock me-1"></i><span id="copRedeUltimaAtualizacao"></span>
+      </div>
+    </div>
+
+    <!-- Conteúdo da aba EMPRESARIAL -->
+    <div class="telegram-content" id="tabCopRedeEmpresarial">
+      <!-- Botão de sincronização -->
+      <div class="d-flex justify-content-end mb-2">
+        <button class="telegram-btn telegram-btn-primary" onclick="carregarCopRedeEmpresarial(true)" title="Sincronizar dados empresarial">
+          <i class="bi bi-arrow-clockwise"></i> Sincronizar
+        </button>
+      </div>
+      <!-- Rio/ES -->
+      <div style="margin-bottom: 1rem; border-bottom: 1px solid #e9ecef; padding-bottom: 1rem;">
+        <h6 style="color: #2e7d32; font-size: 0.85rem; font-weight: 600; margin-bottom: 0.5rem;">
+          <i class="bi bi-geo-alt-fill me-1"></i>Rio/ES
+        </h6>
+        <div id="copEmpresarialRioEs">
+          <p class="text-muted small text-center mb-0">Carregando...</p>
+        </div>
+      </div>
+      <!-- Leste -->
+      <div>
+        <h6 style="color: #1565c0; font-size: 0.85rem; font-weight: 600; margin-bottom: 0.5rem;">
+          <i class="bi bi-geo-alt-fill me-1"></i>Leste
+        </h6>
+        <div id="copEmpresarialLeste">
+          <p class="text-muted small text-center mb-0">Carregando...</p>
+        </div>
       </div>
     </div>
 
@@ -8624,8 +8650,13 @@ function trocarAbaAdmin(abaId) {
     // Atualizar calendário
     carregarCalendarioAtivo();
 
-    // Carregar alocacao HUB embarcada
-    carregarAlocacaoHub();
+    // Hub embarcado: só para visualizadores. Admin usa aba Alocação HUB.
+    if (isAdmin) {
+      const hubEl = document.getElementById('hubEmbedResidencial');
+      if (hubEl) hubEl.innerHTML = '';
+    } else {
+      carregarAlocacaoHub();
+    }
 
   } else if (abaId === 'rio_es') {
     // Mostrar aba Rio/ES
@@ -8651,11 +8682,13 @@ function trocarAbaAdmin(abaId) {
     // Carregar calendário Rio/ES
     carregarCalendarioEmpresarialGrid('rio_es');
 
-    // Carregar alocacao HUB embarcada
-    carregarAlocacaoHub();
-
-    // Carregar COP Rede Empresarial embarcado
-    carregarCopRedeEmpresarial();
+    // Hub embarcado: só para visualizadores. Admin usa aba Alocação HUB.
+    if (isAdmin) {
+      const hubEl = document.getElementById('hubEmbedRioEs');
+      if (hubEl) hubEl.innerHTML = '';
+    } else {
+      carregarAlocacaoHub();
+    }
 
   } else if (abaId === 'leste') {
     // Mostrar aba Leste
@@ -8680,9 +8713,6 @@ function trocarAbaAdmin(abaId) {
 
     // Carregar calendário Leste
     carregarCalendarioEmpresarialGrid('leste');
-
-    // Carregar COP Rede Empresarial embarcado
-    carregarCopRedeEmpresarial();
 
   } else if (abaId === 'telegram') {
     // COP Rede Informa é exclusivo do admin
@@ -8875,6 +8905,9 @@ function trocarAbasTelegram(abaId) {
 
   if (abaId === 'cop-rede-informa') {
     document.getElementById('tabCopRedeInforma').classList.add('active');
+  } else if (abaId === 'empresarial') {
+    document.getElementById('tabCopRedeEmpresarial').classList.add('active');
+    carregarCopRedeEmpresarial();
   } else if (abaId === 'novos-alertas') {
     document.getElementById('tabNovosAlertas').classList.add('active');
   }
@@ -9024,8 +9057,8 @@ async function carregarCopRedeEmpresarial(forcarAtualizacao = false) {
     const data = await response.json();
     dadosCopRedeEmpresarial = data.dados || [];
 
-    renderCopEmpresarialEmbed('copEmpresarialEmbedRioEs', dadosCopRedeEmpresarial, 'rio_es');
-    renderCopEmpresarialEmbed('copEmpresarialEmbedLeste', dadosCopRedeEmpresarial, 'leste');
+    renderCopEmpresarialEmbed('copEmpresarialRioEs', dadosCopRedeEmpresarial, 'rio_es');
+    renderCopEmpresarialEmbed('copEmpresarialLeste', dadosCopRedeEmpresarial, 'leste');
 
     console.log('[Empresarial] COP Rede Empresarial atualizado:', dadosCopRedeEmpresarial.length, 'mensagens');
   } catch (error) {
@@ -9114,7 +9147,6 @@ function renderCopEmpresarialEmbed(containerId, dados, subEscala) {
   }
 
   const dataFormatada = formatarDataHora(ultimaMensagem.dataRecebimento);
-  const labelTab = subEscala === 'rio_es' ? 'Rio/ES' : 'Leste';
 
   const areasHTML = Object.entries(resumoPorArea).map(([area, info]) => `
     <div class="area-summary-item ${getCorVolume(info.volume)}">
@@ -9124,25 +9156,15 @@ function renderCopEmpresarialEmbed(containerId, dados, subEscala) {
     </div>
   `).join('');
 
-  container.innerHTML = `
-    <div class="telegram-panel" style="margin: 0; border-radius: 8px; overflow: hidden;">
-      <div class="telegram-header" style="background: linear-gradient(135deg, #2196f3 0%, #0d47a1 100%); padding: 0.6rem 1rem; display: flex; justify-content: space-between; align-items: center;">
-        <span style="color: #fff; font-weight: 600; font-size: 0.9rem;"><i class="bi bi-whatsapp me-2"></i>COP Rede Empresarial - ${labelTab}</span>
-        <button class="btn btn-sm btn-light" onclick="carregarCopRedeEmpresarial(true)" title="Sincronizar" style="padding: 0.2rem 0.5rem; font-size: 0.75rem;">
-          <i class="bi bi-arrow-clockwise"></i>
-        </button>
-      </div>
-      <div style="padding: 0.75rem; background: #fff;">
-        ${Object.keys(resumoPorArea).length > 0 ? `
-          <div class="telegram-area-summary" style="display:block; margin-bottom: 0.5rem;">
-            <h6 style="font-size: 0.85rem; margin-bottom: 0.4rem;"><i class="bi bi-bar-chart me-2"></i>Volume por Área</h6>
-            <div class="area-summary-grid">${areasHTML}</div>
-          </div>
-        ` : '<p class="text-muted small text-center mb-1">Nenhum dado de volume disponível</p>'}
-        <div class="text-center text-muted" style="font-size: 0.75rem; margin-top: 0.3rem;">
-          <i class="bi bi-clock me-1"></i>Última msg: ${dataFormatada}
-        </div>
-      </div>
+  container.innerHTML = Object.keys(resumoPorArea).length > 0 ? `
+    <div class="area-summary-grid">${areasHTML}</div>
+    <div class="text-center text-muted" style="font-size: 0.75rem; margin-top: 0.4rem;">
+      <i class="bi bi-clock me-1"></i>Última msg: ${dataFormatada}
+    </div>
+  ` : `
+    <p class="text-muted small text-center mb-0">Nenhum dado de volume disponível</p>
+    <div class="text-center text-muted" style="font-size: 0.75rem; margin-top: 0.3rem;">
+      <i class="bi bi-clock me-1"></i>Última msg: ${dataFormatada}
     </div>
   `;
 }
@@ -10097,8 +10119,11 @@ async function carregarAlocacaoHub() {
     }
 
     exibirAlocacaoHub(alocacao);
-  renderHubEmbed('hubEmbedResidencial', alocacao);
-  renderHubEmbed('hubEmbedRioEs', alocacao);
+    // Hub embeds só aparecem para visualizadores — admin usa a aba Alocação HUB
+    if (!isAdmin) {
+      renderHubEmbed('hubEmbedResidencial', alocacao);
+      renderHubEmbed('hubEmbedRioEs', alocacao);
+    }
 
   } catch (error) {
     console.error('[Hub] Erro ao carregar:', error);
