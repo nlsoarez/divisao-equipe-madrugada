@@ -9129,9 +9129,21 @@ function renderCopEmpresarialEmbed(containerId, dados, subEscala) {
   const subEscalaDados = calendarios.calendario2?.[subEscala]?.dadosOriginais;
   const numPessoas = subEscalaDados?.[diaMensagem]?.numPessoas || 4;
 
+  // Filtrar clusters por subEscala:
+  // rio_es → apenas RIO DE JANEIRO e ESPIRITO SANTO
+  // leste  → todos os demais clusters
+  function clusterPertenceRioES(nome) {
+    const l = nome.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    return l.includes('rio') || l.includes('espirito santo');
+  }
+
   // Calcular resumo por área
   const resumoPorArea = {};
   for (const [grupoNome, quantidade] of Object.entries(ultimaMensagem.resumo.grupo)) {
+    const ehRioES = clusterPertenceRioES(grupoNome);
+    if (subEscala === 'rio_es' && !ehRioES) continue;
+    if (subEscala === 'leste' && ehRioES) continue;
+
     const areaKey = mapearGrupoParaAreaFrontend(grupoNome, numPessoas);
     if (!resumoPorArea[areaKey]) resumoPorArea[areaKey] = { volume: 0, responsavel: '-' };
     resumoPorArea[areaKey].volume += quantidade;
