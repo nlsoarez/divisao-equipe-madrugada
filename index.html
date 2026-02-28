@@ -9208,6 +9208,11 @@ function renderCopEmpresarialEmbed(containerId, dados, subEscala) {
     }
 
     function encontrarResponsavelLeste(codigo) {
+      // 1. Match primário: código é o PRIMEIRO segmento da área (ex: 'CO' em 'CO/NE')
+      for (const [area, pessoa] of Object.entries(divisaoDia)) {
+        if (area.split('/')[0].trim() === codigo) return pessoa || '-';
+      }
+      // 2. Fallback: código aparece em qualquer posição (ex: 'BA' em 'APOIO SIR/BA')
       for (const [area, pessoa] of Object.entries(divisaoDia)) {
         if (area.split('/').map(p => p.trim()).includes(codigo)) return pessoa || '-';
       }
