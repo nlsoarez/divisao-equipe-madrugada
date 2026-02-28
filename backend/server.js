@@ -827,13 +827,14 @@ app.get('/api/alocacao-hub/diagnostico', async (req, res) => {
 });
 
 /**
- * Teste de busca de mensagens do grupo HUB
- * Testa os 3 métodos e retorna diagnóstico detalhado de quais grupos estão disponíveis
+ * Preview das mensagens brutas do grupo HUB
+ * Mostra estrutura e texto das primeiras mensagens para diagnóstico do parser
  */
-app.get('/api/alocacao-hub/testar-busca', async (req, res) => {
+app.get('/api/alocacao-hub/mensagens-bruto', async (req, res) => {
   try {
-    const resultado = await whatsapp.testarBuscaHub();
-    res.json({ sucesso: true, resultado });
+    const limite = parseInt(req.query.limite || '10');
+    const mensagens = await whatsapp.buscarMensagensBrutas(limite);
+    res.json({ sucesso: true, total: mensagens.length, mensagens });
   } catch (error) {
     res.status(500).json({ sucesso: false, erro: error.message });
   }
