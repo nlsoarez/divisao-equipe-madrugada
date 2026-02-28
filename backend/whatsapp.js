@@ -589,8 +589,8 @@ async function iniciarPolling() {
     lastMessageTimestamp = Math.floor(Date.now() / 1000) - (7 * 24 * 60 * 60);
   }
 
-  // Para Hub, usar timestamp atual (não tem persistência de timestamp ainda)
-  lastHubMessageTimestamp = Math.floor(Date.now() / 1000);
+  // Para Hub, buscar mensagens das últimas 48h (cobre MADRUGADA + DIURNO recentes)
+  lastHubMessageTimestamp = Math.floor(Date.now() / 1000) - (48 * 60 * 60);
 
   console.log(`[WhatsApp] Iniciando polling automático a cada ${POLLING_INTERVAL_MS / 1000}s`);
   console.log(`[WhatsApp] Grupos monitorados: COP REDE INFORMA + Alocação de HUB`);

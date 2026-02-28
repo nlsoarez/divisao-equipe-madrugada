@@ -8770,10 +8770,8 @@ function iniciarAutoRefreshHub() {
   carregarAlocacaoHub();
 
   autoRefreshHubInterval = setInterval(() => {
-    if (backendConectado) {
-      console.log('[HUB] Auto-refresh: atualizando dados...');
-      carregarAlocacaoHub();
-    }
+    console.log('[HUB] Auto-refresh: atualizando dados...');
+    carregarAlocacaoHub();
   }, AUTO_REFRESH_HUB_MS);
 }
 
@@ -9868,6 +9866,8 @@ function atualizarBadgeAlertas() {
 // ALOCACAO DE HUB
 // ============================================
 
+let hubAutoSincronizado = false;
+
 async function carregarAlocacaoHub() {
   const loading = document.getElementById('hubLoading');
   const empty = document.getElementById('hubEmpty');
@@ -9891,12 +9891,32 @@ async function carregarAlocacaoHub() {
       throw new Error(errorData.erro || 'Erro ao carregar alocacao');
     }
 
+    // Backend respondeu: marcar como conectado
+    backendConectado = true;
+
     const data = await response.json();
     const alocacao = data.dados;
 
     if (loading) loading.style.display = 'none';
 
     if (!alocacao) {
+      // Sem dados: tentar sincronizar automaticamente uma vez
+      if (!hubAutoSincronizado) {
+        hubAutoSincronizado = true;
+        console.log('[Hub] Sem dados, sincronizando automaticamente...');
+        if (loading) loading.style.display = 'block';
+        try {
+          await fetch(`${backendUrl}/api/alocacao-hub/sincronizar`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+          });
+        } catch (e) { /* ignora erro de sync */ }
+        // Recarregar após sync
+        carregarAlocacaoHub();
+        return;
+      }
+
+      if (loading) loading.style.display = 'none';
       if (empty) empty.style.display = 'block';
       if (emptyMessage) emptyMessage.textContent = 'Nenhuma alocacao encontrada';
       if (emptyHint) {
