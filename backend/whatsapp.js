@@ -739,7 +739,10 @@ async function buscarHistoricoHub(limite = 50) {
 
     console.log(`[WhatsApp HUB] Total de ${messages.length} mensagens para processar`);
 
-    let contadores = { alocacoes: 0, ignorados: 0, semTexto: 0 };
+    // Coletar todas as alocações em memória antes de salvar (evita N chamadas ao JSONBin)
+    const alocacoesParaSalvar = [];
+    let ignorados = 0;
+    let semTexto = 0;
 
     for (const msg of messages) {
       const m = msg.message || {};
@@ -755,9 +758,7 @@ async function buscarHistoricoHub(limite = 50) {
                     null;
 
       if (!texto) {
-        contadores.semTexto++;
-        const tipoMsg = Object.keys(m).join(',') || 'desconhecido';
-        console.log(`[WhatsApp HUB] Mensagem sem texto (tipo: ${tipoMsg})`);
+        semTexto++;
         continue;
       }
 
@@ -778,19 +779,21 @@ async function buscarHistoricoHub(limite = 50) {
         const resultado = processarMensagemHub(msgCompativel);
 
         if (resultado && resultado.tipo === 'ALOCACAO_HUB') {
-          await storageHub.adicionarAlocacao(resultado.dados);
-          contadores.alocacoes++;
+          alocacoesParaSalvar.push(resultado.dados);
         } else {
-          contadores.ignorados++;
+          ignorados++;
         }
       } catch (msgError) {
         // Skip message on error
       }
     }
 
-    console.log(`[WhatsApp HUB] Histórico: ${contadores.alocacoes} alocações salvas, ${contadores.ignorados} ignoradas`);
+    // Salvar tudo em um único GET + PUT no JSONBin
+    const salvas = await storageHub.adicionarAlocacoesBatch(alocacoesParaSalvar);
 
-    return { alocacoes: contadores.alocacoes };
+    console.log(`[WhatsApp HUB] Histórico: ${salvas} alocações salvas, ${ignorados} ignoradas, ${semTexto} sem texto`);
+
+    return { alocacoes: salvas };
 
   } catch (error) {
     console.error('[WhatsApp HUB] Erro histórico:', error.message);

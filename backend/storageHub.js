@@ -164,6 +164,42 @@ async function salvarDados(dados) {
 }
 
 /**
+ * Adiciona múltiplas alocações em lote (1 GET + 1 PUT total)
+ * Muito mais eficiente que chamar adicionarAlocacao() repetidamente
+ */
+async function adicionarAlocacoesBatch(novasAlocacoes) {
+  if (!novasAlocacoes || novasAlocacoes.length === 0) return 0;
+
+  const dados = await carregarDados(true);
+
+  const idsExistentes = new Set(dados.alocacoes.map(a => a.messageId));
+  let adicionadas = 0;
+
+  for (const alocacao of novasAlocacoes) {
+    if (!idsExistentes.has(alocacao.messageId)) {
+      dados.alocacoes.unshift(alocacao);
+      idsExistentes.add(alocacao.messageId);
+      adicionadas++;
+    }
+  }
+
+  if (adicionadas === 0) {
+    console.log('[StorageHub] Nenhuma alocação nova no lote');
+    return 0;
+  }
+
+  // Mantém apenas as últimas 50
+  if (dados.alocacoes.length > 50) {
+    dados.alocacoes = dados.alocacoes.slice(0, 50);
+  }
+
+  await salvarDados(dados);
+  console.log(`[StorageHub] Batch: ${adicionadas} alocações salvas`);
+
+  return adicionadas;
+}
+
+/**
  * Adiciona uma nova alocação de HUB
  * Mantém apenas as últimas 50 alocações
  */
@@ -284,6 +320,7 @@ module.exports = {
   carregarDados,
   salvarDados,
   adicionarAlocacao,
+  adicionarAlocacoesBatch,
   obterUltimaAlocacao,
   obterAlocacoes,
   obterEstatisticas
