@@ -2448,6 +2448,9 @@
   <!-- Alocacao de HUB embarcada -->
   <div id="hubEmbedRioEs" class="mt-3"></div>
 
+  <!-- COP Rede Empresarial embarcado -->
+  <div id="copEmpresarialEmbedRioEs" class="mt-3"></div>
+
   </div><!-- Fim tabRioEs -->
 
   <!-- Conteúdo da Aba Leste -->
@@ -2530,6 +2533,9 @@
       <p>Nenhum dado encontrado. Faça upload da planilha Leste.</p>
     </div>
   </div>
+
+  <!-- COP Rede Empresarial embarcado -->
+  <div id="copEmpresarialEmbedLeste" class="mt-3"></div>
 
   </div><!-- Fim tabLeste -->
 
@@ -8385,6 +8391,7 @@ function showToast(message, type = 'info') {
 const BACKEND_URL = 'https://divisao-equipe-madrugada-production.up.railway.app';
 let backendUrl = BACKEND_URL;
 let dadosCopRedeInforma = [];
+let dadosCopRedeEmpresarial = [];
 let dadosAlertas = [];
 let alertaAtual = null;
 let backendConectado = false;
@@ -8647,6 +8654,9 @@ function trocarAbaAdmin(abaId) {
     // Carregar alocacao HUB embarcada
     carregarAlocacaoHub();
 
+    // Carregar COP Rede Empresarial embarcado
+    carregarCopRedeEmpresarial();
+
   } else if (abaId === 'leste') {
     // Mostrar aba Leste
     if (tabLeste) tabLeste.classList.add('active');
@@ -8670,6 +8680,9 @@ function trocarAbaAdmin(abaId) {
 
     // Carregar calendário Leste
     carregarCalendarioEmpresarialGrid('leste');
+
+    // Carregar COP Rede Empresarial embarcado
+    carregarCopRedeEmpresarial();
 
   } else if (abaId === 'telegram') {
     // COP Rede Informa é exclusivo do admin
@@ -8983,6 +8996,155 @@ async function carregarCopRedeInforma(forcarAtualizacao = false) {
       // Não mostrar toast para não poluir a interface durante erros temporários
     }
   }
+}
+
+// ============================================
+// COP REDE EMPRESARIAL (Rio/ES e Leste)
+// ============================================
+
+async function carregarCopRedeEmpresarial(forcarAtualizacao = false) {
+  if (!backendUrl) return;
+  try {
+    if (forcarAtualizacao) {
+      try {
+        await fetch(`${backendUrl}/api/cop-rede-empresarial/sincronizar`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' }
+        });
+      } catch (e) { /* ignore sync error */ }
+    }
+
+    const url = forcarAtualizacao
+      ? `${backendUrl}/api/cop-rede-empresarial?refresh=true&t=${Date.now()}`
+      : `${backendUrl}/api/cop-rede-empresarial`;
+
+    const response = await fetch(url, { method: 'GET', headers: { 'Content-Type': 'application/json' }, cache: 'no-store' });
+    if (!response.ok) throw new Error('Erro ao carregar dados Empresarial');
+
+    const data = await response.json();
+    dadosCopRedeEmpresarial = data.dados || [];
+
+    renderCopEmpresarialEmbed('copEmpresarialEmbedRioEs', dadosCopRedeEmpresarial, 'rio_es');
+    renderCopEmpresarialEmbed('copEmpresarialEmbedLeste', dadosCopRedeEmpresarial, 'leste');
+
+    console.log('[Empresarial] COP Rede Empresarial atualizado:', dadosCopRedeEmpresarial.length, 'mensagens');
+  } catch (error) {
+    console.warn('[Empresarial] Erro ao carregar:', error.message);
+  }
+}
+
+function obterResponsavelPorAreaEmpresarial(areaTelegram, dataMensagem, subEscala) {
+  try {
+    const data = new Date(dataMensagem);
+    const dia = obterDiaEscalaMadrugada(data);
+    const subEscalaDados = calendarios.calendario2?.[subEscala]?.dadosOriginais;
+    if (!subEscalaDados || !subEscalaDados[dia] || !subEscalaDados[dia].divisao) return '-';
+
+    const divisao = subEscalaDados[dia].divisao;
+    const areasEscala = MAPEAMENTO_AREAS_TELEGRAM[areaTelegram] || [areaTelegram];
+
+    for (const areaEscala of areasEscala) {
+      if (divisao[areaEscala]) {
+        const nomeCompleto = divisao[areaEscala];
+        const partes = nomeCompleto.split(' ');
+        return partes.length > 1 ? `${partes[0]} ${partes[partes.length - 1]}` : partes[0];
+      }
+    }
+    return '-';
+  } catch (error) {
+    return '-';
+  }
+}
+
+function renderCopEmpresarialEmbed(containerId, dados, subEscala) {
+  const container = document.getElementById(containerId);
+  if (!container) return;
+
+  if (!dados || dados.length === 0) {
+    container.innerHTML = '';
+    return;
+  }
+
+  // Pegar a mensagem mais recente com clusters
+  function parsearDataBR(dataStr) {
+    if (!dataStr) return new Date(0);
+    const matchBR = dataStr.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:[\s,]+(\d{1,2}):(\d{2})(?::(\d{2}))?)?/);
+    if (matchBR) {
+      return new Date(parseInt(matchBR[3],10), parseInt(matchBR[2],10)-1, parseInt(matchBR[1],10),
+        matchBR[4]?parseInt(matchBR[4],10):0, matchBR[5]?parseInt(matchBR[5],10):0, matchBR[6]?parseInt(matchBR[6],10):0);
+    }
+    const d = new Date(dataStr);
+    return isNaN(d.getTime()) ? new Date(0) : d;
+  }
+
+  const dadosOrdenados = [...dados].sort((a, b) => {
+    const dA = parsearDataBR(a.dataGeracao || a.dataRecebimento || a.dataMensagem);
+    const dB = parsearDataBR(b.dataGeracao || b.dataRecebimento || b.dataMensagem);
+    return dB - dA;
+  });
+
+  const ultimaMensagem = dadosOrdenados.find(d => d.resumo?.grupo && Object.keys(d.resumo.grupo).length > 0);
+
+  if (!ultimaMensagem) {
+    container.innerHTML = '';
+    return;
+  }
+
+  // Calcular número de pessoas para a data
+  const dataMensagem = new Date(ultimaMensagem.dataRecebimento);
+  const diaMensagem = obterDiaEscalaMadrugada(dataMensagem);
+  const subEscalaDados = calendarios.calendario2?.[subEscala]?.dadosOriginais;
+  const numPessoas = subEscalaDados?.[diaMensagem]?.numPessoas || 4;
+
+  // Calcular resumo por área
+  const resumoPorArea = {};
+  for (const [grupoNome, quantidade] of Object.entries(ultimaMensagem.resumo.grupo)) {
+    const areaKey = mapearGrupoParaAreaFrontend(grupoNome, numPessoas);
+    if (!resumoPorArea[areaKey]) resumoPorArea[areaKey] = { volume: 0, responsavel: '-' };
+    resumoPorArea[areaKey].volume += quantidade;
+    if (resumoPorArea[areaKey].responsavel === '-') {
+      resumoPorArea[areaKey].responsavel = obterResponsavelPorAreaEmpresarial(areaKey, ultimaMensagem.dataRecebimento, subEscala);
+    }
+  }
+
+  function getCorVolume(q) {
+    if (q >= 30) return 'volume-critico';
+    if (q >= 20) return 'volume-atencao';
+    return 'volume-ok';
+  }
+
+  const dataFormatada = formatarDataHora(ultimaMensagem.dataRecebimento);
+  const labelTab = subEscala === 'rio_es' ? 'Rio/ES' : 'Leste';
+
+  const areasHTML = Object.entries(resumoPorArea).map(([area, info]) => `
+    <div class="area-summary-item ${getCorVolume(info.volume)}">
+      <span class="area-name">${area || 'Não mapeada'}</span>
+      <span class="area-volume">${info.volume}</span>
+      <span class="area-responsible"><i class="bi bi-person me-1"></i>${info.responsavel}</span>
+    </div>
+  `).join('');
+
+  container.innerHTML = `
+    <div class="telegram-panel" style="margin: 0; border-radius: 8px; overflow: hidden;">
+      <div class="telegram-header" style="background: linear-gradient(135deg, #2196f3 0%, #0d47a1 100%); padding: 0.6rem 1rem; display: flex; justify-content: space-between; align-items: center;">
+        <span style="color: #fff; font-weight: 600; font-size: 0.9rem;"><i class="bi bi-whatsapp me-2"></i>COP Rede Empresarial - ${labelTab}</span>
+        <button class="btn btn-sm btn-light" onclick="carregarCopRedeEmpresarial(true)" title="Sincronizar" style="padding: 0.2rem 0.5rem; font-size: 0.75rem;">
+          <i class="bi bi-arrow-clockwise"></i>
+        </button>
+      </div>
+      <div style="padding: 0.75rem; background: #fff;">
+        ${Object.keys(resumoPorArea).length > 0 ? `
+          <div class="telegram-area-summary" style="display:block; margin-bottom: 0.5rem;">
+            <h6 style="font-size: 0.85rem; margin-bottom: 0.4rem;"><i class="bi bi-bar-chart me-2"></i>Volume por Área</h6>
+            <div class="area-summary-grid">${areasHTML}</div>
+          </div>
+        ` : '<p class="text-muted small text-center mb-1">Nenhum dado de volume disponível</p>'}
+        <div class="text-center text-muted" style="font-size: 0.75rem; margin-top: 0.3rem;">
+          <i class="bi bi-clock me-1"></i>Última msg: ${dataFormatada}
+        </div>
+      </div>
+    </div>
+  `;
 }
 
 // Mapeamento de áreas da volumetria para áreas da escala

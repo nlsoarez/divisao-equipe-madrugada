@@ -3,10 +3,10 @@
  * Substitui a integração com Telegram para receber mensagens COP REDE INFORMA
  */
 
-const { EVOLUTION_CONFIG, ALOCACAO_HUB_CONFIG } = require('./config');
+const { EVOLUTION_CONFIG, ALOCACAO_HUB_CONFIG, COP_REDE_EMPRESARIAL_CONFIG } = require('./config');
 const { processarMensagem } = require('./parser');
 const { processarMensagemHub } = require('./parserHub');
-const { adicionarCopRedeInforma, adicionarAlerta, obterUltimoTimestamp } = require('./storage');
+const { adicionarCopRedeInforma, adicionarAlerta, obterUltimoTimestamp, adicionarCopRedeEmpresarial } = require('./storage');
 const storageHub = require('./storageHub');
 
 let isConnected = false;
@@ -14,6 +14,7 @@ let instanceInfo = null;
 let pollingInterval = null;
 let lastMessageTimestamp = 0;
 let lastHubMessageTimestamp = 0;
+let lastEmpresarialMessageTimestamp = 0;
 
 // Intervalo de polling em ms (30 segundos por padrão)
 const POLLING_INTERVAL_MS = parseInt(process.env.WHATSAPP_POLLING_INTERVAL || '30000', 10);
@@ -305,6 +306,27 @@ async function processarWebhook(webhookData) {
       return null;
     }
 
+    // Verificar se é mensagem do grupo COP REDE EMPRESARIAL (Rio/ES e Leste)
+    if (COP_REDE_EMPRESARIAL_CONFIG.CHAT_ID && chatId === COP_REDE_EMPRESARIAL_CONFIG.CHAT_ID) {
+      console.log('[WhatsApp Webhook] Mensagem do grupo Empresarial detectada');
+      const msgCompativel = {
+        message_id: data.key?.id || Date.now().toString(),
+        date: Math.floor(Date.now() / 1000),
+        text: texto,
+        from: { username: remetente, is_bot: false },
+        chat: { id: chatId }
+      };
+
+      const resultado = processarMensagem(msgCompativel);
+      if (resultado && resultado.tipo === 'COP_REDE_INFORMA') {
+        await adicionarCopRedeEmpresarial(resultado.dados);
+        console.log('[WhatsApp Webhook] COP REDE EMPRESARIAL salvo');
+        return resultado;
+      }
+      console.log('[WhatsApp Webhook] Mensagem Empresarial não reconhecida como COP REDE');
+      return null;
+    }
+
     if (EVOLUTION_CONFIG.SOURCE_CHAT_ID) {
       if (chatId !== EVOLUTION_CONFIG.SOURCE_CHAT_ID) {
         console.log(`[WhatsApp Webhook] Chat ignorado: ${chatId} (esperado: ${EVOLUTION_CONFIG.SOURCE_CHAT_ID})`);
@@ -592,16 +614,21 @@ async function iniciarPolling() {
   // Para Hub, buscar mensagens das últimas 48h (cobre MADRUGADA + DIURNO recentes)
   lastHubMessageTimestamp = Math.floor(Date.now() / 1000) - (48 * 60 * 60);
 
-  console.log(`[WhatsApp] Iniciando polling automático a cada ${POLLING_INTERVAL_MS / 1000}s`);
-  console.log(`[WhatsApp] Grupos monitorados: COP REDE INFORMA + Alocação de HUB`);
+  // Para Empresarial, buscar mensagens dos últimos 7 dias
+  lastEmpresarialMessageTimestamp = Math.floor(Date.now() / 1000) - (7 * 24 * 60 * 60);
 
-  // Fazer primeira busca imediatamente para ambos os grupos
+  console.log(`[WhatsApp] Iniciando polling automático a cada ${POLLING_INTERVAL_MS / 1000}s`);
+  console.log(`[WhatsApp] Grupos monitorados: COP REDE INFORMA + Alocação de HUB + COP REDE EMPRESARIAL`);
+
+  // Fazer primeira busca imediatamente para todos os grupos
   buscarNovasMensagens();
   buscarNovasMensagensHub();
+  buscarNovasMensagensEmpresarial();
 
   pollingInterval = setInterval(async () => {
     await buscarNovasMensagens();
     await buscarNovasMensagensHub();
+    await buscarNovasMensagensEmpresarial();
   }, POLLING_INTERVAL_MS);
 }
 
@@ -951,6 +978,225 @@ async function buscarNovasMensagensHub() {
   }
 }
 
+// ============================================
+// FUNÇÕES PARA COP REDE EMPRESARIAL (Rio/ES e Leste)
+// ============================================
+
+/**
+ * Busca histórico de mensagens do grupo COP REDE EMPRESARIAL
+ * @param {number} limite - Número de mensagens para buscar
+ */
+async function buscarHistoricoEmpresarial(limite = 100) {
+  try {
+    if (!COP_REDE_EMPRESARIAL_CONFIG.CHAT_ID) {
+      return { copRedeEmpresarial: 0, erro: 'COP_REDE_EMPRESARIAL_CHAT_ID não configurado' };
+    }
+
+    const status = await verificarConexao();
+    if (!status.conectado) {
+      return { copRedeEmpresarial: 0, erro: 'WhatsApp não conectado' };
+    }
+
+    let messages = [];
+
+    const extractMessages = (result) => {
+      if (Array.isArray(result)) return result;
+      if (result.messages?.records) return result.messages.records;
+      if (result.messages && Array.isArray(result.messages)) return result.messages;
+      if (result.data?.records) return result.data.records;
+      if (result.data && Array.isArray(result.data)) return result.data;
+      if (result.records) return result.records;
+      return [];
+    };
+
+    // Método 1: where clause
+    try {
+      const result = await evolutionRequest(
+        `/chat/findMessages/${encodeURIComponent(EVOLUTION_CONFIG.INSTANCE_NAME)}`,
+        'POST',
+        { where: { key: { remoteJid: COP_REDE_EMPRESARIAL_CONFIG.CHAT_ID } }, limit: limite }
+      );
+      messages = extractMessages(result);
+    } catch (e) { /* try next */ }
+
+    // Método 2: number field
+    if (messages.length === 0) {
+      try {
+        const result = await evolutionRequest(
+          `/chat/findMessages/${encodeURIComponent(EVOLUTION_CONFIG.INSTANCE_NAME)}`,
+          'POST',
+          { number: COP_REDE_EMPRESARIAL_CONFIG.CHAT_ID, limit: limite }
+        );
+        messages = extractMessages(result);
+      } catch (e) { /* try next */ }
+    }
+
+    // Método 3: todas e filtrar
+    if (messages.length === 0) {
+      try {
+        const result = await evolutionRequest(
+          `/chat/findMessages/${encodeURIComponent(EVOLUTION_CONFIG.INSTANCE_NAME)}`,
+          'POST',
+          { limit: 300 }
+        );
+        const all = extractMessages(result);
+        messages = all.filter(m =>
+          m.key?.remoteJid === COP_REDE_EMPRESARIAL_CONFIG.CHAT_ID ||
+          m.remoteJid === COP_REDE_EMPRESARIAL_CONFIG.CHAT_ID
+        );
+      } catch (e) { /* silently fail */ }
+    }
+
+    // Filtrar pelo grupo correto
+    if (messages.length > 0) {
+      messages = messages.filter(m => {
+        const remoteJid = m.key?.remoteJid || m.remoteJid;
+        return remoteJid === COP_REDE_EMPRESARIAL_CONFIG.CHAT_ID;
+      });
+    }
+
+    if (messages.length === 0) {
+      return { copRedeEmpresarial: 0, erro: 'Nenhuma mensagem do grupo Empresarial encontrada' };
+    }
+
+    let contador = 0;
+
+    for (const msg of messages) {
+      const texto = msg.message?.conversation ||
+                    msg.message?.extendedTextMessage?.text ||
+                    msg.message?.imageMessage?.caption ||
+                    msg.message?.videoMessage?.caption ||
+                    msg.message?.documentMessage?.caption ||
+                    msg.message?.text ||
+                    msg.body || msg.text || msg.content || null;
+
+      if (!texto) continue;
+
+      try {
+        const msgCompativel = {
+          message_id: msg.key?.id || msg.id || Date.now().toString(),
+          date: Math.floor((msg.messageTimestamp || msg.timestamp || Date.now() / 1000)),
+          text: texto,
+          from: { username: msg.pushName || msg.key?.participant || 'WhatsApp', is_bot: false },
+          chat: { id: msg.key?.remoteJid || COP_REDE_EMPRESARIAL_CONFIG.CHAT_ID }
+        };
+
+        const resultado = processarMensagem(msgCompativel);
+        if (resultado && resultado.tipo === 'COP_REDE_INFORMA') {
+          await adicionarCopRedeEmpresarial(resultado.dados);
+          contador++;
+        }
+      } catch (msgError) { /* skip */ }
+    }
+
+    console.log(`[WhatsApp Empresarial] Histórico: ${contador} mensagens COP REDE salvas`);
+    return { copRedeEmpresarial: contador };
+
+  } catch (error) {
+    console.error('[WhatsApp Empresarial] Erro histórico:', error.message);
+    return { copRedeEmpresarial: 0, erro: error.message };
+  }
+}
+
+/**
+ * Busca novas mensagens do grupo COP REDE EMPRESARIAL desde o último polling
+ */
+async function buscarNovasMensagensEmpresarial() {
+  try {
+    if (!COP_REDE_EMPRESARIAL_CONFIG.CHAT_ID) {
+      return { novas: 0 };
+    }
+
+    const extractMessages = (result) => {
+      if (Array.isArray(result)) return result;
+      if (result.messages?.records) return result.messages.records;
+      if (result.messages && Array.isArray(result.messages)) return result.messages;
+      if (result.data?.records) return result.data.records;
+      if (result.data && Array.isArray(result.data)) return result.data;
+      if (result.records) return result.records;
+      return [];
+    };
+
+    let messages = [];
+
+    try {
+      const result = await evolutionRequest(
+        `/chat/findMessages/${encodeURIComponent(EVOLUTION_CONFIG.INSTANCE_NAME)}`,
+        'POST',
+        { where: { key: { remoteJid: COP_REDE_EMPRESARIAL_CONFIG.CHAT_ID } }, limit: 200 }
+      );
+      messages = extractMessages(result);
+    } catch (e) { /* fallback */ }
+
+    if (messages.length === 0) {
+      try {
+        const result = await evolutionRequest(
+          `/chat/findMessages/${encodeURIComponent(EVOLUTION_CONFIG.INSTANCE_NAME)}`,
+          'POST',
+          { number: COP_REDE_EMPRESARIAL_CONFIG.CHAT_ID, limit: 200 }
+        );
+        messages = extractMessages(result);
+      } catch (e) { /* fallback */ }
+    }
+
+    // Filtrar pelo grupo correto e mensagens novas
+    messages = messages.filter(m => {
+      const remoteJid = m.key?.remoteJid || m.remoteJid;
+      return remoteJid === COP_REDE_EMPRESARIAL_CONFIG.CHAT_ID;
+    });
+
+    const novasMensagens = messages.filter(m => {
+      const timestamp = m.messageTimestamp || m.timestamp || 0;
+      return timestamp > lastEmpresarialMessageTimestamp;
+    });
+
+    if (novasMensagens.length === 0) return { novas: 0 };
+
+    const maxTimestamp = Math.max(...novasMensagens.map(m => m.messageTimestamp || m.timestamp || 0));
+    if (maxTimestamp > lastEmpresarialMessageTimestamp) {
+      lastEmpresarialMessageTimestamp = maxTimestamp;
+    }
+
+    let contador = 0;
+
+    for (const msg of novasMensagens) {
+      const texto = msg.message?.conversation ||
+                    msg.message?.extendedTextMessage?.text ||
+                    msg.message?.imageMessage?.caption ||
+                    msg.message?.videoMessage?.caption ||
+                    msg.message?.documentMessage?.caption ||
+                    msg.message?.text ||
+                    msg.body || msg.text || msg.content || null;
+
+      if (!texto) continue;
+
+      try {
+        const msgCompativel = {
+          message_id: msg.key?.id || msg.id || Date.now().toString(),
+          date: Math.floor((msg.messageTimestamp || msg.timestamp || Date.now() / 1000)),
+          text: texto,
+          from: { username: msg.pushName || msg.key?.participant || 'WhatsApp', is_bot: false },
+          chat: { id: msg.key?.remoteJid || COP_REDE_EMPRESARIAL_CONFIG.CHAT_ID }
+        };
+
+        const resultado = processarMensagem(msgCompativel);
+        if (resultado && resultado.tipo === 'COP_REDE_INFORMA') {
+          await adicionarCopRedeEmpresarial(resultado.dados);
+          contador++;
+        }
+      } catch (msgError) { /* skip */ }
+    }
+
+    if (contador > 0) {
+      console.log(`[WhatsApp Empresarial Polling] Novas mensagens: ${contador}`);
+    }
+    return { novas: contador };
+
+  } catch (error) {
+    return { novas: 0, erro: error.message };
+  }
+}
+
 /**
  * Testa os 3 métodos de busca de mensagens para o grupo HUB
  * Retorna diagnóstico detalhado para identificar problemas de integração
@@ -1076,6 +1322,8 @@ module.exports = {
   buscarNovasMensagens,
   buscarHistoricoHub,
   buscarNovasMensagensHub,
+  buscarHistoricoEmpresarial,
+  buscarNovasMensagensEmpresarial,
   testarBuscaHub,
   buscarMensagensBrutas,
   processarWebhook,

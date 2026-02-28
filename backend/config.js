@@ -14,6 +14,12 @@ const EVOLUTION_CONFIG = {
   SOURCE_CHAT_ID: process.env.EVOLUTION_SOURCE_CHAT_ID || null
 };
 
+// Configurações do grupo COP REDE EMPRESARIAL (Rio/ES e Leste)
+// Grupo separado do COP REDE INFORMA residencial
+const COP_REDE_EMPRESARIAL_CONFIG = {
+  CHAT_ID: process.env.COP_REDE_EMPRESARIAL_CHAT_ID || '120363423786613991@g.us'
+};
+
 // Configurações do grupo Alocação de HUB
 // IMPORTANTE: As credenciais do HUB são separadas das credenciais principais
 // para evitar problemas de limite de requisições
@@ -159,6 +165,7 @@ const SERVER_CONFIG = {
 
 module.exports = {
   EVOLUTION_CONFIG,
+  COP_REDE_EMPRESARIAL_CONFIG,
   ALOCACAO_HUB_CONFIG,
   JSONBIN_CONFIG,
   MESSAGE_TITLES,
