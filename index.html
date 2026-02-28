@@ -9127,29 +9127,14 @@ function renderCopEmpresarialEmbed(containerId, dados, subEscala) {
   const dataMensagem = new Date(ultimaMensagem.dataRecebimento);
   const diaMensagem = obterDiaEscalaMadrugada(dataMensagem);
   const subEscalaDados = calendarios.calendario2?.[subEscala]?.dadosOriginais;
-  const numPessoas = subEscalaDados?.[diaMensagem]?.numPessoas || 4;
+  const dadosDia = subEscalaDados?.[diaMensagem] || {};
+  const numPessoas = dadosDia.numPessoas || 4;
+  const divisaoDia = dadosDia.divisao || {};
+  const trabalhandoDia = dadosDia.trabalhando || [];
 
-  // Filtrar clusters por subEscala:
-  // rio_es → apenas RIO DE JANEIRO e ESPIRITO SANTO
-  // leste  → todos os demais clusters
   function clusterPertenceRioES(nome) {
     const l = nome.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
     return l.includes('rio') || l.includes('espirito santo');
-  }
-
-  // Calcular resumo por área
-  const resumoPorArea = {};
-  for (const [grupoNome, quantidade] of Object.entries(ultimaMensagem.resumo.grupo)) {
-    const ehRioES = clusterPertenceRioES(grupoNome);
-    if (subEscala === 'rio_es' && !ehRioES) continue;
-    if (subEscala === 'leste' && ehRioES) continue;
-
-    const areaKey = mapearGrupoParaAreaFrontend(grupoNome, numPessoas);
-    if (!resumoPorArea[areaKey]) resumoPorArea[areaKey] = { volume: 0, responsavel: '-' };
-    resumoPorArea[areaKey].volume += quantidade;
-    if (resumoPorArea[areaKey].responsavel === '-') {
-      resumoPorArea[areaKey].responsavel = obterResponsavelPorAreaEmpresarial(areaKey, ultimaMensagem.dataRecebimento, subEscala);
-    }
   }
 
   function getCorVolume(q) {
@@ -9159,16 +9144,90 @@ function renderCopEmpresarialEmbed(containerId, dados, subEscala) {
   }
 
   const dataFormatada = formatarDataHora(ultimaMensagem.dataRecebimento);
+  let areasHTML = '';
 
-  const areasHTML = Object.entries(resumoPorArea).map(([area, info]) => `
-    <div class="area-summary-item ${getCorVolume(info.volume)}">
-      <span class="area-name">${area || 'Não mapeada'}</span>
-      <span class="area-volume">${info.volume}</span>
-      <span class="area-responsible"><i class="bi bi-person me-1"></i>${info.responsavel}</span>
-    </div>
-  `).join('');
+  if (subEscala === 'rio_es') {
+    // --- Painel Rio/ES ---
+    // Rio é dividido igualmente entre todas as pessoas;
+    // quem cobre ES recebe Rio/N + volume ES.
 
-  container.innerHTML = Object.keys(resumoPorArea).length > 0 ? `
+    let volRio = 0, volES = 0;
+    for (const [grupoNome, quantidade] of Object.entries(ultimaMensagem.resumo.grupo)) {
+      const l = grupoNome.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+      if (l.includes('rio')) volRio += quantidade;
+      else if (l.includes('espirito santo')) volES += quantidade;
+    }
+
+    // Quem cobre ES: chave do divisao cujo primeiro segmento é 'ES'
+    let nomeES = null;
+    for (const [area, pessoa] of Object.entries(divisaoDia)) {
+      if (area.split('/')[0].trim() === 'ES') { nomeES = pessoa; break; }
+    }
+
+    const numP = trabalhandoDia.length || numPessoas || 1;
+    const rioPorPessoa = Math.floor(volRio / numP);
+
+    if (trabalhandoDia.length > 0) {
+      areasHTML = trabalhandoDia.map(nomeCompleto => {
+        const firstName = extrairPrimeiroNome(nomeCompleto);
+        const cobreES = nomeES && nomeES.toUpperCase() === firstName.toUpperCase();
+        const volume = rioPorPessoa + (cobreES ? volES : 0);
+        const label = cobreES ? 'RIO + ES' : 'RIO';
+        return `
+          <div class="area-summary-item ${getCorVolume(volume)}">
+            <span class="area-name">${label}</span>
+            <span class="area-volume">${volume}</span>
+            <span class="area-responsible"><i class="bi bi-person me-1"></i>${firstName}</span>
+          </div>`;
+      }).join('');
+    } else {
+      // Sem escala carregada: exibe totais simples
+      [['RIO DE JANEIRO', volRio], ['ESPIRITO SANTO', volES]].forEach(([nome, vol]) => {
+        if (vol > 0) areasHTML += `
+          <div class="area-summary-item ${getCorVolume(vol)}">
+            <span class="area-name">${nome}</span>
+            <span class="area-volume">${vol}</span>
+            <span class="area-responsible"><i class="bi bi-person me-1"></i>-</span>
+          </div>`;
+      });
+    }
+
+  } else {
+    // --- Painel Leste ---
+    // Exibe cada cluster individualmente com o responsável da escala,
+    // igual ao painel Residencial.
+
+    function getCodigoClusterLeste(nome) {
+      const l = nome.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+      if (l === 'minas gerais') return 'MG';
+      if (l === 'nordeste') return 'NE';
+      if (l === 'norte') return 'NO';
+      if (l === 'centro oeste' || l === 'centro-oeste') return 'CO';
+      if (l === 'bahia/sergipe' || l === 'bahia' || l === 'sergipe') return 'BA';
+      return null;
+    }
+
+    function encontrarResponsavelLeste(codigo) {
+      for (const [area, pessoa] of Object.entries(divisaoDia)) {
+        if (area.split('/').map(p => p.trim()).includes(codigo)) return pessoa || '-';
+      }
+      return '-';
+    }
+
+    for (const [grupoNome, quantidade] of Object.entries(ultimaMensagem.resumo.grupo)) {
+      if (clusterPertenceRioES(grupoNome)) continue;
+      const codigo = getCodigoClusterLeste(grupoNome);
+      const responsavel = codigo ? encontrarResponsavelLeste(codigo) : '-';
+      areasHTML += `
+        <div class="area-summary-item ${getCorVolume(quantidade)}">
+          <span class="area-name">${grupoNome}</span>
+          <span class="area-volume">${quantidade}</span>
+          <span class="area-responsible"><i class="bi bi-person me-1"></i>${responsavel}</span>
+        </div>`;
+    }
+  }
+
+  container.innerHTML = areasHTML ? `
     <div class="area-summary-grid">${areasHTML}</div>
     <div class="text-center text-muted" style="font-size: 0.75rem; margin-top: 0.4rem;">
       <i class="bi bi-clock me-1"></i>Última msg: ${dataFormatada}
