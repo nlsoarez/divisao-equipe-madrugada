@@ -2359,6 +2359,9 @@
     </div>
   </div>
 
+  <!-- Alocacao de HUB embarcada -->
+  <div id="hubEmbedResidencial" class="mt-3"></div>
+
   </div><!-- Fim tabResidencial -->
 
   <!-- Conteúdo da Aba Rio/ES -->
@@ -2441,6 +2444,9 @@
       <p>Nenhum dado encontrado. Faça upload da planilha Rio/ES.</p>
     </div>
   </div>
+
+  <!-- Alocacao de HUB embarcada -->
+  <div id="hubEmbedRioEs" class="mt-3"></div>
 
   </div><!-- Fim tabRioEs -->
 
@@ -9923,6 +9929,8 @@ async function carregarAlocacaoHub() {
     }
 
     exibirAlocacaoHub(alocacao);
+  renderHubEmbed('hubEmbedResidencial', alocacao);
+  renderHubEmbed('hubEmbedRioEs', alocacao);
 
   } catch (error) {
     console.error('[Hub] Erro ao carregar:', error);
@@ -10031,6 +10039,67 @@ function exibirAlocacaoHub(alocacao) {
   } else if (folgas) {
     folgas.style.display = 'none';
   }
+}
+
+function renderHubEmbed(containerId, alocacao) {
+  const container = document.getElementById(containerId);
+  if (!container) return;
+
+  const isMADRUGADA = alocacao.tipoAlocacao === 'MADRUGADA';
+  const corBadge = isMADRUGADA ? '#1565c0' : '#f57f17';
+  const bgBadge = isMADRUGADA ? '#e3f2fd' : '#fff8e1';
+  const bordaEsq = isMADRUGADA ? '#1976d2' : '#ff9800';
+
+  let linhasTabela = '';
+  if (!isMADRUGADA && alocacao.regioes) {
+    for (const [regiao, tecnicos] of Object.entries(alocacao.regioes)) {
+      tecnicos.forEach((t, i) => {
+        linhasTabela += `<tr>`;
+        if (i === 0) linhasTabela += `<td rowspan="${tecnicos.length}" style="font-weight:600;background:${bgBadge};">${regiao}</td>`;
+        linhasTabela += `<td>${t.horario || '-'}</td><td>${t.tecnico || '-'}${t.sobreaviso ? ' <span class="badge bg-info">Sobreaviso</span>' : ''}</td><td><a href="tel:${t.telefone}">${t.telefone || '-'}</a></td></tr>`;
+      });
+    }
+    linhasTabela = linhasTabela || `<tr><td colspan="4" class="text-center text-muted">Nenhum tecnico</td></tr>`;
+  } else if (isMADRUGADA && alocacao.tecnicos) {
+    linhasTabela = alocacao.tecnicos.map(t => `<tr>
+      <td><strong>${t.nome || '-'}</strong></td>
+      <td>${t.local || '-'}</td>
+      <td>${t.atividade || '-'}${t.observacao ? '<br><small class="text-muted">' + t.observacao + '</small>' : ''}</td>
+      <td><a href="tel:${t.telefone}">${t.telefone || '-'}</a></td>
+    </tr>`).join('') || `<tr><td colspan="4" class="text-center text-muted">Nenhum tecnico</td></tr>`;
+  }
+
+  const theadCols = isMADRUGADA
+    ? '<th>Tecnico</th><th>Local</th><th>Atividade</th><th>Telefone</th>'
+    : '<th>Regiao</th><th>Horario</th><th>Tecnico</th><th>Telefone</th>';
+
+  const responsavelHtml = (isMADRUGADA && alocacao.responsavel)
+    ? `<div class="mt-2 small text-muted"><i class="bi bi-person-fill me-1"></i>Responsavel: <strong>${alocacao.responsavel.nome || '-'}</strong>${alocacao.responsavel.telefone ? ' &nbsp;<a href="tel:' + alocacao.responsavel.telefone + '">' + alocacao.responsavel.telefone + '</a>' : ''}</div>`
+    : '';
+
+  const folgasHtml = (alocacao.folgas && alocacao.folgas.length > 0)
+    ? `<div class="mt-2 small text-muted"><i class="bi bi-calendar-x me-1"></i>Folgas: ${alocacao.folgas.join(', ')}</div>`
+    : '';
+
+  container.innerHTML = `
+    <div style="border:1px solid #e0e0e0; border-radius:8px; overflow:hidden; margin-bottom:0.5rem;">
+      <div style="background:linear-gradient(135deg,#ff9800,#f57c00); color:#fff; padding:0.5rem 1rem; display:flex; align-items:center; gap:0.5rem;">
+        <i class="bi bi-geo-alt-fill"></i>
+        <strong>Alocacao de HUB</strong>
+        <span style="margin-left:auto; background:${bgBadge}; color:${corBadge}; border-radius:4px; padding:2px 8px; font-size:0.8rem; font-weight:700;">${alocacao.tipoAlocacao}</span>
+        <span style="font-size:0.8rem; opacity:0.85;">${alocacao.data || ''}</span>
+      </div>
+      <div style="padding:0.5rem; background:#fff;">
+        <div class="table-responsive">
+          <table class="table table-sm table-hover mb-0">
+            <thead style="background:${bgBadge};"><tr>${theadCols}</tr></thead>
+            <tbody>${linhasTabela}</tbody>
+          </table>
+        </div>
+        ${responsavelHtml}${folgasHtml}
+        <div class="text-end mt-1"><small class="text-muted">${formatarDataHora(alocacao.dataRecebimento)}</small></div>
+      </div>
+    </div>`;
 }
 
 async function sincronizarHub() {
