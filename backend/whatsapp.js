@@ -804,36 +804,71 @@ async function buscarNovasMensagensHub() {
       return { novas: 0 };
     }
 
-    // Buscar últimas 20 mensagens do grupo HUB
+    const extractMessages = (result) => {
+      if (Array.isArray(result)) return result;
+      if (result.messages?.records) return result.messages.records;
+      if (result.messages && Array.isArray(result.messages)) return result.messages;
+      if (result.data?.records) return result.data.records;
+      if (result.data && Array.isArray(result.data)) return result.data;
+      if (result.records) return result.records;
+      return [];
+    };
+
     let messages = [];
 
+    // Método 1: where clause com remoteJid
     try {
       const result = await evolutionRequest(
         `/chat/findMessages/${encodeURIComponent(EVOLUTION_CONFIG.INSTANCE_NAME)}`,
         'POST',
         {
-          where: {
-            key: {
-              remoteJid: ALOCACAO_HUB_CONFIG.CHAT_ID
-            }
-          },
-          limit: 20
+          where: { key: { remoteJid: ALOCACAO_HUB_CONFIG.CHAT_ID } },
+          limit: 50
         }
       );
-
-      if (Array.isArray(result)) {
-        messages = result;
-      } else if (result.messages?.records) {
-        messages = result.messages.records;
-      } else if (result.messages && Array.isArray(result.messages)) {
-        messages = result.messages;
+      if (!result.instance) {
+        messages = extractMessages(result);
       }
-    } catch (e) {
-      // Silently continue
+    } catch (e) { /* fallback */ }
+
+    // Método 2: number field
+    if (messages.length === 0) {
+      try {
+        const result = await evolutionRequest(
+          `/chat/findMessages/${encodeURIComponent(EVOLUTION_CONFIG.INSTANCE_NAME)}`,
+          'POST',
+          { number: ALOCACAO_HUB_CONFIG.CHAT_ID, limit: 50 }
+        );
+        if (!result.instance) {
+          messages = extractMessages(result);
+        }
+      } catch (e) { /* fallback */ }
+    }
+
+    // Método 3: buscar todas e filtrar por chatId
+    if (messages.length === 0) {
+      try {
+        const result = await evolutionRequest(
+          `/chat/findMessages/${encodeURIComponent(EVOLUTION_CONFIG.INSTANCE_NAME)}`,
+          'POST',
+          { limit: 300 }
+        );
+        if (!result.instance) {
+          const all = extractMessages(result);
+          messages = all.filter(m =>
+            m.key?.remoteJid === ALOCACAO_HUB_CONFIG.CHAT_ID ||
+            m.remoteJid === ALOCACAO_HUB_CONFIG.CHAT_ID
+          );
+          if (all.length > 0 && messages.length === 0) {
+            const grupos = [...new Set(all.map(m => m.key?.remoteJid || m.remoteJid).filter(Boolean))];
+            console.log(`[WhatsApp Polling HUB] Grupos disponíveis na instância: ${grupos.slice(0, 8).join(', ')}`);
+          }
+        }
+      } catch (e) { /* silently fail */ }
     }
 
     // Filtrar pelo grupo correto
-    if (ALOCACAO_HUB_CONFIG.CHAT_ID && messages.length > 0) {
+    if (messages.length > 0) {
       messages = messages.filter(m => {
         const remoteJid = m.key?.remoteJid || m.remoteJid;
         return remoteJid === ALOCACAO_HUB_CONFIG.CHAT_ID;
@@ -853,6 +888,8 @@ async function buscarNovasMensagensHub() {
     if (novasMensagens.length === 0) {
       return { novas: 0 };
     }
+
+    console.log(`[WhatsApp Polling HUB] ${novasMensagens.length} mensagens novas encontradas`);
 
     // Atualizar o timestamp mais recente
     const maxTimestamp = Math.max(...novasMensagens.map(m => m.messageTimestamp || m.timestamp || 0));
@@ -910,12 +947,84 @@ async function buscarNovasMensagensHub() {
   }
 }
 
+/**
+ * Testa os 3 métodos de busca de mensagens para o grupo HUB
+ * Retorna diagnóstico detalhado para identificar problemas de integração
+ */
+async function testarBuscaHub() {
+  const resultado = {
+    chatId: ALOCACAO_HUB_CONFIG.CHAT_ID,
+    metodos: [],
+    gruposDisponiveis: [],
+    mensagensEncontradas: 0
+  };
+
+  const extractMessages = (data) => {
+    if (Array.isArray(data)) return data;
+    if (data?.messages?.records) return data.messages.records;
+    if (data?.messages && Array.isArray(data.messages)) return data.messages;
+    if (data?.data?.records) return data.data.records;
+    if (data?.data && Array.isArray(data.data)) return data.data;
+    if (data?.records) return data.records;
+    return [];
+  };
+
+  // Método 1
+  try {
+    const r = await evolutionRequest(
+      `/chat/findMessages/${encodeURIComponent(EVOLUTION_CONFIG.INSTANCE_NAME)}`,
+      'POST',
+      { where: { key: { remoteJid: ALOCACAO_HUB_CONFIG.CHAT_ID } }, limit: 10 }
+    );
+    const msgs = extractMessages(r);
+    const doGrupo = msgs.filter(m => (m.key?.remoteJid || m.remoteJid) === ALOCACAO_HUB_CONFIG.CHAT_ID);
+    resultado.metodos.push({ nome: 'Método 1 (where/remoteJid)', total: msgs.length, doGrupoHUB: doGrupo.length });
+    if (doGrupo.length > 0) resultado.mensagensEncontradas = doGrupo.length;
+  } catch (e) {
+    resultado.metodos.push({ nome: 'Método 1 (where/remoteJid)', erro: e.message });
+  }
+
+  // Método 2
+  try {
+    const r = await evolutionRequest(
+      `/chat/findMessages/${encodeURIComponent(EVOLUTION_CONFIG.INSTANCE_NAME)}`,
+      'POST',
+      { number: ALOCACAO_HUB_CONFIG.CHAT_ID, limit: 10 }
+    );
+    const msgs = extractMessages(r);
+    const doGrupo = msgs.filter(m => (m.key?.remoteJid || m.remoteJid) === ALOCACAO_HUB_CONFIG.CHAT_ID);
+    resultado.metodos.push({ nome: 'Método 2 (number)', total: msgs.length, doGrupoHUB: doGrupo.length });
+    if (doGrupo.length > 0 && resultado.mensagensEncontradas === 0) resultado.mensagensEncontradas = doGrupo.length;
+  } catch (e) {
+    resultado.metodos.push({ nome: 'Método 2 (number)', erro: e.message });
+  }
+
+  // Método 3: todas as mensagens e filtrar
+  try {
+    const r = await evolutionRequest(
+      `/chat/findMessages/${encodeURIComponent(EVOLUTION_CONFIG.INSTANCE_NAME)}`,
+      'POST',
+      { limit: 300 }
+    );
+    const msgs = extractMessages(r);
+    const doGrupo = msgs.filter(m => (m.key?.remoteJid || m.remoteJid) === ALOCACAO_HUB_CONFIG.CHAT_ID);
+    resultado.gruposDisponiveis = [...new Set(msgs.map(m => m.key?.remoteJid || m.remoteJid).filter(Boolean))];
+    resultado.metodos.push({ nome: 'Método 3 (todas+filtro)', total: msgs.length, doGrupoHUB: doGrupo.length });
+    if (doGrupo.length > 0 && resultado.mensagensEncontradas === 0) resultado.mensagensEncontradas = doGrupo.length;
+  } catch (e) {
+    resultado.metodos.push({ nome: 'Método 3 (todas+filtro)', erro: e.message });
+  }
+
+  return resultado;
+}
+
 module.exports = {
   verificarConexao,
   buscarHistorico,
   buscarNovasMensagens,
   buscarHistoricoHub,
   buscarNovasMensagensHub,
+  testarBuscaHub,
   processarWebhook,
   configurarWebhook,
   listarChats,
