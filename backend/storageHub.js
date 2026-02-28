@@ -192,7 +192,10 @@ async function adicionarAlocacao(alocacao) {
 }
 
 /**
- * Obtém a última alocação (mais recente)
+ * Obtém a alocação adequada para o momento atual, aplicando lógica de horário:
+ * - Antes das 05h (horário de Brasília): exibe MADRUGADA (turno noturno ativo)
+ * - Após as 05h: exibe DIURNO, exceto se uma nova MADRUGADA chegou depois do último DIURNO
+ *   (nesse caso, a nova atualização de MADRUGADA é exibida imediatamente)
  */
 async function obterUltimaAlocacao() {
   const dados = await carregarDados();
@@ -206,7 +209,30 @@ async function obterUltimaAlocacao() {
     return new Date(b.dataRecebimento) - new Date(a.dataRecebimento);
   });
 
-  return ordenadas[0];
+  const ultimaMadrugada = ordenadas.find(a => a.tipoAlocacao === 'MADRUGADA') || null;
+  const ultimoDiurno = ordenadas.find(a => a.tipoAlocacao === 'DIURNO') || null;
+
+  // Hora atual em horário de Brasília (UTC-3, sem DST desde 2019)
+  const agora = new Date();
+  const horaBrasilia = (agora.getUTCHours() - 3 + 24) % 24;
+
+  if (horaBrasilia < 5) {
+    // Antes das 05h: turno noturno ativo, exibir MADRUGADA
+    return ultimaMadrugada || ultimoDiurno || ordenadas[0];
+  }
+
+  // Após as 05h: preferir DIURNO
+  if (ultimaMadrugada && ultimoDiurno) {
+    const tsMadrugada = new Date(ultimaMadrugada.dataRecebimento).getTime();
+    const tsDiurno = new Date(ultimoDiurno.dataRecebimento).getTime();
+    // Se nova MADRUGADA chegou depois do último DIURNO, atualizar na hora
+    if (tsMadrugada > tsDiurno) {
+      return ultimaMadrugada;
+    }
+    return ultimoDiurno;
+  }
+
+  return ultimoDiurno || ultimaMadrugada || ordenadas[0];
 }
 
 /**

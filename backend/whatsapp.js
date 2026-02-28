@@ -282,6 +282,28 @@ async function processarWebhook(webhookData) {
     console.log('[WhatsApp Webhook] Texto extraído:', texto.substring(0, 100).replace(/\n/g, '\\n'));
 
     const chatId = data.key?.remoteJid;
+    const remetente = data.pushName || data.key?.participant || 'WhatsApp';
+
+    // Verificar se é mensagem do grupo Alocação de HUB
+    if (ALOCACAO_HUB_CONFIG.CHAT_ID && chatId === ALOCACAO_HUB_CONFIG.CHAT_ID) {
+      console.log('[WhatsApp Webhook] Mensagem do grupo HUB detectada');
+      const msgCompativel = {
+        message_id: data.key?.id || Date.now().toString(),
+        date: Math.floor(Date.now() / 1000),
+        text: texto,
+        from: { username: remetente, is_bot: false },
+        chat: { id: chatId }
+      };
+
+      const resultado = processarMensagemHub(msgCompativel);
+      if (resultado && resultado.tipo === 'ALOCACAO_HUB') {
+        await storageHub.adicionarAlocacao(resultado.dados);
+        console.log(`[WhatsApp Webhook] Alocação HUB salva: ${resultado.dados.tipoAlocacao}`);
+        return resultado;
+      }
+      console.log('[WhatsApp Webhook] Mensagem do HUB não reconhecida como alocação');
+      return null;
+    }
 
     if (EVOLUTION_CONFIG.SOURCE_CHAT_ID) {
       if (chatId !== EVOLUTION_CONFIG.SOURCE_CHAT_ID) {
@@ -289,8 +311,6 @@ async function processarWebhook(webhookData) {
         return null;
       }
     }
-
-    const remetente = data.pushName || data.key?.participant || 'WhatsApp';
 
     const msgCompativel = {
       message_id: data.key?.id || Date.now().toString(),
