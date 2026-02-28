@@ -5882,10 +5882,6 @@ function iniciarComoVisualizador() {
   const telegramTabNav = document.querySelector('.admin-nav-tab[data-admin-tab="telegram"]');
   if (telegramTabNav) telegramTabNav.style.display = 'none';
 
-  // Esconder aba Alocacao de HUB para visualizadores
-  const hubTabNav = document.querySelector('.admin-nav-tab[data-admin-tab="alocacao_hub"]');
-  if (hubTabNav) hubTabNav.style.display = 'none';
-
   // Esconder painéis de gerenciamento (somente admin)
   const calendarioPanelResidencial = document.getElementById('calendarioPanelResidencial');
   const calendarioPanelEmpresarial = document.getElementById('calendarioPanelEmpresarial');
