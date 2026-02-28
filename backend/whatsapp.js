@@ -6,6 +6,7 @@
 const { EVOLUTION_CONFIG, ALOCACAO_HUB_CONFIG, COP_REDE_EMPRESARIAL_CONFIG } = require('./config');
 const { processarMensagem } = require('./parser');
 const { processarMensagemHub } = require('./parserHub');
+const { processarMensagemEmpresarial } = require('./parserEmpresarial');
 const { adicionarCopRedeInforma, adicionarAlerta, obterUltimoTimestamp, adicionarCopRedeEmpresarial } = require('./storage');
 const storageHub = require('./storageHub');
 
@@ -317,7 +318,7 @@ async function processarWebhook(webhookData) {
         chat: { id: chatId }
       };
 
-      const resultado = processarMensagem(msgCompativel);
+      const resultado = processarMensagemEmpresarial(msgCompativel);
       if (resultado && resultado.tipo === 'COP_REDE_INFORMA') {
         await adicionarCopRedeEmpresarial(resultado.dados);
         console.log('[WhatsApp Webhook] COP REDE EMPRESARIAL salvo');
@@ -1081,7 +1082,7 @@ async function buscarHistoricoEmpresarial(limite = 100) {
           chat: { id: msg.key?.remoteJid || COP_REDE_EMPRESARIAL_CONFIG.CHAT_ID }
         };
 
-        const resultado = processarMensagem(msgCompativel);
+        const resultado = processarMensagemEmpresarial(msgCompativel);
         if (resultado && resultado.tipo === 'COP_REDE_INFORMA') {
           await adicionarCopRedeEmpresarial(resultado.dados);
           contador++;
@@ -1179,7 +1180,7 @@ async function buscarNovasMensagensEmpresarial() {
           chat: { id: msg.key?.remoteJid || COP_REDE_EMPRESARIAL_CONFIG.CHAT_ID }
         };
 
-        const resultado = processarMensagem(msgCompativel);
+        const resultado = processarMensagemEmpresarial(msgCompativel);
         if (resultado && resultado.tipo === 'COP_REDE_INFORMA') {
           await adicionarCopRedeEmpresarial(resultado.dados);
           contador++;
