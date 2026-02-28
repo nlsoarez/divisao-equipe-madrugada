@@ -669,10 +669,8 @@ async function buscarHistoricoHub(limite = 50) {
         }
       );
 
-      if (!result.instance) {
-        messages = extractMessages(result);
-        console.log(`[WhatsApp HUB] Método 1: ${messages.length} mensagens encontradas`);
-      }
+      messages = extractMessages(result);
+      console.log(`[WhatsApp HUB] Método 1: ${messages.length} mensagens encontradas`);
     } catch (e) {
       console.log(`[WhatsApp HUB] Método 1 falhou: ${e.message}`);
       // Silently try next method
@@ -691,10 +689,8 @@ async function buscarHistoricoHub(limite = 50) {
           }
         );
 
-        if (!result.instance) {
-          messages = extractMessages(result);
-          console.log(`[WhatsApp HUB] Método 2: ${messages.length} mensagens encontradas`);
-        }
+        messages = extractMessages(result);
+        console.log(`[WhatsApp HUB] Método 2: ${messages.length} mensagens encontradas`);
       } catch (e) {
         console.log(`[WhatsApp HUB] Método 2 falhou: ${e.message}`);
         // Silently continue
@@ -710,19 +706,17 @@ async function buscarHistoricoHub(limite = 50) {
           'POST',
           { limit: 300 }
         );
-        if (!result.instance) {
-          const allMessages = extractMessages(result);
-          console.log(`[WhatsApp HUB] Método 3: ${allMessages.length} mensagens totais encontradas`);
-          messages = allMessages.filter(m =>
-            m.key?.remoteJid === ALOCACAO_HUB_CONFIG.CHAT_ID ||
-            m.remoteJid === ALOCACAO_HUB_CONFIG.CHAT_ID
-          );
-          console.log(`[WhatsApp HUB] Método 3: ${messages.length} mensagens do grupo HUB após filtro`);
+        const allMessages = extractMessages(result);
+        console.log(`[WhatsApp HUB] Método 3: ${allMessages.length} mensagens totais encontradas`);
+        messages = allMessages.filter(m =>
+          m.key?.remoteJid === ALOCACAO_HUB_CONFIG.CHAT_ID ||
+          m.remoteJid === ALOCACAO_HUB_CONFIG.CHAT_ID
+        );
+        console.log(`[WhatsApp HUB] Método 3: ${messages.length} mensagens do grupo HUB após filtro`);
 
-          // Log dos grupos únicos encontrados para debug
-          const gruposUnicos = [...new Set(allMessages.map(m => m.key?.remoteJid || m.remoteJid).filter(Boolean))];
-          console.log(`[WhatsApp HUB] Grupos disponíveis: ${gruposUnicos.slice(0, 5).join(', ')}${gruposUnicos.length > 5 ? '...' : ''}`);
-        }
+        // Log dos grupos únicos encontrados para debug
+        const gruposUnicos = [...new Set(allMessages.map(m => m.key?.remoteJid || m.remoteJid).filter(Boolean))];
+        console.log(`[WhatsApp HUB] Grupos disponíveis: ${gruposUnicos.slice(0, 5).join(', ')}${gruposUnicos.length > 5 ? '...' : ''}`);
       } catch (e) {
         console.log(`[WhatsApp HUB] Método 3 falhou: ${e.message}`);
         // Silently continue
@@ -745,18 +739,27 @@ async function buscarHistoricoHub(limite = 50) {
 
     console.log(`[WhatsApp HUB] Total de ${messages.length} mensagens para processar`);
 
-    let contadores = { alocacoes: 0, ignorados: 0 };
+    let contadores = { alocacoes: 0, ignorados: 0, semTexto: 0 };
 
     for (const msg of messages) {
-      const texto = msg.message?.conversation ||
-                    msg.message?.extendedTextMessage?.text ||
-                    msg.message?.text ||
+      const m = msg.message || {};
+      const texto = m.conversation ||
+                    m.extendedTextMessage?.text ||
+                    m.imageMessage?.caption ||
+                    m.videoMessage?.caption ||
+                    m.documentMessage?.caption ||
+                    m.text ||
                     msg.body ||
                     msg.text ||
                     msg.content ||
                     null;
 
-      if (!texto) continue;
+      if (!texto) {
+        contadores.semTexto++;
+        const tipoMsg = Object.keys(m).join(',') || 'desconhecido';
+        console.log(`[WhatsApp HUB] Mensagem sem texto (tipo: ${tipoMsg})`);
+        continue;
+      }
 
       try {
         const msgCompativel = {
@@ -826,9 +829,7 @@ async function buscarNovasMensagensHub() {
           limit: 50
         }
       );
-      if (!result.instance) {
-        messages = extractMessages(result);
-      }
+      messages = extractMessages(result);
     } catch (e) { /* fallback */ }
 
     // Método 2: number field
@@ -839,9 +840,7 @@ async function buscarNovasMensagensHub() {
           'POST',
           { number: ALOCACAO_HUB_CONFIG.CHAT_ID, limit: 50 }
         );
-        if (!result.instance) {
-          messages = extractMessages(result);
-        }
+        messages = extractMessages(result);
       } catch (e) { /* fallback */ }
     }
 
@@ -853,16 +852,14 @@ async function buscarNovasMensagensHub() {
           'POST',
           { limit: 300 }
         );
-        if (!result.instance) {
-          const all = extractMessages(result);
-          messages = all.filter(m =>
-            m.key?.remoteJid === ALOCACAO_HUB_CONFIG.CHAT_ID ||
-            m.remoteJid === ALOCACAO_HUB_CONFIG.CHAT_ID
-          );
-          if (all.length > 0 && messages.length === 0) {
-            const grupos = [...new Set(all.map(m => m.key?.remoteJid || m.remoteJid).filter(Boolean))];
-            console.log(`[WhatsApp Polling HUB] Grupos disponíveis na instância: ${grupos.slice(0, 8).join(', ')}`);
-          }
+        const all = extractMessages(result);
+        messages = all.filter(m =>
+          m.key?.remoteJid === ALOCACAO_HUB_CONFIG.CHAT_ID ||
+          m.remoteJid === ALOCACAO_HUB_CONFIG.CHAT_ID
+        );
+        if (all.length > 0 && messages.length === 0) {
+          const grupos = [...new Set(all.map(m => m.key?.remoteJid || m.remoteJid).filter(Boolean))];
+          console.log(`[WhatsApp Polling HUB] Grupos disponíveis na instância: ${grupos.slice(0, 8).join(', ')}`);
         }
       } catch (e) { /* silently fail */ }
     }
@@ -900,9 +897,13 @@ async function buscarNovasMensagensHub() {
     let contadores = { alocacoes: 0 };
 
     for (const msg of novasMensagens) {
-      const texto = msg.message?.conversation ||
-                    msg.message?.extendedTextMessage?.text ||
-                    msg.message?.text ||
+      const m = msg.message || {};
+      const texto = m.conversation ||
+                    m.extendedTextMessage?.text ||
+                    m.imageMessage?.caption ||
+                    m.videoMessage?.caption ||
+                    m.documentMessage?.caption ||
+                    m.text ||
                     msg.body ||
                     msg.text ||
                     msg.content ||
@@ -1044,9 +1045,13 @@ async function buscarMensagensBrutas(limite = 10) {
   const msgs = extractMessages(result);
 
   return msgs.map(msg => {
-    const texto = msg.message?.conversation ||
-                  msg.message?.extendedTextMessage?.text ||
-                  msg.message?.text ||
+    const m = msg.message || {};
+    const texto = m.conversation ||
+                  m.extendedTextMessage?.text ||
+                  m.imageMessage?.caption ||
+                  m.videoMessage?.caption ||
+                  m.documentMessage?.caption ||
+                  m.text ||
                   msg.body || msg.text || msg.content || null;
 
     return {
