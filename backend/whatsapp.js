@@ -1018,6 +1018,50 @@ async function testarBuscaHub() {
   return resultado;
 }
 
+/**
+ * Retorna as mensagens brutas do grupo HUB para diagnóstico
+ * Inclui estrutura da mensagem e resultado do parser
+ */
+async function buscarMensagensBrutas(limite = 10) {
+  const { identificarTipoAlocacao } = require('./parserHub');
+
+  const result = await evolutionRequest(
+    `/chat/findMessages/${encodeURIComponent(EVOLUTION_CONFIG.INSTANCE_NAME)}`,
+    'POST',
+    { where: { key: { remoteJid: ALOCACAO_HUB_CONFIG.CHAT_ID } }, limit: limite }
+  );
+
+  const extractMessages = (r) => {
+    if (Array.isArray(r)) return r;
+    if (r.messages?.records) return r.messages.records;
+    if (r.messages && Array.isArray(r.messages)) return r.messages;
+    if (r.data?.records) return r.data.records;
+    if (r.data && Array.isArray(r.data)) return r.data;
+    if (r.records) return r.records;
+    return [];
+  };
+
+  const msgs = extractMessages(result);
+
+  return msgs.map(msg => {
+    const texto = msg.message?.conversation ||
+                  msg.message?.extendedTextMessage?.text ||
+                  msg.message?.text ||
+                  msg.body || msg.text || msg.content || null;
+
+    return {
+      id: msg.key?.id,
+      remoteJid: msg.key?.remoteJid || msg.remoteJid,
+      timestamp: msg.messageTimestamp || msg.timestamp,
+      data: msg.messageTimestamp ? new Date(msg.messageTimestamp * 1000).toISOString() : null,
+      tiposMensagem: Object.keys(msg.message || {}).join(', ') || 'desconhecido',
+      temTexto: !!texto,
+      primeiros300chars: texto ? texto.substring(0, 300) : null,
+      parserIdentificou: texto ? identificarTipoAlocacao(texto) : null
+    };
+  });
+}
+
 module.exports = {
   verificarConexao,
   buscarHistorico,
@@ -1025,6 +1069,7 @@ module.exports = {
   buscarHistoricoHub,
   buscarNovasMensagensHub,
   testarBuscaHub,
+  buscarMensagensBrutas,
   processarWebhook,
   configurarWebhook,
   listarChats,
