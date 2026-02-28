@@ -8,7 +8,13 @@ const { ALOCACAO_HUB_CONFIG } = require('./config');
 // Cache local
 let cachedData = null;
 let cacheTimestamp = 0;
-let binId = ALOCACAO_HUB_CONFIG.BIN_ID;
+
+// Validar BIN_ID: IDs do JSONBin são hex de 24 chars. Se parecer uma chave bcrypt ($2a$...), ignorar.
+const rawBinId = ALOCACAO_HUB_CONFIG.BIN_ID;
+let binId = (rawBinId && !rawBinId.startsWith('$2a$')) ? rawBinId : null;
+if (rawBinId && rawBinId.startsWith('$2a$')) {
+  console.log('[StorageHub] AVISO: ALOCACAO_HUB_BIN_ID parece ser uma chave BCrypt, não um Bin ID. Será criado um novo bin automaticamente.');
+}
 
 /**
  * Define o Bin ID para persistência
