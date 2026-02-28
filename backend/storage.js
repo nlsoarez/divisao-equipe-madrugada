@@ -9,6 +9,7 @@ const { JSONBIN_CONFIG } = require('./config');
 // Cache local para reduzir requisições
 let cacheLocal = {
   copRedeInforma: [],
+  copRedeEmpresarial: [],
   alertas: [],
   ultimaAtualizacao: null
 };
@@ -71,6 +72,7 @@ async function criarBin() {
 
   const dadosIniciais = {
     copRedeInforma: [],
+    copRedeEmpresarial: [],
     alertas: [],
     ultimaAtualizacao: new Date().toISOString(),
     versao: '1.0'
@@ -124,6 +126,7 @@ async function carregarDados(forcarAtualizacao = false) {
     if (idadeCache < 5000) { // Cache válido por 5 segundos (antes era 30s)
       return {
         copRedeInforma: cacheLocal.copRedeInforma,
+        copRedeEmpresarial: cacheLocal.copRedeEmpresarial,
         alertas: cacheLocal.alertas
       };
     }
@@ -165,17 +168,22 @@ async function carregarDados(forcarAtualizacao = false) {
 
     const dadosDoJSONBin = {
       copRedeInforma: limparMensagemOriginal(dados.copRedeInforma || []),
+      copRedeEmpresarial: limparMensagemOriginal(dados.copRedeEmpresarial || []),
       alertas: dados.alertas || []
     };
 
     // Criar mapa de IDs existentes no JSONBin para merge rápido
     const idsJSONBinCop = new Set(dadosDoJSONBin.copRedeInforma.map(m => m.id || m.messageId));
+    const idsJSONBinEmpresarial = new Set(dadosDoJSONBin.copRedeEmpresarial.map(m => m.id || m.messageId));
     const idsJSONBinAlertas = new Set(dadosDoJSONBin.alertas.map(a => a.id || a.messageId));
 
     // Adicionar mensagens do cache local que não existem no JSONBin
     // (são mensagens que foram adicionadas mas não persistidas)
     const mensagensPendentes = (cacheLocal.copRedeInforma || []).filter(
       m => !idsJSONBinCop.has(m.id) && !idsJSONBinCop.has(m.messageId)
+    );
+    const empresarialPendentes = (cacheLocal.copRedeEmpresarial || []).filter(
+      m => !idsJSONBinEmpresarial.has(m.id) && !idsJSONBinEmpresarial.has(m.messageId)
     );
     const alertasPendentes = (cacheLocal.alertas || []).filter(
       a => !idsJSONBinAlertas.has(a.id) && !idsJSONBinAlertas.has(a.messageId)
@@ -184,6 +192,9 @@ async function carregarDados(forcarAtualizacao = false) {
     if (mensagensPendentes.length > 0) {
       console.log(`[Storage] Preservando ${mensagensPendentes.length} mensagens COP não salvas no cache`);
     }
+    if (empresarialPendentes.length > 0) {
+      console.log(`[Storage] Preservando ${empresarialPendentes.length} mensagens Empresarial não salvas no cache`);
+    }
     if (alertasPendentes.length > 0) {
       console.log(`[Storage] Preservando ${alertasPendentes.length} alertas não salvos no cache`);
     }
@@ -191,19 +202,20 @@ async function carregarDados(forcarAtualizacao = false) {
     // Merge: dados do JSONBin + mensagens pendentes do cache
     cacheLocal = {
       copRedeInforma: [...dadosDoJSONBin.copRedeInforma, ...mensagensPendentes],
+      copRedeEmpresarial: [...dadosDoJSONBin.copRedeEmpresarial, ...empresarialPendentes],
       alertas: [...dadosDoJSONBin.alertas, ...alertasPendentes],
       ultimaAtualizacao: new Date().toISOString()
     };
 
     console.log('[Storage] Dados carregados (merge):', {
       copRedeInforma: cacheLocal.copRedeInforma.length,
-      alertas: cacheLocal.alertas.length,
-      mensagensPendentes: mensagensPendentes.length,
-      alertasPendentes: alertasPendentes.length
+      copRedeEmpresarial: cacheLocal.copRedeEmpresarial.length,
+      alertas: cacheLocal.alertas.length
     });
 
     return {
       copRedeInforma: cacheLocal.copRedeInforma,
+      copRedeEmpresarial: cacheLocal.copRedeEmpresarial,
       alertas: cacheLocal.alertas
     };
 
@@ -212,6 +224,7 @@ async function carregarDados(forcarAtualizacao = false) {
     // Retornar cache local em caso de erro
     return {
       copRedeInforma: cacheLocal.copRedeInforma || [],
+      copRedeEmpresarial: cacheLocal.copRedeEmpresarial || [],
       alertas: cacheLocal.alertas || []
     };
   }
@@ -233,6 +246,7 @@ async function salvarDados(dados, tentativa = 1) {
 
     const dadosParaSalvar = {
       copRedeInforma: dados.copRedeInforma || cacheLocal.copRedeInforma || [],
+      copRedeEmpresarial: dados.copRedeEmpresarial || cacheLocal.copRedeEmpresarial || [],
       alertas: dados.alertas || cacheLocal.alertas || [],
       ultimaAtualizacao: new Date().toISOString(),
       versao: '1.0'
@@ -295,7 +309,8 @@ async function criarNovoBinParaMensagens(dados) {
 
   // Limitar dados para caber no limite de 100KB do plano gratuito
   const dadosLimitados = {
-    copRedeInforma: (dados.copRedeInforma || []).slice(0, 50), // Só últimas 50 mensagens
+    copRedeInforma: (dados.copRedeInforma || []).slice(0, 40),
+    copRedeEmpresarial: (dados.copRedeEmpresarial || []).slice(0, 40),
     alertas: (dados.alertas || []).slice(0, 20), // Só últimos 20 alertas
     ultimaAtualizacao: new Date().toISOString(),
     versao: '1.0'
@@ -401,6 +416,108 @@ async function adicionarCopRedeInforma(mensagem) {
     console.error('[Storage] Erro ao adicionar COP REDE INFORMA:', error);
     return false;
   }
+}
+
+/**
+ * Adiciona uma mensagem COP REDE EMPRESARIAL (Rio/ES e Leste)
+ * @param {object} mensagem - Dados da mensagem
+ * @returns {Promise<boolean>} Sucesso da operação
+ */
+async function adicionarCopRedeEmpresarial(mensagem) {
+  try {
+    const dados = await carregarDados(true);
+
+    // Verificar duplicata pelo messageId
+    const indiceDuplicata = (dados.copRedeEmpresarial || []).findIndex(m => m.messageId === mensagem.messageId);
+
+    if (indiceDuplicata !== -1) {
+      const existente = dados.copRedeEmpresarial[indiceDuplicata];
+      const existenteTemCluster = existente.resumo?.grupo && Object.keys(existente.resumo.grupo).length > 0;
+      const novaTemCluster = mensagem.resumo?.grupo && Object.keys(mensagem.resumo.grupo).length > 0;
+
+      if (novaTemCluster && !existenteTemCluster) {
+        console.log('[Storage] Atualizando msg empresarial com dados de cluster:', mensagem.messageId);
+        const mensagemAtualizada = { ...mensagem };
+        delete mensagemAtualizada.mensagemOriginal;
+        dados.copRedeEmpresarial[indiceDuplicata] = mensagemAtualizada;
+
+        cacheLocal.copRedeEmpresarial = dados.copRedeEmpresarial;
+        cacheLocal.ultimaAtualizacao = new Date().toISOString();
+        await salvarDados(dados);
+        return true;
+      }
+
+      console.log('[Storage] Mensagem Empresarial já existe:', mensagem.messageId);
+      return false;
+    }
+
+    const mensagemParaSalvar = { ...mensagem };
+    delete mensagemParaSalvar.mensagemOriginal;
+
+    if (!dados.copRedeEmpresarial) dados.copRedeEmpresarial = [];
+    dados.copRedeEmpresarial.unshift(mensagemParaSalvar);
+
+    if (dados.copRedeEmpresarial.length > 80) {
+      dados.copRedeEmpresarial = dados.copRedeEmpresarial.slice(0, 80);
+    }
+
+    cacheLocal.copRedeEmpresarial = dados.copRedeEmpresarial;
+    cacheLocal.ultimaAtualizacao = new Date().toISOString();
+
+    const salvou = await salvarDados(dados);
+    if (!salvou) {
+      console.log('[Storage] AVISO: Mensagem Empresarial adicionada ao cache mas NÃO persistida no JSONBin');
+    }
+
+    console.log('[Storage] Mensagem Empresarial adicionada:', mensagem.id);
+    return true;
+
+  } catch (error) {
+    console.error('[Storage] Erro ao adicionar COP REDE EMPRESARIAL:', error);
+    return false;
+  }
+}
+
+/**
+ * Obtém mensagens COP REDE EMPRESARIAL com filtros
+ * @param {object} filtros - Filtros opcionais
+ * @param {boolean} forcarAtualizacao - Forçar atualização do cache
+ * @returns {Promise<array>} Lista de mensagens filtradas
+ */
+async function obterCopRedeEmpresarial(filtros = {}, forcarAtualizacao = false) {
+  const dados = await carregarDados(forcarAtualizacao);
+  let mensagens = dados.copRedeEmpresarial || [];
+
+  if (filtros.dataInicio) {
+    const dataInicioRef = parsearData(filtros.dataInicio);
+    mensagens = mensagens.filter(m => {
+      const data = m.dataGeracao || m.dataRecebimento || m.dataMensagem;
+      return parsearData(data) >= dataInicioRef;
+    });
+  }
+
+  if (filtros.dataFim) {
+    const dataFimRef = parsearData(filtros.dataFim);
+    mensagens = mensagens.filter(m => {
+      const data = m.dataGeracao || m.dataRecebimento || m.dataMensagem;
+      return parsearData(data) <= dataFimRef;
+    });
+  }
+
+  // Ordenar por data decrescente
+  mensagens.sort((a, b) => {
+    const dataStrA = a.dataGeracao || a.dataRecebimento || a.dataMensagem;
+    const dataStrB = b.dataGeracao || b.dataRecebimento || b.dataMensagem;
+    const dateA = parsearData(dataStrA);
+    const dateB = parsearData(dataStrB);
+    if (dateB.getTime() !== dateA.getTime()) return dateB - dateA;
+    const msgIdA = parseInt(a.messageId);
+    const msgIdB = parseInt(b.messageId);
+    if (!isNaN(msgIdA) && !isNaN(msgIdB)) return msgIdB - msgIdA;
+    return String(b.messageId || '').localeCompare(String(a.messageId || ''));
+  });
+
+  return mensagens;
 }
 
 /**
@@ -759,6 +876,7 @@ function limparCache() {
   console.log('[Storage] Limpando cache local...');
   cacheLocal = {
     copRedeInforma: [],
+    copRedeEmpresarial: [],
     alertas: [],
     ultimaAtualizacao: null
   };
@@ -809,6 +927,8 @@ module.exports = {
   carregarDados,
   salvarDados,
   adicionarCopRedeInforma,
+  adicionarCopRedeEmpresarial,
+  obterCopRedeEmpresarial,
   adicionarAlerta,
   atualizarStatusAlerta,
   excluirAlerta,

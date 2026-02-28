@@ -7,7 +7,7 @@ const express = require('express');
 const cors = require('cors');
 require('dotenv').config();
 
-const { SERVER_CONFIG, EVOLUTION_CONFIG, ALOCACAO_HUB_CONFIG } = require('./config');
+const { SERVER_CONFIG, EVOLUTION_CONFIG, ALOCACAO_HUB_CONFIG, COP_REDE_EMPRESARIAL_CONFIG } = require('./config');
 const storage = require('./storage');
 const storageHub = require('./storageHub');
 const whatsapp = require('./whatsapp');
@@ -572,6 +572,42 @@ app.get('/api/cop-rede-informa/resumo/areas', async (req, res) => {
 });
 
 // ============================================
+// ROTAS COP REDE EMPRESARIAL (Rio/ES e Leste)
+// ============================================
+
+/**
+ * Listar mensagens COP REDE EMPRESARIAL
+ */
+app.get('/api/cop-rede-empresarial', async (req, res) => {
+  try {
+    const filtros = {
+      dataInicio: req.query.dataInicio,
+      dataFim: req.query.dataFim
+    };
+    Object.keys(filtros).forEach(key => { if (!filtros[key]) delete filtros[key]; });
+    const forcarAtualizacao = req.query.refresh === 'true';
+    const mensagens = await storage.obterCopRedeEmpresarial(filtros, forcarAtualizacao);
+    res.json({ sucesso: true, total: mensagens.length, dados: mensagens, timestamp: new Date().toISOString() });
+  } catch (error) {
+    console.error('[API] Erro ao listar COP REDE EMPRESARIAL:', error);
+    res.status(500).json({ sucesso: false, erro: error.message });
+  }
+});
+
+/**
+ * Sincronizar histórico COP REDE EMPRESARIAL manualmente
+ */
+app.post('/api/cop-rede-empresarial/sincronizar', async (req, res) => {
+  try {
+    const limite = req.body.limite || 100;
+    const resultado = await whatsapp.buscarHistoricoEmpresarial(limite);
+    res.json({ sucesso: !resultado.erro, ...resultado });
+  } catch (error) {
+    res.status(500).json({ sucesso: false, erro: error.message });
+  }
+});
+
+// ============================================
 // ROTAS DE ALERTAS
 // ============================================
 
@@ -966,6 +1002,11 @@ app.listen(SERVER_CONFIG.PORT, async () => {
     console.log('   - EVOLUTION_INSTANCE_NAME');
     console.log('   - EVOLUTION_SOURCE_CHAT_ID');
   }
+
+  // COP REDE EMPRESARIAL (Rio/ES e Leste)
+  console.log('');
+  console.log('🏢 COP REDE EMPRESARIAL (Rio/ES e Leste):');
+  console.log(`   CHAT_ID: ${COP_REDE_EMPRESARIAL_CONFIG.CHAT_ID || 'NÃO CONFIGURADO'}`);
 
   // Alocação de HUB
   console.log('');
