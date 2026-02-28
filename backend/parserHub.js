@@ -88,7 +88,8 @@ function processarDiurno(texto) {
     const linhas = secao.trim().split('\n').filter(l => l.trim());
 
     for (const linha of linhas) {
-      const linhaLimpa = linha.trim();
+      // Remove formatação WhatsApp (*negrito*, _itálico_, ~tachado~) antes de parsear
+      const linhaLimpa = linha.trim().replace(/[*_~]/g, '').trim();
 
       // Ignora linhas de cabeçalho
       if (linhaLimpa.toUpperCase().includes('ALOCAÇÃO TÉCNICA')) continue;
@@ -194,7 +195,8 @@ function processarMadrugada(texto) {
     let observacaoAtual = null;
 
     for (const linha of linhas) {
-      const linhaLimpa = linha.trim();
+      // Remove formatação WhatsApp (*negrito*, _itálico_, ~tachado~) antes de parsear
+      const linhaLimpa = linha.trim().replace(/[*_~]/g, '').trim();
 
       // Detecta folgas
       if (linhaLimpa.toLowerCase().startsWith('folgas:') || linhaLimpa.toLowerCase() === 'folgas') {

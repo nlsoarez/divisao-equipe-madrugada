@@ -178,16 +178,16 @@ async function adicionarAlocacoesBatch(novasAlocacoes) {
 
   const dados = await carregarDados(true);
 
-  const idsExistentes = new Set(dados.alocacoes.map(a => a.messageId));
+  // Upsert: substitui entradas existentes pelo messageId (para reprocessar com parser corrigido)
+  const mapaExistente = new Map(dados.alocacoes.map(a => [a.messageId, a]));
   let adicionadas = 0;
 
   for (const alocacao of novasAlocacoes) {
-    if (!idsExistentes.has(alocacao.messageId)) {
-      dados.alocacoes.unshift(alocacao);
-      idsExistentes.add(alocacao.messageId);
-      adicionadas++;
-    }
+    mapaExistente.set(alocacao.messageId, alocacao);
+    adicionadas++;
   }
+
+  dados.alocacoes = Array.from(mapaExistente.values());
 
   if (adicionadas === 0) {
     console.log('[StorageHub] Nenhuma alocação nova no lote');
