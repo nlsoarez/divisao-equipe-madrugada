@@ -827,6 +827,19 @@ app.get('/api/alocacao-hub/diagnostico', async (req, res) => {
 });
 
 /**
+ * Teste de busca de mensagens do grupo HUB
+ * Testa os 3 métodos e retorna diagnóstico detalhado de quais grupos estão disponíveis
+ */
+app.get('/api/alocacao-hub/testar-busca', async (req, res) => {
+  try {
+    const resultado = await whatsapp.testarBuscaHub();
+    res.json({ sucesso: true, resultado });
+  } catch (error) {
+    res.status(500).json({ sucesso: false, erro: error.message });
+  }
+});
+
+/**
  * Configurar Bin ID do Alocação de HUB
  */
 app.post('/api/alocacao-hub/config/bin-id', async (req, res) => {
