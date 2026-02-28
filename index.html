@@ -10002,7 +10002,7 @@ function exibirAlocacaoHub(alocacao) {
             }
             html += `<td>${t.horario || '-'}</td>`;
             html += `<td>${t.tecnico || '-'}${t.sobreaviso ? ' <span class="badge bg-info">Sobreaviso</span>' : ''}</td>`;
-            html += `<td><a href="tel:${t.telefone}">${t.telefone || '-'}</a></td>`;
+            html += `<td><a href="${whatsappLink(t.telefone) || '#'}" target="_blank">${t.telefone || '-'}</a></td>`;
             html += `</tr>`;
           });
         }
@@ -10019,7 +10019,7 @@ function exibirAlocacaoHub(alocacao) {
           <td><strong>${t.nome || '-'}</strong></td>
           <td>${t.local || '-'}</td>
           <td>${t.atividade || '-'}${t.observacao ? '<br><small class="text-muted">' + t.observacao + '</small>' : ''}</td>
-          <td><a href="tel:${t.telefone}">${t.telefone || '-'}</a></td>
+          <td><a href="${whatsappLink(t.telefone) || '#'}" target="_blank">${t.telefone || '-'}</a></td>
         </tr>
       `).join('');
       tbody.innerHTML = html || '<tr><td colspan="4" class="text-center text-muted">Nenhum tecnico</td></tr>';
@@ -10030,8 +10030,9 @@ function exibirAlocacaoHub(alocacao) {
       responsavel.style.display = 'block';
       if (responsavelNome) responsavelNome.textContent = alocacao.responsavel.nome || '-';
       if (responsavelTel) {
-        responsavelTel.href = 'tel:' + (alocacao.responsavel.telefone || '');
-        responsavelTel.innerHTML = '<i class="bi bi-telephone"></i> ' + (alocacao.responsavel.telefone || '-');
+        responsavelTel.href = whatsappLink(alocacao.responsavel.telefone) || '#';
+        responsavelTel.target = '_blank';
+        responsavelTel.innerHTML = '<i class="bi bi-whatsapp"></i> ' + (alocacao.responsavel.telefone || '-');
       }
     } else if (responsavel) {
       responsavel.style.display = 'none';
@@ -10045,6 +10046,21 @@ function exibirAlocacaoHub(alocacao) {
   } else if (folgas) {
     folgas.style.display = 'none';
   }
+}
+
+function whatsappLink(telefone) {
+  if (!telefone) return null;
+  const digits = telefone.replace(/\D/g, '');
+  if (!digits) return null;
+  let number;
+  if (digits.startsWith('55') && digits.length >= 12) {
+    number = digits; // já tem código do país
+  } else if (digits.length >= 10) {
+    number = '55' + digits; // já tem DDD
+  } else {
+    number = '5521' + digits; // assume DDD 21 (Rio de Janeiro)
+  }
+  return `https://wa.me/${number}`;
 }
 
 function renderHubEmbed(containerId, alocacao) {
@@ -10062,7 +10078,7 @@ function renderHubEmbed(containerId, alocacao) {
       tecnicos.forEach((t, i) => {
         linhasTabela += `<tr>`;
         if (i === 0) linhasTabela += `<td rowspan="${tecnicos.length}" style="font-weight:600;background:${bgBadge};">${regiao}</td>`;
-        linhasTabela += `<td>${t.horario || '-'}</td><td>${t.tecnico || '-'}${t.sobreaviso ? ' <span class="badge bg-info">Sobreaviso</span>' : ''}</td><td><a href="tel:${t.telefone}">${t.telefone || '-'}</a></td></tr>`;
+        linhasTabela += `<td>${t.horario || '-'}</td><td>${t.tecnico || '-'}${t.sobreaviso ? ' <span class="badge bg-info">Sobreaviso</span>' : ''}</td><td><a href="${whatsappLink(t.telefone) || '#'}" target="_blank">${t.telefone || '-'}</a></td></tr>`;
       });
     }
     linhasTabela = linhasTabela || `<tr><td colspan="4" class="text-center text-muted">Nenhum tecnico</td></tr>`;
@@ -10071,7 +10087,7 @@ function renderHubEmbed(containerId, alocacao) {
       <td><strong>${t.nome || '-'}</strong></td>
       <td>${t.local || '-'}</td>
       <td>${t.atividade || '-'}${t.observacao ? '<br><small class="text-muted">' + t.observacao + '</small>' : ''}</td>
-      <td><a href="tel:${t.telefone}">${t.telefone || '-'}</a></td>
+      <td><a href="${whatsappLink(t.telefone) || '#'}" target="_blank">${t.telefone || '-'}</a></td>
     </tr>`).join('') || `<tr><td colspan="4" class="text-center text-muted">Nenhum tecnico</td></tr>`;
   }
 
@@ -10080,7 +10096,7 @@ function renderHubEmbed(containerId, alocacao) {
     : '<th>Regiao</th><th>Horario</th><th>Tecnico</th><th>Telefone</th>';
 
   const responsavelHtml = (isMADRUGADA && alocacao.responsavel)
-    ? `<div class="mt-2 small text-muted"><i class="bi bi-person-fill me-1"></i>Responsavel: <strong>${alocacao.responsavel.nome || '-'}</strong>${alocacao.responsavel.telefone ? ' &nbsp;<a href="tel:' + alocacao.responsavel.telefone + '">' + alocacao.responsavel.telefone + '</a>' : ''}</div>`
+    ? `<div class="mt-2 small text-muted"><i class="bi bi-person-fill me-1"></i>Responsavel: <strong>${alocacao.responsavel.nome || '-'}</strong>${alocacao.responsavel.telefone ? ' &nbsp;<a href="' + (whatsappLink(alocacao.responsavel.telefone) || '#') + '" target="_blank"><i class="bi bi-whatsapp"></i> ' + alocacao.responsavel.telefone + '</a>' : ''}</div>`
     : '';
 
   const folgasHtml = (alocacao.folgas && alocacao.folgas.length > 0)
