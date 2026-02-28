@@ -8617,6 +8617,9 @@ function trocarAbaAdmin(abaId) {
     // Atualizar calendário
     carregarCalendarioAtivo();
 
+    // Carregar alocacao HUB embarcada
+    carregarAlocacaoHub();
+
   } else if (abaId === 'rio_es') {
     // Mostrar aba Rio/ES
     if (tabRioEs) tabRioEs.classList.add('active');
@@ -8640,6 +8643,9 @@ function trocarAbaAdmin(abaId) {
 
     // Carregar calendário Rio/ES
     carregarCalendarioEmpresarialGrid('rio_es');
+
+    // Carregar alocacao HUB embarcada
+    carregarAlocacaoHub();
 
   } else if (abaId === 'leste') {
     // Mostrar aba Leste
