@@ -9194,8 +9194,8 @@ function renderCopEmpresarialEmbed(containerId, dados, subEscala) {
 
   } else {
     // --- Painel Leste ---
-    // Exibe cada cluster individualmente com o responsável da escala,
-    // igual ao painel Residencial.
+    // Agrupa os clusters conforme a divisão de áreas da escala e soma o volume.
+    // Ex: CO/MG → Igor (CO:20 + MG:17 = 37), NE/NO/BA → Gabriela (NE:10 + NO:102 + BA:9 = 121)
 
     function getCodigoClusterLeste(nome) {
       const l = nome.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
@@ -9207,28 +9207,39 @@ function renderCopEmpresarialEmbed(containerId, dados, subEscala) {
       return null;
     }
 
-    function encontrarResponsavelLeste(codigo) {
-      // 1. Match primário: código é o PRIMEIRO segmento da área (ex: 'CO' em 'CO/NE')
-      for (const [area, pessoa] of Object.entries(divisaoDia)) {
-        if (area.split('/')[0].trim() === codigo) return pessoa || '-';
-      }
-      // 2. Fallback: código aparece em qualquer posição (ex: 'BA' em 'APOIO SIR/BA')
-      for (const [area, pessoa] of Object.entries(divisaoDia)) {
-        if (area.split('/').map(p => p.trim()).includes(codigo)) return pessoa || '-';
-      }
-      return '-';
-    }
-
+    // Monta mapa: código do cluster → volume total
+    const volumePorCodigo = {};
     for (const [grupoNome, quantidade] of Object.entries(ultimaMensagem.resumo.grupo)) {
       if (clusterPertenceRioES(grupoNome)) continue;
       const codigo = getCodigoClusterLeste(grupoNome);
-      const responsavel = codigo ? encontrarResponsavelLeste(codigo) : '-';
-      areasHTML += `
-        <div class="area-summary-item ${getCorVolume(quantidade)}">
-          <span class="area-name">${grupoNome}</span>
-          <span class="area-volume">${quantidade}</span>
-          <span class="area-responsible"><i class="bi bi-person me-1"></i>${responsavel}</span>
-        </div>`;
+      if (codigo) volumePorCodigo[codigo] = (volumePorCodigo[codigo] || 0) + quantidade;
+    }
+
+    if (Object.keys(divisaoDia).length > 0) {
+      // Com escala: agrupa por área da divisão e soma os volumes dos clusters
+      for (const [area, pessoa] of Object.entries(divisaoDia)) {
+        if (clusterPertenceRioES(area)) continue;
+        const codigos = area.split('/').map(c => c.trim());
+        const volume = codigos.reduce((sum, cod) => sum + (volumePorCodigo[cod] || 0), 0);
+        const firstName = extrairPrimeiroNome(pessoa || '') || '-';
+        areasHTML += `
+          <div class="area-summary-item ${getCorVolume(volume)}">
+            <span class="area-name">${area}</span>
+            <span class="area-volume">${volume}</span>
+            <span class="area-responsible"><i class="bi bi-person me-1"></i>${firstName}</span>
+          </div>`;
+      }
+    } else {
+      // Sem escala carregada: exibe clusters individuais sem responsável
+      for (const [grupoNome, quantidade] of Object.entries(ultimaMensagem.resumo.grupo)) {
+        if (clusterPertenceRioES(grupoNome)) continue;
+        areasHTML += `
+          <div class="area-summary-item ${getCorVolume(quantidade)}">
+            <span class="area-name">${grupoNome}</span>
+            <span class="area-volume">${quantidade}</span>
+            <span class="area-responsible"><i class="bi bi-person me-1"></i>-</span>
+          </div>`;
+      }
     }
   }
 
