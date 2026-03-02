@@ -1,42 +1,39 @@
 /**
  * ═══════════════════════════════════════════════════════════════════════════
- * DESIGN SYSTEM - TEMA VERDE PROFISSIONAL
+ * DESIGN SYSTEM - TEMA CLARO BRASIL
  * ═══════════════════════════════════════════════════════════════════════════
  *
- * Uso: Adicione este arquivo ao seu projeto e use as classes disponíveis.
+ * Paleta: Vermelho Claro Brasil (#E4002B), Branco e Cinza
  *
  * <link rel="stylesheet" href="design-system.css">
- *
- * Dependências opcionais:
- * - Font Awesome: https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css
  *
  * ═══════════════════════════════════════════════════════════════════════════
  */
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   1. VARIÁVEIS CSS (Customize aqui para alterar o tema)
+   1. VARIÁVEIS CSS
    ═══════════════════════════════════════════════════════════════════════════ */
 :root {
-    /* Cores Primárias */
-    --ds-primary-50: #e8f5e9;
-    --ds-primary-100: #c8e6c9;
-    --ds-primary-200: #a5d6a7;
-    --ds-primary-300: #81c784;
-    --ds-primary-400: #66bb6a;
-    --ds-primary-500: #4caf50;
-    --ds-primary-600: #43a047;
-    --ds-primary-700: #388e3c;
-    --ds-primary-800: #2e7d32;
-    --ds-primary-900: #1b5e20;
+    /* Cores Primárias - Vermelho Claro Brasil */
+    --ds-primary-50:  #FFF0F2;
+    --ds-primary-100: #FFD6DA;
+    --ds-primary-200: #FFAAB3;
+    --ds-primary-300: #FF7B89;
+    --ds-primary-400: #FF4056;
+    --ds-primary-500: #E4002B;   /* Vermelho oficial Claro Brasil */
+    --ds-primary-600: #CC0025;
+    --ds-primary-700: #B00020;
+    --ds-primary-800: #8B001A;
+    --ds-primary-900: #6A0014;
 
-    /* Cores de Erro/Perigo */
+    /* Cores de Erro/Perigo (mantidas para contexto de status) */
     --ds-danger-500: #f44336;
     --ds-danger-600: #e53935;
     --ds-danger-700: #d32f2f;
     --ds-danger-800: #c62828;
 
     /* Cores Neutras */
-    --ds-gray-50: #fafafa;
+    --ds-gray-50:  #fafafa;
     --ds-gray-100: #f5f5f5;
     --ds-gray-200: #eeeeee;
     --ds-gray-300: #e0e0e0;
@@ -48,58 +45,58 @@
     --ds-gray-900: #212121;
 
     /* Cores de Texto */
-    --ds-text-primary: #263238;
-    --ds-text-secondary: #616161;
-    --ds-text-muted: #757575;
-    --ds-text-white: #ffffff;
+    --ds-text-primary:   #1A1A1A;
+    --ds-text-secondary: #555555;
+    --ds-text-muted:     #888888;
+    --ds-text-white:     #ffffff;
 
     /* Cores de Fundo */
-    --ds-bg-gradient: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 50%, #a5d6a7 100%);
-    --ds-bg-header: linear-gradient(135deg, #2e7d32 0%, #388e3c 50%, #43a047 100%);
-    --ds-bg-button: linear-gradient(135deg, #2e7d32 0%, #388e3c 100%);
-    --ds-bg-button-hover: linear-gradient(135deg, #1b5e20 0%, #2e7d32 100%);
-    --ds-bg-button-secondary: linear-gradient(135deg, #66bb6a 0%, #81c784 100%);
-    --ds-bg-danger: linear-gradient(135deg, #f44336 0%, #e53935 100%);
+    --ds-bg-gradient:          linear-gradient(150deg, #FFFFFF 0%, #FFF5F6 50%, #FFF0F2 100%);
+    --ds-bg-header:            linear-gradient(135deg, #E4002B 0%, #B00020 50%, #8B001A 100%);
+    --ds-bg-button:            linear-gradient(135deg, #E4002B 0%, #CC0025 100%);
+    --ds-bg-button-hover:      linear-gradient(135deg, #B00020 0%, #8B001A 100%);
+    --ds-bg-button-secondary:  linear-gradient(135deg, #FF4056 0%, #FF6B7A 100%);
+    --ds-bg-danger:            linear-gradient(135deg, #f44336 0%, #e53935 100%);
 
-    /* Tipografia */
-    --ds-font-family: 'Segoe UI', 'Inter', -apple-system, BlinkMacSystemFont, Arial, sans-serif;
-    --ds-font-mono: 'Courier New', 'Consolas', monospace;
-    --ds-font-size-xs: 10px;
-    --ds-font-size-sm: 11px;
+    /* Tipografia — Inter (moderna, legível) */
+    --ds-font-family: 'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif;
+    --ds-font-mono:   'Courier New', 'Consolas', monospace;
+    --ds-font-size-xs:   10px;
+    --ds-font-size-sm:   11px;
     --ds-font-size-base: 12px;
-    --ds-font-size-md: 13px;
-    --ds-font-size-lg: 16px;
-    --ds-font-size-xl: 18px;
-    --ds-font-size-2xl: 22px;
-    --ds-line-height: 1.5;
+    --ds-font-size-md:   13px;
+    --ds-font-size-lg:   16px;
+    --ds-font-size-xl:   18px;
+    --ds-font-size-2xl:  22px;
+    --ds-line-height:    1.5;
 
     /* Espaçamentos */
-    --ds-spacing-xs: 4px;
-    --ds-spacing-sm: 6px;
-    --ds-spacing-md: 8px;
-    --ds-spacing-lg: 10px;
-    --ds-spacing-xl: 12px;
+    --ds-spacing-xs:  4px;
+    --ds-spacing-sm:  6px;
+    --ds-spacing-md:  8px;
+    --ds-spacing-lg:  10px;
+    --ds-spacing-xl:  12px;
     --ds-spacing-2xl: 14px;
     --ds-spacing-3xl: 16px;
     --ds-spacing-4xl: 18px;
     --ds-spacing-5xl: 20px;
 
     /* Bordas */
-    --ds-border-radius-sm: 5px;
-    --ds-border-radius-md: 6px;
-    --ds-border-radius-lg: 8px;
-    --ds-border-radius-xl: 12px;
+    --ds-border-radius-sm:  5px;
+    --ds-border-radius-md:  6px;
+    --ds-border-radius-lg:  8px;
+    --ds-border-radius-xl:  12px;
     --ds-border-radius-2xl: 14px;
 
     /* Sombras */
-    --ds-shadow-sm: 0 2px 6px rgba(0, 0, 0, 0.05);
-    --ds-shadow-md: 0 3px 12px rgba(0, 0, 0, 0.08), 0 1px 3px rgba(0, 0, 0, 0.04);
-    --ds-shadow-lg: 0 6px 24px rgba(46, 125, 50, 0.25), 0 2px 6px rgba(0, 0, 0, 0.1);
-    --ds-shadow-primary: 0 3px 8px rgba(46, 125, 50, 0.3), 0 1px 3px rgba(0, 0, 0, 0.1);
-    --ds-shadow-danger: 0 2px 6px rgba(244, 67, 54, 0.3);
+    --ds-shadow-sm:      0 2px 6px rgba(0, 0, 0, 0.05);
+    --ds-shadow-md:      0 3px 12px rgba(0, 0, 0, 0.08), 0 1px 3px rgba(0, 0, 0, 0.04);
+    --ds-shadow-lg:      0 6px 24px rgba(228, 0, 43, 0.2), 0 2px 6px rgba(0, 0, 0, 0.08);
+    --ds-shadow-primary: 0 3px 8px rgba(228, 0, 43, 0.3), 0 1px 3px rgba(0, 0, 0, 0.1);
+    --ds-shadow-danger:  0 2px 6px rgba(244, 67, 54, 0.3);
 
     /* Transições */
-    --ds-transition-fast: 0.2s ease;
+    --ds-transition-fast:   0.2s ease;
     --ds-transition-normal: 0.3s ease;
     --ds-transition-smooth: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 
@@ -127,7 +124,7 @@
    3. LAYOUT
    ═══════════════════════════════════════════════════════════════════════════ */
 
-/* Background com gradiente */
+/* Background */
 .ds-bg-gradient {
     background: var(--ds-bg-gradient);
     min-height: 100vh;
@@ -143,8 +140,8 @@
     right: 0;
     bottom: 0;
     background:
-        radial-gradient(circle at 20% 50%, rgba(76, 175, 80, 0.1) 0%, transparent 50%),
-        radial-gradient(circle at 80% 80%, rgba(46, 125, 50, 0.1) 0%, transparent 50%);
+        radial-gradient(circle at 20% 50%, rgba(228, 0, 43, 0.04) 0%, transparent 50%),
+        radial-gradient(circle at 80% 80%, rgba(176, 0, 32, 0.04) 0%, transparent 50%);
     pointer-events: none;
     z-index: 0;
 }
@@ -194,7 +191,7 @@
     left: -100%;
     width: 100%;
     height: 100%;
-    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.08), transparent);
     transition: left 0.5s ease;
 }
 
@@ -211,8 +208,9 @@
     margin-bottom: var(--ds-spacing-sm);
     font-size: var(--ds-font-size-2xl);
     font-weight: 700;
-    text-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+    text-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
     color: var(--ds-text-white);
+    letter-spacing: -0.3px;
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -224,7 +222,7 @@
     padding: var(--ds-spacing-5xl);
     margin-bottom: var(--ds-spacing-3xl);
     box-shadow: var(--ds-shadow-md);
-    border: 1px solid rgba(76, 175, 80, 0.1);
+    border: 1px solid rgba(228, 0, 43, 0.08);
     border-left: 3px solid var(--ds-primary-500);
     transition: var(--ds-transition-smooth);
     position: relative;
@@ -248,7 +246,7 @@
 
 .ds-card:hover {
     transform: translateY(-4px);
-    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.12), 0 4px 8px rgba(0, 0, 0, 0.06);
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.1), 0 4px 8px rgba(0, 0, 0, 0.05);
 }
 
 .ds-card-title {
@@ -304,7 +302,7 @@
 .ds-input:hover,
 .ds-select:hover,
 .ds-textarea:hover {
-    border-color: var(--ds-primary-100);
+    border-color: var(--ds-primary-200);
     background: var(--ds-gray-100);
 }
 
@@ -314,7 +312,7 @@
     outline: none;
     border-color: var(--ds-primary-500);
     background: white;
-    box-shadow: 0 0 0 2px rgba(76, 175, 80, 0.1), 0 2px 8px rgba(76, 175, 80, 0.15);
+    box-shadow: 0 0 0 3px rgba(228, 0, 43, 0.1), 0 2px 8px rgba(228, 0, 43, 0.12);
 }
 
 .ds-input-hint {
@@ -354,6 +352,7 @@
     box-shadow: var(--ds-shadow-primary);
     position: relative;
     overflow: hidden;
+    letter-spacing: 0.2px;
 }
 
 .ds-btn::before {
@@ -377,7 +376,7 @@
 .ds-btn:hover {
     background: var(--ds-bg-button-hover);
     transform: translateY(-2px);
-    box-shadow: 0 6px 20px rgba(46, 125, 50, 0.4), 0 3px 8px rgba(0, 0, 0, 0.15);
+    box-shadow: 0 6px 20px rgba(228, 0, 43, 0.4), 0 3px 8px rgba(0, 0, 0, 0.12);
 }
 
 .ds-btn:active {
@@ -394,12 +393,15 @@
 
 /* Variantes de botão */
 .ds-btn-secondary {
-    background: var(--ds-bg-button-secondary);
-    color: var(--ds-primary-900);
+    background: linear-gradient(135deg, #f5f5f5 0%, #e0e0e0 100%);
+    color: var(--ds-gray-800);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
 }
 
 .ds-btn-secondary:hover {
-    background: linear-gradient(135deg, var(--ds-primary-500) 0%, var(--ds-primary-400) 100%);
+    background: linear-gradient(135deg, #e0e0e0 0%, #cccccc 100%);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    color: var(--ds-gray-900);
 }
 
 .ds-btn-danger {
@@ -420,7 +422,7 @@
 .ds-btn-icon {
     padding: var(--ds-spacing-md) var(--ds-spacing-lg);
     background: linear-gradient(135deg, var(--ds-primary-500) 0%, var(--ds-primary-400) 100%);
-    box-shadow: 0 2px 6px rgba(76, 175, 80, 0.3);
+    box-shadow: 0 2px 6px rgba(228, 0, 43, 0.3);
     margin-top: 0;
 }
 
@@ -578,7 +580,7 @@
 }
 
 .ds-accordion-header:hover {
-    background: rgba(76, 175, 80, 0.05);
+    background: rgba(228, 0, 43, 0.04);
 }
 
 .ds-accordion-header .ds-card-title {
@@ -611,7 +613,7 @@
    11. OUTPUT/CODE
    ═══════════════════════════════════════════════════════════════════════════ */
 .ds-output {
-    background: linear-gradient(135deg, #f1f8e9 0%, var(--ds-primary-50) 100%);
+    background: linear-gradient(135deg, #fff5f6 0%, var(--ds-primary-50) 100%);
     padding: var(--ds-spacing-2xl);
     border-radius: var(--ds-border-radius-lg);
     border: 1px solid var(--ds-primary-100);
@@ -622,7 +624,7 @@
     white-space: pre-wrap;
     max-height: 350px;
     overflow-y: auto;
-    box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.05);
+    box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.04);
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -634,8 +636,8 @@
     left: 0;
     width: 100%;
     height: 100%;
-    background: rgba(0, 0, 0, 0.7);
-    backdrop-filter: blur(8px);
+    background: rgba(0, 0, 0, 0.65);
+    backdrop-filter: blur(6px);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -653,8 +655,8 @@
     padding: 30px;
     max-width: 360px;
     text-align: center;
-    box-shadow: 0 18px 48px rgba(0, 0, 0, 0.25), 0 6px 12px rgba(0, 0, 0, 0.15);
-    animation: ds-slideIn 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+    box-shadow: 0 20px 52px rgba(0, 0, 0, 0.2), 0 6px 12px rgba(0, 0, 0, 0.1);
+    animation: ds-slideIn 0.45s cubic-bezier(0.68, -0.55, 0.265, 1.55);
     border: 2px solid var(--ds-primary-500);
     position: relative;
     overflow: hidden;
@@ -673,7 +675,7 @@
 }
 
 .ds-popup-text {
-    color: #558b2f;
+    color: var(--ds-primary-700);
     font-size: var(--ds-font-size-md);
     margin-bottom: var(--ds-spacing-5xl);
     font-style: italic;
@@ -705,29 +707,13 @@
     display: none !important;
 }
 
-.ds-text-center {
-    text-align: center;
-}
+.ds-text-center { text-align: center; }
+.ds-text-right  { text-align: right; }
 
-.ds-text-right {
-    text-align: right;
-}
-
-.ds-text-primary {
-    color: var(--ds-primary-500);
-}
-
-.ds-text-danger {
-    color: var(--ds-danger-500);
-}
-
-.ds-text-muted {
-    color: var(--ds-text-muted);
-}
-
-.ds-text-bold {
-    font-weight: 700;
-}
+.ds-text-primary { color: var(--ds-primary-500); }
+.ds-text-danger  { color: var(--ds-danger-500); }
+.ds-text-muted   { color: var(--ds-text-muted); }
+.ds-text-bold    { font-weight: 700; }
 
 .ds-mt-sm { margin-top: var(--ds-spacing-sm); }
 .ds-mt-md { margin-top: var(--ds-spacing-md); }
@@ -739,8 +725,8 @@
 .ds-mb-lg { margin-bottom: var(--ds-spacing-lg); }
 .ds-mb-xl { margin-bottom: var(--ds-spacing-xl); }
 
-.ds-flex { display: flex; }
-.ds-flex-wrap { flex-wrap: wrap; }
+.ds-flex         { display: flex; }
+.ds-flex-wrap    { flex-wrap: wrap; }
 .ds-items-center { align-items: center; }
 .ds-justify-between { justify-content: space-between; }
 .ds-gap-sm { gap: var(--ds-spacing-sm); }
@@ -752,7 +738,7 @@
    ═══════════════════════════════════════════════════════════════════════════ */
 @keyframes ds-fadeIn {
     from { opacity: 0; }
-    to { opacity: 1; }
+    to   { opacity: 1; }
 }
 
 @keyframes ds-slideIn {
@@ -779,8 +765,8 @@
 
 @keyframes ds-shake {
     0%, 100% { transform: translateX(0); }
-    25% { transform: translateX(-5px); }
-    75% { transform: translateX(5px); }
+    25%       { transform: translateX(-5px); }
+    75%       { transform: translateX(5px); }
 }
 
 .ds-animate-pulse {
@@ -844,27 +830,27 @@
 .ds-scrollbar::-webkit-scrollbar,
 .ds-list::-webkit-scrollbar,
 .ds-output::-webkit-scrollbar {
-    width: 10px;
-    height: 10px;
+    width: 8px;
+    height: 8px;
 }
 
 .ds-scrollbar::-webkit-scrollbar-track,
 .ds-list::-webkit-scrollbar-track,
 .ds-output::-webkit-scrollbar-track {
     background: var(--ds-gray-100);
-    border-radius: 5px;
+    border-radius: 4px;
 }
 
 .ds-scrollbar::-webkit-scrollbar-thumb,
 .ds-list::-webkit-scrollbar-thumb,
 .ds-output::-webkit-scrollbar-thumb {
-    background: linear-gradient(135deg, var(--ds-primary-500), var(--ds-primary-400));
-    border-radius: 5px;
+    background: linear-gradient(135deg, var(--ds-primary-400), var(--ds-primary-600));
+    border-radius: 4px;
     border: 2px solid var(--ds-gray-100);
 }
 
 .ds-scrollbar::-webkit-scrollbar-thumb:hover,
 .ds-list::-webkit-scrollbar-thumb:hover,
 .ds-output::-webkit-scrollbar-thumb:hover {
-    background: linear-gradient(135deg, var(--ds-primary-700), var(--ds-primary-500));
+    background: linear-gradient(135deg, var(--ds-primary-600), var(--ds-primary-800));
 }
