@@ -6,6 +6,9 @@
   <title>Portal de divisão de tarefas</title>
 
   <!-- CSS & Libs -->
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"/>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet"/>
   <link rel="stylesheet" href="design-system.css"/>
@@ -15,22 +18,23 @@
 
   <style>
     :root {
-      --primary: #2e7d32;
-      --primary-dark: #1b5e20;
-      --primary-light: #4caf50;
-      --accent: #81c784;
-      --light-bg: #f8fdf8;
-      --card-bg: #ffffff;
-      --text-dark: #1a1a1a;
-      --text-muted: #666666;
-      --border-color: #e0e0e0;
-      --success: #4caf50;
-      --danger: #f44336;
-      --info: #2196f3;
-      --warning: #ff9800;
-      --calendar-bg: #ffffff;
+      /* Claro Brasil - Vermelho principal */
+      --primary:       #E4002B;
+      --primary-dark:  #B00020;
+      --primary-light: #FF4056;
+      --accent:        #FF8A99;
+      --light-bg:      #FAFAFA;
+      --card-bg:       #ffffff;
+      --text-dark:     #1A1A1A;
+      --text-muted:    #666666;
+      --border-color:  #E0E0E0;
+      --success:       #4caf50;
+      --danger:        #f44336;
+      --info:          #2196f3;
+      --warning:       #ff9800;
+      --calendar-bg:   #ffffff;
       --calendar-header: #f5f5f5;
-      --calendar-today: #e8f5e9;
+      --calendar-today:  #FFF0F2;
     }
     
     * {
@@ -39,7 +43,7 @@
     
     body {
       /* Background now handled by ds-bg-gradient class */
-      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
       color: var(--text-dark);
       line-height: 1.5;
       min-height: 100vh;
@@ -47,19 +51,20 @@
     }
     
     .app-header {
-      background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+      background: linear-gradient(135deg, #E4002B 0%, #B00020 55%, #8B001A 100%);
       color: #fff;
       padding: 1.25rem 0;
       margin: 15px 15px 0 15px;
       position: relative;
       z-index: 100;
-      box-shadow: 0 4px 15px rgba(0,0,0,0.3), 0 2px 6px rgba(0,0,0,0.2);
+      box-shadow: 0 4px 18px rgba(228,0,43,0.35), 0 2px 6px rgba(0,0,0,0.15);
       border-radius: var(--ds-border-radius-xl, 12px);
     }
 
     .app-header h1 {
-      text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
-      letter-spacing: 0.5px;
+      text-shadow: 0 2px 4px rgba(0,0,0,0.25);
+      letter-spacing: -0.2px;
+      font-weight: 700;
     }
     
     .brand-dot {
@@ -110,12 +115,12 @@
       margin: 0.75rem auto 1.5rem auto;
       max-width: calc(1200px - 30px);
       width: calc(100% - 30px);
-      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.08);
       display: flex;
       justify-content: center;
       gap: 0.75rem;
       align-items: center;
-      border-left: 4px solid var(--primary);
+      border-left: 4px solid #E4002B;
       position: relative;
     }
 
@@ -127,7 +132,7 @@
     }
     
     .refresh-btn {
-      background: var(--primary);
+      background: #E4002B;
       color: white;
       border: none;
       border-radius: 8px;
@@ -137,14 +142,14 @@
       align-items: center;
       justify-content: center;
       cursor: pointer;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+      box-shadow: 0 2px 6px rgba(228,0,43,0.25);
       transition: all 0.3s;
     }
-    
+
     .refresh-btn:hover {
-      background: var(--primary-dark);
+      background: #B00020;
       transform: translateY(-2px);
-      box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+      box-shadow: 0 4px 10px rgba(228,0,43,0.35);
     }
     
     /* Botão Upload - Amarelo suave */
@@ -168,14 +173,14 @@
       background: linear-gradient(135deg, #ff5722 0%, #f4511e 100%);
     }
 
-    /* Botão Refresh admin - Verde */
+    /* Botão Refresh admin - Cinza neutro */
     .admin-controls .refresh-btn:not(.upload-admin):not(.delete-admin):not(.logout-admin) {
-      background: linear-gradient(135deg, #66bb6a 0%, #4caf50 100%);
+      background: linear-gradient(135deg, #757575 0%, #616161 100%);
       color: white;
     }
 
     .admin-controls .refresh-btn:not(.upload-admin):not(.delete-admin):not(.logout-admin):hover {
-      background: linear-gradient(135deg, #4caf50 0%, #43a047 100%);
+      background: linear-gradient(135deg, #616161 0%, #424242 100%);
     }
 
     /* Botão Logout - Vermelho suave */
@@ -217,9 +222,9 @@
     }
     
     .mode-indicator.viewer {
-      background: rgba(46, 125, 50, 0.15);
-      color: var(--primary-dark);
-      border-left: 4px solid var(--primary);
+      background: rgba(228, 0, 43, 0.1);
+      color: #B00020;
+      border-left: 4px solid #E4002B;
     }
 
     /* Botão Agendar trocas - estilo similar ao mode-indicator */
@@ -291,7 +296,7 @@
     
     .config-header {
       padding: 0.75rem 1rem;
-      background: #f8fff8;
+      background: #FFF5F6;
       border-bottom: 1px solid var(--border-color);
       cursor: pointer;
       display: flex;
@@ -299,7 +304,7 @@
       justify-content: space-between;
       font-size: 0.9rem;
       font-weight: 500;
-      color: var(--primary);
+      color: #E4002B;
     }
     
     .config-header i {
@@ -342,15 +347,45 @@
       background: white;
     }
     
-    /* Calendário Tradicional - Design System Style */
+    /* ─── Bootstrap: sobrescreve primary com Claro Brasil vermelho ─── */
+    :root {
+      --bs-primary: #E4002B;
+      --bs-primary-rgb: 228, 0, 43;
+      --bs-link-color: #E4002B;
+      --bs-link-hover-color: #B00020;
+    }
+
+    /* ─── Override Bootstrap para tema Claro Brasil ─── */
+    .btn-success,
+    .btn-success:focus {
+      background-color: #E4002B;
+      border-color: #B00020;
+      color: white;
+    }
+    .btn-success:hover,
+    .btn-success:active {
+      background-color: #B00020 !important;
+      border-color: #8B001A !important;
+    }
+    .btn-outline-success {
+      color: #E4002B;
+      border-color: #E4002B;
+    }
+    .btn-outline-success:hover {
+      background-color: #E4002B;
+      border-color: #E4002B;
+      color: white;
+    }
+
+    /* ─── Calendário — Tema Claro Brasil ─── */
     .calendar-container {
       background: white;
       border-radius: var(--ds-border-radius-xl, 12px);
       padding: var(--ds-spacing-5xl, 20px);
       margin-bottom: var(--ds-spacing-3xl, 16px);
       box-shadow: var(--ds-shadow-md, 0 3px 12px rgba(0, 0, 0, 0.08));
-      border: 1px solid rgba(76, 175, 80, 0.1);
-      border-left: 4px solid var(--ds-primary-500, #4caf50);
+      border: 1px solid rgba(228, 0, 43, 0.08);
+      border-left: 4px solid var(--ds-primary-500, #E4002B);
       transition: var(--ds-transition-smooth, 0.3s cubic-bezier(0.4, 0, 0.2, 1));
       position: relative;
       overflow: hidden;
@@ -363,7 +398,7 @@
       left: 0;
       width: 4px;
       height: 0;
-      background: linear-gradient(180deg, var(--ds-primary-500, #4caf50), var(--ds-primary-300, #81c784));
+      background: linear-gradient(180deg, var(--ds-primary-500, #E4002B), var(--ds-primary-300, #FF7B89));
       transition: height 0.3s ease;
     }
 
@@ -373,7 +408,7 @@
 
     .calendar-container:hover {
       transform: translateY(-4px);
-      box-shadow: 0 12px 32px rgba(0, 0, 0, 0.12), 0 4px 8px rgba(0, 0, 0, 0.06);
+      box-shadow: 0 12px 32px rgba(0, 0, 0, 0.1), 0 4px 8px rgba(0, 0, 0, 0.05);
     }
 
     .calendar-header {
@@ -382,13 +417,13 @@
       align-items: center;
       margin-bottom: var(--ds-spacing-4xl, 18px);
       padding-bottom: var(--ds-spacing-lg, 10px);
-      border-bottom: 2px solid var(--ds-primary-500, #4caf50);
+      border-bottom: 2px solid var(--ds-primary-500, #E4002B);
     }
 
     .calendar-title {
       font-size: var(--ds-font-size-lg, 16px);
       font-weight: 700;
-      color: var(--ds-primary-800, #2e7d32);
+      color: var(--ds-primary-800, #8B001A);
       margin: 0;
       display: flex;
       align-items: center;
@@ -396,7 +431,7 @@
     }
 
     .calendar-title i {
-      color: var(--ds-primary-500, #4caf50);
+      color: var(--ds-primary-500, #E4002B);
       font-size: var(--ds-font-size-xl, 18px);
     }
 
@@ -420,12 +455,12 @@
     }
 
     .escala-tipo-badge.residencial {
-      background: linear-gradient(135deg, #4caf50 0%, #2e7d32 100%);
+      background: linear-gradient(135deg, #E4002B 0%, #B00020 100%);
       color: white;
     }
 
     .escala-tipo-badge.empresarial {
-      background: linear-gradient(135deg, #4caf50 0%, #2e7d32 100%);
+      background: linear-gradient(135deg, #E4002B 0%, #B00020 100%);
       color: white;
     }
 
@@ -435,7 +470,7 @@
     }
 
     .calendar-nav-btn {
-      background: linear-gradient(135deg, var(--ds-primary-500, #4caf50) 0%, var(--ds-primary-400, #66bb6a) 100%);
+      background: linear-gradient(135deg, #E4002B 0%, #CC0025 100%);
       border: none;
       border-radius: var(--ds-border-radius-md, 6px);
       width: 36px;
@@ -446,7 +481,7 @@
       cursor: pointer;
       font-size: 0.85rem;
       color: white;
-      box-shadow: 0 2px 6px rgba(76, 175, 80, 0.3);
+      box-shadow: 0 2px 6px rgba(228, 0, 43, 0.3);
       transition: var(--ds-transition-smooth, 0.3s ease);
       position: relative;
       overflow: hidden;
@@ -471,9 +506,9 @@
     }
 
     .calendar-nav-btn:hover {
-      background: linear-gradient(135deg, var(--ds-primary-700, #388e3c) 0%, var(--ds-primary-500, #4caf50) 100%);
+      background: linear-gradient(135deg, #B00020 0%, #8B001A 100%);
       transform: translateY(-2px);
-      box-shadow: 0 4px 12px rgba(76, 175, 80, 0.4);
+      box-shadow: 0 4px 12px rgba(228, 0, 43, 0.45);
     }
 
     .calendar-nav-btn:active {
@@ -484,9 +519,9 @@
     .swap-controls {
       margin-bottom: 1rem;
       padding: 0.75rem;
-      background: #f8fff8;
+      background: #FFF5F6;
       border-radius: 8px;
-      border: 1px solid var(--border-color);
+      border: 1px solid #FFD6DA;
       display: flex;
       align-items: center;
       gap: 1rem;
@@ -508,7 +543,7 @@
     .swap-toggle label {
       font-size: 0.85rem;
       font-weight: 500;
-      color: var(--primary);
+      color: #E4002B;
       cursor: pointer;
       margin: 0;
     }
@@ -525,28 +560,28 @@
       font-weight: 500;
     }
     
-    /* Grid do Calendário - Design System Style */
+    /* Grid do Calendário — Claro Brasil */
     .calendar-grid {
       display: grid;
       grid-template-columns: repeat(7, 1fr);
       gap: 2px;
-      background: linear-gradient(135deg, var(--ds-primary-200, #a5d6a7) 0%, var(--ds-primary-100, #c8e6c9) 100%);
-      border: 1px solid var(--ds-primary-200, #a5d6a7);
+      background: #E0E0E0;
+      border: 1px solid #CCCCCC;
       border-radius: var(--ds-border-radius-lg, 8px);
       overflow: hidden;
-      box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.05);
+      box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.04);
     }
 
-    /* Cabeçalho dos dias da semana - Design System Style */
+    /* Cabeçalho dos dias da semana */
     .calendar-weekday {
-      background: linear-gradient(135deg, var(--ds-primary-700, #388e3c) 0%, var(--ds-primary-600, #43a047) 100%);
+      background: linear-gradient(135deg, #E4002B 0%, #B00020 100%);
       padding: 0.85rem 0.5rem;
       text-align: center;
-      font-size: 0.8rem;
+      font-size: 0.78rem;
       font-weight: 700;
       color: white;
       text-transform: uppercase;
-      letter-spacing: 0.5px;
+      letter-spacing: 0.6px;
       text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
     }
 
@@ -569,7 +604,7 @@
       left: 50%;
       width: 0;
       height: 3px;
-      background: linear-gradient(90deg, var(--ds-primary-400, #66bb6a), var(--ds-primary-500, #4caf50));
+      background: linear-gradient(90deg, #FF4056, #E4002B);
       transform: translateX(-50%);
       transition: width 0.3s ease;
       border-radius: 3px 3px 0 0;
@@ -580,10 +615,10 @@
     }
 
     .calendar-day:hover {
-      background: linear-gradient(135deg, var(--ds-primary-50, #e8f5e9) 0%, white 100%);
+      background: linear-gradient(135deg, #FFF0F2 0%, white 100%);
       transform: scale(1.02);
       z-index: 2;
-      box-shadow: 0 4px 12px rgba(76, 175, 80, 0.2);
+      box-shadow: 0 4px 12px rgba(228, 0, 43, 0.15);
     }
 
     .calendar-day.empty {
@@ -602,8 +637,8 @@
     }
 
     .calendar-day.today {
-      background: linear-gradient(135deg, var(--ds-primary-100, #c8e6c9) 0%, var(--ds-primary-50, #e8f5e9) 100%);
-      border-left: 4px solid var(--ds-primary-500, #4caf50);
+      background: linear-gradient(135deg, #FFD6DA 0%, #FFF0F2 100%);
+      border-left: 4px solid #E4002B;
     }
 
     .calendar-day.today::before {
@@ -614,17 +649,17 @@
       font-size: 0.6rem;
       font-weight: 700;
       color: white;
-      background: linear-gradient(135deg, var(--ds-primary-600, #43a047) 0%, var(--ds-primary-500, #4caf50) 100%);
+      background: linear-gradient(135deg, #E4002B 0%, #B00020 100%);
       padding: 2px 6px;
       border-radius: 10px;
       text-transform: uppercase;
       letter-spacing: 0.5px;
-      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
+      box-shadow: 0 2px 4px rgba(228, 0, 43, 0.3);
     }
 
     .calendar-day.has-data {
-      border-left: 4px solid var(--ds-primary-400, #66bb6a);
-      background: linear-gradient(90deg, rgba(200, 230, 201, 0.3) 0%, white 10%);
+      border-left: 4px solid #E4002B;
+      background: linear-gradient(90deg, rgba(228, 0, 43, 0.06) 0%, white 12%);
     }
 
     /* Estilo para dias selecionados para troca */
@@ -651,42 +686,44 @@
     .calendar-day-number {
       font-size: 1rem;
       font-weight: 700;
-      color: var(--ds-primary-800, #2e7d32);
+      color: #1A1A1A;
       margin-bottom: 0.3rem;
     }
 
     .calendar-day-week {
       font-size: 0.7rem;
-      color: var(--ds-text-secondary, #616161);
+      color: #888888;
       text-transform: uppercase;
       margin-bottom: 0.3rem;
       font-weight: 500;
-      letter-spacing: 0.3px;
+      letter-spacing: 0.4px;
     }
 
+    /* Vermelho Claro = dias com trabalhadores */
     .calendar-day-stats {
       font-size: 0.7rem;
-      color: var(--ds-primary-800, #2e7d32);
-      background: linear-gradient(135deg, var(--ds-primary-100, #c8e6c9) 0%, var(--ds-primary-50, #e8f5e9) 100%);
+      color: white;
+      background: linear-gradient(135deg, #E4002B 0%, #CC0025 100%);
       padding: 0.2rem 0.5rem;
       border-radius: 12px;
       display: inline-block;
       font-weight: 600;
       margin-top: auto;
-      border: 1px solid var(--ds-primary-200, #a5d6a7);
-      box-shadow: 0 1px 3px rgba(76, 175, 80, 0.15);
+      border: 1px solid #B00020;
+      box-shadow: 0 1px 4px rgba(228, 0, 43, 0.25);
     }
 
+    /* Cinza = ausentes (neutro, não agressivo) */
     .calendar-day-absent {
       font-size: 0.7rem;
-      color: var(--ds-danger-700, #d32f2f);
-      background: linear-gradient(135deg, #ffebee 0%, #ffcdd2 100%);
+      color: #555555;
+      background: linear-gradient(135deg, #F5F5F5 0%, #E8E8E8 100%);
       padding: 0.2rem 0.5rem;
       border-radius: 12px;
       display: inline-block;
       margin-top: 0.25rem;
       font-weight: 600;
-      border: 1px solid #ffcdd2;
+      border: 1px solid #CCCCCC;
     }
 
     /* Animação de pulse do design system */
@@ -833,11 +870,11 @@
       background: rgba(255, 0, 0, 0.3);
     }
 
-    /* Modal para Detalhes do Dia - Design System Style */
+    /* Modal para Detalhes do Dia */
     .day-modal .modal-content {
       border-radius: var(--ds-border-radius-2xl, 14px);
-      border: 2px solid var(--ds-primary-500, #4caf50);
-      box-shadow: 0 18px 48px rgba(0, 0, 0, 0.25), 0 6px 12px rgba(0, 0, 0, 0.15);
+      border: 2px solid #E4002B;
+      box-shadow: 0 20px 52px rgba(0, 0, 0, 0.2), 0 6px 12px rgba(0, 0, 0, 0.1);
       animation: ds-slideIn 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
       overflow: hidden;
     }
@@ -854,7 +891,7 @@
     }
 
     .day-modal .modal-header {
-      background: var(--ds-bg-header, linear-gradient(135deg, #2e7d32 0%, #388e3c 50%, #43a047 100%));
+      background: linear-gradient(135deg, #E4002B 0%, #B00020 55%, #8B001A 100%);
       color: white;
       border-radius: 0;
       padding: 1.25rem 1.5rem;
@@ -870,7 +907,7 @@
       left: -100%;
       width: 100%;
       height: 100%;
-      background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+      background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.08), transparent);
       transition: left 0.5s ease;
     }
 
@@ -889,13 +926,13 @@
 
     .day-modal .modal-body {
       padding: 1.5rem;
-      background: linear-gradient(135deg, var(--ds-gray-50, #fafafa) 0%, white 100%);
+      background: linear-gradient(135deg, #FAFAFA 0%, white 100%);
     }
 
     .day-modal .modal-footer {
-      border-top: 2px solid var(--ds-primary-100, #c8e6c9);
+      border-top: 2px solid #FFD6DA;
       padding: 1rem 1.5rem;
-      background: var(--ds-gray-50, #fafafa);
+      background: #FAFAFA;
     }
 
     .day-modal .btn-close {
@@ -1054,12 +1091,12 @@
       }
 
       .calendar-container::-webkit-scrollbar-track {
-        background: #e8f5e9;
+        background: #FFF0F2;
         border-radius: 3px;
       }
 
       .calendar-container::-webkit-scrollbar-thumb {
-        background: #81c784;
+        background: #FF7B89;
         border-radius: 3px;
       }
 
@@ -1097,31 +1134,31 @@
       background: white;
       border-radius: var(--ds-border-radius-lg, 8px);
       padding: 1.25rem;
-      border: 1px solid rgba(76, 175, 80, 0.15);
-      border-left: 4px solid var(--ds-primary-500, #4caf50);
+      border: 1px solid rgba(228, 0, 43, 0.1);
+      border-left: 4px solid #E4002B;
       box-shadow: var(--ds-shadow-sm, 0 2px 6px rgba(0, 0, 0, 0.05));
       transition: var(--ds-transition-smooth, 0.3s ease);
     }
 
     .area-section:hover {
       transform: translateY(-2px);
-      box-shadow: 0 6px 16px rgba(76, 175, 80, 0.15);
+      box-shadow: 0 6px 16px rgba(228, 0, 43, 0.1);
     }
 
     .area-title {
       font-size: 0.95rem;
       font-weight: 700;
-      color: var(--ds-primary-800, #2e7d32);
+      color: #8B001A;
       margin-bottom: 1rem;
       padding-bottom: 0.6rem;
-      border-bottom: 2px solid var(--ds-primary-200, #a5d6a7);
+      border-bottom: 2px solid #FFAAB3;
       display: flex;
       align-items: center;
       gap: 0.5rem;
     }
 
     .area-title i {
-      color: var(--ds-primary-500, #4caf50);
+      color: #E4002B;
     }
 
     .area-grid {
@@ -1130,33 +1167,33 @@
     }
 
     .edit-divisao-form .area-edit-item {
-      background: linear-gradient(135deg, var(--ds-primary-50, #e8f5e9) 0%, white 100%);
+      background: linear-gradient(135deg, #FFF0F2 0%, white 100%);
       padding: 0.85rem;
       border-radius: var(--ds-border-radius-md, 6px);
-      border: 1px solid var(--ds-primary-100, #c8e6c9);
+      border: 1px solid #FFD6DA;
       transition: var(--ds-transition-fast, 0.2s ease);
     }
 
     .edit-divisao-form .area-edit-item:hover {
-      border-color: var(--ds-primary-300, #81c784);
+      border-color: #FF7B89;
     }
 
     .edit-divisao-form .form-label {
       margin-bottom: 0.35rem;
-      color: var(--ds-primary-800, #2e7d32);
+      color: #8B001A;
       font-size: 0.85rem;
       font-weight: 600;
     }
 
     .edit-divisao-form .form-select {
-      border-color: var(--ds-primary-300, #81c784);
+      border-color: #FF7B89;
       border-radius: var(--ds-border-radius-md, 6px);
       transition: var(--ds-transition-smooth, 0.3s ease);
     }
 
     .edit-divisao-form .form-select:focus {
-      border-color: var(--ds-primary-500, #4caf50);
-      box-shadow: 0 0 0 3px rgba(76, 175, 80, 0.15);
+      border-color: #E4002B;
+      box-shadow: 0 0 0 3px rgba(228, 0, 43, 0.12);
     }
 
     .area-item {
@@ -1183,29 +1220,29 @@
     .funcionario-name {
       font-size: 0.9rem;
       padding: 0.6rem 0.85rem;
-      background: linear-gradient(135deg, var(--ds-primary-50, #e8f5e9) 0%, white 100%);
+      background: linear-gradient(135deg, #FFF0F2 0%, white 100%);
       border-radius: var(--ds-border-radius-md, 6px);
-      border-left: 4px solid var(--ds-primary-400, #66bb6a);
+      border-left: 4px solid #FF4056;
       flex-grow: 1;
       min-width: 0;
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
       font-weight: 500;
-      color: var(--ds-text-primary, #263238);
+      color: #1A1A1A;
       transition: var(--ds-transition-fast, 0.2s ease);
     }
 
     .area-item:hover .funcionario-name {
-      background: linear-gradient(135deg, var(--ds-primary-100, #c8e6c9) 0%, var(--ds-primary-50, #e8f5e9) 100%);
-      border-left-color: var(--ds-primary-500, #4caf50);
+      background: linear-gradient(135deg, #FFD6DA 0%, #FFF0F2 100%);
+      border-left-color: #E4002B;
     }
 
     .status-section {
       background: white;
       border-radius: var(--ds-border-radius-lg, 8px);
       padding: 1.25rem;
-      border: 1px solid rgba(76, 175, 80, 0.15);
+      border: 1px solid rgba(0, 0, 0, 0.08);
       border-left: 4px solid var(--ds-gray-400, #bdbdbd);
       box-shadow: var(--ds-shadow-sm, 0 2px 6px rgba(0, 0, 0, 0.05));
       transition: var(--ds-transition-smooth, 0.3s ease);
@@ -1219,17 +1256,17 @@
     .status-title {
       font-size: 0.95rem;
       font-weight: 700;
-      color: var(--ds-text-secondary, #616161);
+      color: #555555;
       margin-bottom: 1rem;
       padding-bottom: 0.6rem;
-      border-bottom: 2px solid var(--ds-gray-200, #eeeeee);
+      border-bottom: 2px solid #EEEEEE;
       display: flex;
       align-items: center;
       gap: 0.5rem;
     }
 
     .status-title i {
-      color: var(--ds-primary-500, #4caf50);
+      color: #E4002B;
     }
     
     .status-group {
@@ -1274,16 +1311,18 @@
       letter-spacing: 0.3px;
     }
 
+    /* Vermelho Claro = presente/trabalhando */
     .badge-presente {
-      background: linear-gradient(135deg, var(--ds-primary-500, #4caf50) 0%, var(--ds-primary-400, #66bb6a) 100%);
+      background: linear-gradient(135deg, #E4002B 0%, #CC0025 100%);
       color: white;
-      box-shadow: 0 2px 6px rgba(76, 175, 80, 0.3);
+      box-shadow: 0 2px 6px rgba(228, 0, 43, 0.3);
     }
 
+    /* Cinza neutro = ausente */
     .badge-ausente {
-      background: linear-gradient(135deg, var(--ds-danger-500, #f44336) 0%, #e53935 100%);
+      background: linear-gradient(135deg, #757575 0%, #616161 100%);
       color: white;
-      box-shadow: 0 2px 6px rgba(244, 67, 54, 0.3);
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
     }
 
     /* Botões de Ação - Design System Style */
@@ -1337,15 +1376,15 @@
     }
 
     .btn-primary-compact {
-      background: var(--ds-bg-button, linear-gradient(135deg, #2e7d32 0%, #388e3c 100%));
+      background: linear-gradient(135deg, #E4002B 0%, #CC0025 100%);
       color: white;
-      box-shadow: var(--ds-shadow-primary, 0 3px 8px rgba(46, 125, 50, 0.3));
+      box-shadow: 0 3px 8px rgba(228, 0, 43, 0.3), 0 1px 3px rgba(0, 0, 0, 0.1);
     }
 
     .btn-primary-compact:hover {
-      background: var(--ds-bg-button-hover, linear-gradient(135deg, #1b5e20 0%, #2e7d32 100%));
+      background: linear-gradient(135deg, #B00020 0%, #8B001A 100%);
       transform: translateY(-2px);
-      box-shadow: 0 6px 20px rgba(46, 125, 50, 0.4);
+      box-shadow: 0 6px 20px rgba(228, 0, 43, 0.45);
     }
 
     .btn-danger-compact {
@@ -1510,15 +1549,15 @@
       background: #f8d7da;
     }
     
-    /* Modal de Login - SEGURO */
+    /* Modal de Login */
     #loginModal .modal-content {
       border-radius: 12px;
       border: none;
-      box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+      box-shadow: 0 10px 30px rgba(228,0,43,0.15), 0 4px 12px rgba(0,0,0,0.1);
     }
     
     #loginModal .modal-header {
-      background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+      background: linear-gradient(135deg, #E4002B 0%, #B00020 55%, #8B001A 100%);
       color: white;
       border-radius: 12px 12px 0 0;
       padding: 1.5rem;
@@ -1564,7 +1603,7 @@
     }
     
     .pin-section {
-      background: #f8fdf8;
+      background: #FAFAFA;
       padding: 1.5rem;
       border-radius: 8px;
       border: 1px solid var(--border-color);
@@ -1782,8 +1821,8 @@
     }
 
     .alerta-status.resolvido {
-      background: #e8f5e9;
-      color: #2e7d32;
+      background: #FFF0F2;
+      color: #B00020;
     }
 
     .alerta-status.arquivado {
@@ -2161,9 +2200,9 @@
     }
 
     .admin-nav-tab.active {
-      background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+      background: linear-gradient(135deg, #E4002B 0%, #B00020 100%);
       color: white;
-      box-shadow: 0 2px 6px rgba(46, 125, 50, 0.3);
+      box-shadow: 0 2px 8px rgba(228, 0, 43, 0.3);
     }
 
     .admin-nav-tab.telegram-tab-nav {
@@ -2338,7 +2377,7 @@
     </div>
     <div id="calendarioPanelBodyResidencial" class="collapse">
       <div class="config-body">
-        <div class="calendario-item mb-3 p-3" style="background: #f8f9fa; border-radius: 8px; border-left: 4px solid #4caf50;">
+        <div class="calendario-item mb-3 p-3" style="background: #f8f9fa; border-radius: 8px; border-left: 4px solid #E4002B;">
           <div class="d-flex justify-content-between align-items-center mb-2">
             <strong><i class="bi bi-house me-2"></i>Escala residencial</strong>
             <span class="badge bg-secondary" id="cal1Status">Vazio</span>
@@ -2376,7 +2415,7 @@
     <div id="calendarioPanelBodyRioEs" class="collapse">
       <div class="config-body">
         <!-- Sub-escala Rio/Es -->
-        <div class="calendario-item mb-3 p-3" style="background: #f8f9fa; border-radius: 8px; border-left: 4px solid #4caf50;">
+        <div class="calendario-item mb-3 p-3" style="background: #f8f9fa; border-radius: 8px; border-left: 4px solid #E4002B;">
           <div class="d-flex justify-content-between align-items-center mb-2">
             <strong><i class="bi bi-geo-alt me-2"></i>Rio/ES</strong>
             <span class="badge bg-secondary" id="calRioEsStatus">Vazio</span>
@@ -2402,7 +2441,7 @@
   <div id="calendarSectionRioEs" style="display: none;">
     <!-- Calendário Rio/Es -->
     <div class="calendar-container empresarial-calendar">
-      <div class="calendar-header" style="background: linear-gradient(135deg, #4caf50 0%, #2e7d32 100%);">
+      <div class="calendar-header" style="background: linear-gradient(135deg, #E4002B 0%, #8B001A 100%);">
         <div class="calendar-title-wrapper">
           <h5 class="calendar-title" id="calendarTitleRioEs">Rio/ES</h5>
           <span class="escala-tipo-badge empresarial" style="font-size: 0.7rem;">Rio/ES</span>
@@ -2462,7 +2501,7 @@
     <div id="calendarioPanelBodyLeste" class="collapse">
       <div class="config-body">
         <!-- Sub-escala Leste -->
-        <div class="calendario-item mb-3 p-3" style="background: #f8f9fa; border-radius: 8px; border-left: 4px solid #4caf50;">
+        <div class="calendario-item mb-3 p-3" style="background: #f8f9fa; border-radius: 8px; border-left: 4px solid #E4002B;">
           <div class="d-flex justify-content-between align-items-center mb-2">
             <strong><i class="bi bi-geo-alt me-2"></i>Leste</strong>
             <span class="badge bg-secondary" id="calLesteStatus">Vazio</span>
@@ -2488,7 +2527,7 @@
   <div id="calendarSectionLeste" style="display: none;">
     <!-- Calendário Leste -->
     <div class="calendar-container empresarial-calendar">
-      <div class="calendar-header" style="background: linear-gradient(135deg, #4caf50 0%, #2e7d32 100%);">
+      <div class="calendar-header" style="background: linear-gradient(135deg, #E4002B 0%, #8B001A 100%);">
         <div class="calendar-title-wrapper">
           <h5 class="calendar-title" id="calendarTitleLeste">Leste</h5>
           <span class="escala-tipo-badge empresarial" style="font-size: 0.7rem;">Leste</span>
@@ -2606,7 +2645,7 @@
       </div>
       <!-- Rio/ES -->
       <div style="margin-bottom: 1rem; border-bottom: 1px solid #e9ecef; padding-bottom: 1rem;">
-        <h6 style="color: #2e7d32; font-size: 0.85rem; font-weight: 600; margin-bottom: 0.5rem;">
+        <h6 style="color: #E4002B; font-size: 0.85rem; font-weight: 600; margin-bottom: 0.5rem;">
           <i class="bi bi-geo-alt-fill me-1"></i>Rio/ES
         </h6>
         <div id="copEmpresarialRioEs">
@@ -2615,7 +2654,7 @@
       </div>
       <!-- Leste -->
       <div>
-        <h6 style="color: #1565c0; font-size: 0.85rem; font-weight: 600; margin-bottom: 0.5rem;">
+        <h6 style="color: #B00020; font-size: 0.85rem; font-weight: 600; margin-bottom: 0.5rem;">
           <i class="bi bi-geo-alt-fill me-1"></i>Leste
         </h6>
         <div id="copEmpresarialLeste">
@@ -2763,7 +2802,7 @@
           </div>
 
           <!-- Responsavel (madrugada) -->
-          <div id="hubResponsavel" class="mt-3 p-2 rounded" style="background: #e8f5e9; display: none;">
+          <div id="hubResponsavel" class="mt-3 p-2 rounded" style="background: #FFF0F2; display: none;">
             <strong><i class="bi bi-person-badge me-1"></i>Responsavel:</strong>
             <span id="hubResponsavelNome"></span>
             <a id="hubResponsavelTel" href="#" class="ms-2"><i class="bi bi-telephone"></i></a>
@@ -2908,7 +2947,7 @@
 <div class="modal fade" id="swapModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog">
     <div class="modal-content">
-      <div class="modal-header text-white" style="background: linear-gradient(135deg, #26a69a 0%, #00897b 100%);">
+      <div class="modal-header text-white" style="background: linear-gradient(135deg, #E4002B 0%, #B00020 100%);">
         <h5 class="modal-title">
           <i class="bi bi-arrow-left-right me-2"></i>Confirmar troca de dias
         </h5>
@@ -2923,7 +2962,7 @@
       </div>
       <div class="modal-footer">
         <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancelar</button>
-        <button type="button" class="btn btn-sm" style="background: linear-gradient(135deg, #26a69a 0%, #00897b 100%); color: white; border: none;" onclick="confirmarTroca()">Confirmar troca</button>
+        <button type="button" class="btn btn-sm" style="background: linear-gradient(135deg, #E4002B 0%, #B00020 100%); color: white; border: none;" onclick="confirmarTroca()">Confirmar troca</button>
       </div>
     </div>
   </div>
@@ -2933,7 +2972,7 @@
 <div class="modal fade" id="selectPersonModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-sm">
     <div class="modal-content">
-      <div class="modal-header text-white" style="background: linear-gradient(135deg, #66bb6a 0%, #4caf50 100%);">
+      <div class="modal-header text-white" style="background: linear-gradient(135deg, #E4002B 0%, #B00020 100%);">
         <h5 class="modal-title">
           <i class="bi bi-person-plus me-2"></i>Selecionar pessoa
         </h5>
@@ -3020,17 +3059,17 @@
       </div>
       <div class="modal-body">
         <div class="login-option text-center">
-          <i class="bi bi-eye mb-3" style="font-size: 3rem; color: #2e7d32;"></i>
+          <i class="bi bi-eye mb-3" style="font-size: 3rem; color: #E4002B;"></i>
           <h5 class="mb-3">Visualizar escala</h5>
           <p class="text-muted mb-4">Selecione qual escala deseja visualizar</p>
           <div class="d-flex gap-2 flex-column">
-            <button type="button" class="btn btn-lg flex-fill py-3" style="background: linear-gradient(135deg, #4caf50 0%, #2e7d32 100%); color: white; border: none;" onclick="entrarComoVisualizador('residencial')">
+            <button type="button" class="btn btn-lg flex-fill py-3" style="background: linear-gradient(135deg, #E4002B 0%, #8B001A 100%); color: white; border: none;" onclick="entrarComoVisualizador('residencial')">
               <i class="bi bi-house me-2"></i>Escala Residencial
             </button>
-            <button type="button" class="btn btn-lg flex-fill py-3" style="background: linear-gradient(135deg, #4caf50 0%, #2e7d32 100%); color: white; border: none;" onclick="entrarComoVisualizador('rio_es')">
+            <button type="button" class="btn btn-lg flex-fill py-3" style="background: linear-gradient(135deg, #E4002B 0%, #8B001A 100%); color: white; border: none;" onclick="entrarComoVisualizador('rio_es')">
               <i class="bi bi-building me-2"></i>Escala Rio/ES
             </button>
-            <button type="button" class="btn btn-lg flex-fill py-3" style="background: linear-gradient(135deg, #4caf50 0%, #2e7d32 100%); color: white; border: none;" onclick="entrarComoVisualizador('leste')">
+            <button type="button" class="btn btn-lg flex-fill py-3" style="background: linear-gradient(135deg, #E4002B 0%, #8B001A 100%); color: white; border: none;" onclick="entrarComoVisualizador('leste')">
               <i class="bi bi-building me-2"></i>Escala Leste
             </button>
           </div>
@@ -3058,7 +3097,7 @@
             <i class="bi bi-exclamation-triangle me-1"></i> PIN incorreto. Tente novamente.
           </div>
           
-          <button type="button" class="btn w-100 mt-2" style="border: 2px solid #2e7d32; color: #2e7d32; background: white;" onmouseover="this.style.background='#2e7d32'; this.style.color='white';" onmouseout="this.style.background='white'; this.style.color='#2e7d32';" onclick="verificarPin()">
+          <button type="button" class="btn w-100 mt-2" style="border: 2px solid #E4002B; color: #E4002B; background: white; font-weight: 600;" onmouseover="this.style.background='#E4002B'; this.style.color='white';" onmouseout="this.style.background='white'; this.style.color='#E4002B';" onclick="verificarPin()">
             <i class="bi bi-unlock me-2"></i>Acessar como administrador
           </button>
         </div>
@@ -3796,7 +3835,7 @@ function mostrarDetalhesDiaEmpresarial(subEscala, dia) {
         <div class="area-title">
           <i class="bi bi-diagram-3"></i>
           <span>Divisão de Áreas - ${nomeSubEscala}</span>
-          ${trocasDia.length > 0 ? '<span class="badge ms-2" style="background: linear-gradient(135deg, #26a69a 0%, #00897b 100%); color: white;">COM TROCAS</span>' : ''}
+          ${trocasDia.length > 0 ? '<span class="badge ms-2" style="background: linear-gradient(135deg, #E4002B 0%, #B00020 100%); color: white;">COM TROCAS</span>' : ''}
           ${isAdmin ? `
             <div class="ms-auto d-flex gap-1">
               <button class="btn btn-sm btn-outline-danger" onclick="marcarAusenciaNaoEsperadaEmpresarial('${subEscala}', ${dia})" title="Marcar ausência não esperada"><i class="bi bi-person-dash"></i></button>
@@ -3845,7 +3884,7 @@ function mostrarDetalhesDiaEmpresarial(subEscala, dia) {
         <div class="toa-schedule">
           <table class="table table-sm table-striped mb-0">
             <thead>
-              <tr style="background: linear-gradient(135deg, #4caf50 0%, #2e7d32 100%); color: white;">
+              <tr style="background: linear-gradient(135deg, #E4002B 0%, #8B001A 100%); color: white;">
                 <th style="border: none; padding: 0.5rem;">Horário</th>
                 <th style="border: none; padding: 0.5rem;">Analista</th>
               </tr>
@@ -4529,7 +4568,7 @@ function mostrarModalConfirmacaoTrocaEmpresarial(subEscala) {
       <p><strong>Troca proposta (${nomeSubEscala}):</strong></p>
       <div class="row">
         <div class="col-6">
-          <div class="card mb-2" style="border: 2px solid #4caf50;">
+          <div class="card mb-2" style="border: 2px solid #E4002B;">
             <div class="card-body p-2">
               <h6 class="card-title mb-1">${selecao.primeiro.pessoa}</h6>
               <p class="card-text small mb-1">
@@ -4540,7 +4579,7 @@ function mostrarModalConfirmacaoTrocaEmpresarial(subEscala) {
           </div>
         </div>
         <div class="col-6">
-          <div class="card mb-2" style="border: 2px solid #4caf50;">
+          <div class="card mb-2" style="border: 2px solid #E4002B;">
             <div class="card-body p-2">
               <h6 class="card-title mb-1">${selecao.segundo.pessoa}</h6>
               <p class="card-text small mb-1">
@@ -6974,7 +7013,7 @@ function mostrarModalConfirmacaoTroca() {
       <p><strong>Troca proposta:</strong></p>
       <div class="row">
         <div class="col-6">
-          <div class="card mb-2" style="border: 2px solid #26a69a;">
+          <div class="card mb-2" style="border: 2px solid #E4002B;">
             <div class="card-body p-2">
               <h6 class="card-title mb-1">${selecaoTroca.primeiro.pessoa}</h6>
               <p class="card-text small mb-1">
@@ -6985,7 +7024,7 @@ function mostrarModalConfirmacaoTroca() {
           </div>
         </div>
         <div class="col-6">
-          <div class="card mb-2" style="border: 2px solid #26a69a;">
+          <div class="card mb-2" style="border: 2px solid #E4002B;">
             <div class="card-body p-2">
               <h6 class="card-title mb-1">${selecaoTroca.segundo.pessoa}</h6>
               <p class="card-text small mb-1">
@@ -7609,7 +7648,7 @@ function mostrarDetalhesDia(dia) {
         <div class="area-title">
           <i class="bi bi-diagram-3"></i>
           <span>Divisão de Áreas</span>
-          ${trocasDia.length > 0 ? '<span class="badge ms-2" style="background: linear-gradient(135deg, #26a69a 0%, #00897b 100%); color: white;">COM TROCAS</span>' : ''}
+          ${trocasDia.length > 0 ? '<span class="badge ms-2" style="background: linear-gradient(135deg, #E4002B 0%, #B00020 100%); color: white;">COM TROCAS</span>' : ''}
           ${isAdmin ? `
             <div class="ms-auto d-flex gap-1">
               <button class="btn btn-sm btn-outline-danger" onclick="marcarAusenciaNaoEsperada(${dia})" title="Marcar ausência não esperada"><i class="bi bi-person-dash"></i></button>
@@ -8194,7 +8233,7 @@ function gerarPDF() {
         header: {
           fontSize: 18,
           bold: true,
-          color: '#2e7d32'
+          color: '#E4002B'
         },
         subheader: {
           fontSize: 10,
@@ -8203,7 +8242,7 @@ function gerarPDF() {
         diaHeader: {
           fontSize: 12,
           bold: true,
-          color: '#2e7d32',
+          color: '#E4002B',
           margin: [0, 10, 0, 8]
         },
         areaTitle: {
@@ -8288,7 +8327,7 @@ function gerarPDF() {
       docDefinition.content.push({
         text: `Dia ${dia} (${dadosDia.diaSemana}) - ${dadosDia.numPessoas} pessoas${temTroca ? ' [COM TROCA]' : ''}`,
         style: 'diaHeader',
-        color: temTroca ? '#9c27b0' : '#2e7d32'
+        color: temTroca ? '#9c27b0' : '#E4002B'
       });
       
       if (Object.keys(dadosDia.divisao).length > 0) {
