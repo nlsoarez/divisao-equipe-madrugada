@@ -9045,49 +9045,75 @@ function getCorOfensores(qtd) {
 }
 
 /**
- * Renderiza o resumo de ofensores por área, cruzando com volume CopRede quando disponível
+ * Renderiza o resumo de ofensores por área usando as mesmas chaves da escala,
+ * cruzando com o volume do CopRede Informa (window.resumoAreasCopRede).
+ * @param {Array} ofensores - lista bruta de incidentes do Supabase
  */
-function renderizarMatrizAreaGrid(porArea) {
+function renderizarMatrizAreaGrid(ofensores) {
   const grid = document.getElementById('matrizAreaGrid');
   if (!grid) return;
 
-  // Pegar volumes atuais do CopRede Informa para cruzamento (usa resumoPorArea)
-  const volumesCopRede = {};
-  if (dadosCopRedeInforma && dadosCopRedeInforma.length > 0) {
-    const ultima = dadosCopRedeInforma.find(m => m.resumoPorArea && Object.keys(m.resumoPorArea).length > 0);
-    if (ultima?.resumoPorArea) {
-      for (const [area, vol] of Object.entries(ultima.resumoPorArea)) {
-        volumesCopRede[area] = (volumesCopRede[area] || 0) + (vol || 0);
-      }
-    }
+  if (!ofensores || ofensores.length === 0) {
+    grid.innerHTML = '<p class="text-muted small text-center mb-0">Nenhum ofensor encontrado</p>';
+    return;
   }
 
-  const areasOrdem = ['RIO', 'MG/ES/BA', 'CO/NO/NE', 'OUTRO'];
+  // Usar o mesmo mapeamento da escala para garantir chaves idênticas ao resumoAreasCopRede
+  const numPessoas = window.numPessoasEscala || 4;
+  const resumoCop = window.resumoAreasCopRede || {};
+
+  // Agrupar ofensores por área da escala
+  const grupos = {};
+  for (const inc of ofensores) {
+    const areaKey = mapearGrupoParaAreaFrontend(inc.regional || '', numPessoas) || 'OUTRO';
+    if (!grupos[areaKey]) grupos[areaKey] = { total: 0, criticos: 0, entre12e24h: 0 };
+    grupos[areaKey].total++;
+    const h = calcularHorasOfensor(inc.dh_inicio);
+    if (h > 24) grupos[areaKey].criticos++;
+    else if (h > 12) grupos[areaKey].entre12e24h++;
+  }
+
+  // Ordenar: mesma ordem do CopRede depois OUTRO por último
+  const chavesOrdem = Object.keys(resumoCop).concat(['OUTRO']).filter((v, i, a) => a.indexOf(v) === i);
+  // Adicionar chaves que estão nos grupos mas não no resumo
+  for (const k of Object.keys(grupos)) {
+    if (!chavesOrdem.includes(k)) chavesOrdem.push(k);
+  }
+
   let html = '';
+  for (const areaKey of chavesOrdem) {
+    const g = grupos[areaKey];
+    if (!g || g.total === 0) continue;
 
-  for (const areaKey of areasOrdem) {
-    const info = porArea.find(p => p.area === areaKey);
-    if (!info || info.total === 0) continue;
-
-    const volCop = volumesCopRede[areaKey] || null;
-    const corCss = getCorOfensores(info.total);
-    const volStr = volCop !== null ? `<span class="area-count" title="Volume CopRede"><i class="bi bi-inbox me-1"></i>${volCop} msgs</span>` : '';
+    const volInfo = resumoCop[areaKey];
+    const volCop = volInfo ? volInfo.volume : null;
+    const responsavel = volInfo ? volInfo.responsavel : null;
+    const corCss = getCorOfensores(g.total);
 
     html += `
       <div class="area-volume-item ${corCss}" style="flex-direction:column;align-items:flex-start;gap:4px;">
         <div style="display:flex;justify-content:space-between;width:100%;align-items:center;">
           <span class="area-name" style="font-size:0.8rem;">${areaKey}</span>
-          <span class="area-volume" style="font-size:1rem;">${info.total}</span>
+          <span class="area-volume" style="font-size:1rem;">${g.total} ofensores</span>
         </div>
-        <div style="display:flex;gap:8px;font-size:0.7rem;color:#666;flex-wrap:wrap;">
-          ${info.criticos > 0 ? `<span style="color:#ef4444;font-weight:600;"><i class="bi bi-exclamation-triangle-fill me-1"></i>${info.criticos} críticos (+24h)</span>` : ''}
-          ${info.entre12e24h > 0 ? `<span style="color:#f59e0b;"><i class="bi bi-clock me-1"></i>${info.entre12e24h} entre 12-24h</span>` : ''}
-          ${volStr}
+        <div style="display:flex;gap:8px;font-size:0.7rem;flex-wrap:wrap;align-items:center;">
+          ${g.criticos > 0 ? `<span style="color:#ef4444;font-weight:600;"><i class="bi bi-exclamation-triangle-fill me-1"></i>${g.criticos} críticos (+24h)</span>` : ''}
+          ${g.entre12e24h > 0 ? `<span style="color:#f59e0b;"><i class="bi bi-clock me-1"></i>${g.entre12e24h} entre 12-24h</span>` : ''}
+          ${volCop !== null ? `<span style="color:#388E3C;"><i class="bi bi-inbox me-1"></i>${volCop} msgs CopRede</span>` : ''}
+          ${responsavel && responsavel !== '-' ? `<span style="color:#555;"><i class="bi bi-person me-1"></i>${responsavel}</span>` : ''}
         </div>
       </div>`;
   }
 
   grid.innerHTML = html || '<p class="text-muted small text-center mb-0">Nenhum ofensor encontrado</p>';
+}
+
+/**
+ * Calcula horas desde dh_inicio (versão frontend)
+ */
+function calcularHorasOfensor(dhInicio) {
+  if (!dhInicio) return 0;
+  try { return (Date.now() - new Date(dhInicio).getTime()) / 3600000; } catch { return 0; }
 }
 
 /**
@@ -9145,12 +9171,14 @@ async function carregarMatrizOfensores(forcar = false) {
     dadosMatrizOfensores = data;
     matrizOfensoresCarregado = true;
 
-    renderizarMatrizAreaGrid(data.porArea || []);
+    // Passa ofensores brutos — renderizarMatrizAreaGrid usa mapearGrupoParaAreaFrontend
+    // com window.numPessoasEscala para alinhar com as chaves do CopRede Informa
+    renderizarMatrizAreaGrid(data.ofensores || []);
     renderizarTabelaOfensores(data.ofensores || []);
 
-    // Badge com total de críticos
+    // Badge com total de críticos (calcula direto dos ofensores brutos)
     const badge = document.getElementById('badgeOfensores');
-    const criticos = (data.porArea || []).reduce((s, a) => s + a.criticos, 0);
+    const criticos = (data.ofensores || []).filter(i => calcularHorasOfensor(i.dh_inicio) > 24).length;
     if (badge) {
       if (criticos > 0) {
         badge.textContent = criticos;
@@ -9765,6 +9793,10 @@ function atualizarTabelaCopRede(dados) {
   }
 
   console.log('[COP] Resumo por área calculado:', resumoPorArea);
+
+  // Salvar globalmente para uso na Matriz de Ofensores
+  window.resumoAreasCopRede = resumoPorArea;
+  window.numPessoasEscala = numPessoasHoje;
 
   // Função para obter a classe de cor baseada na quantidade
   // 0-19: verde (OK), 20-29: amarelo (atenção), 30+: vermelho (crítico)
