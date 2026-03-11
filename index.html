@@ -8833,8 +8833,10 @@ let alertaAtual = null;
 let backendConectado = false;
 let autoRefreshInterval = null;
 let autoRefreshHubInterval = null;
+let autoRefreshOfensoresInterval = null;
 const AUTO_REFRESH_MS = 10000; // 10 segundos
 const AUTO_REFRESH_HUB_MS = 30000; // 30 segundos para HUB
+const AUTO_REFRESH_OFENSORES_MS = 60000; // 60 segundos para matriz de ofensores
 let alertasAnteriores = []; // Para detectar novos alertas
 let primeiraCargatAlertas = true; // Flag para evitar tocar som na primeira carga
 let errosConsecutivos = 0; // Contador de erros para backoff
@@ -9200,13 +9202,20 @@ function iniciarAutoRefresh() {
   autoRefreshInterval = setInterval(() => {
     if (backendConectado) {
       console.log('[WhatsApp] Auto-refresh: atualizando dados...');
-      // IMPORTANTE: Não forçar sincronização no auto-refresh para evitar
-      // reprocessamento constante que causa mudança nos dados exibidos.
-      // Usar apenas refresh do cache (false = não sincronizar com WhatsApp)
       carregarCopRedeInforma(false);
       carregarAlertas();
     }
   }, AUTO_REFRESH_MS);
+
+  // Refresh da matriz de ofensores a cada 60 segundos
+  if (!autoRefreshOfensoresInterval) {
+    autoRefreshOfensoresInterval = setInterval(() => {
+      if (backendConectado) {
+        console.log('[Ofensores] Auto-refresh: atualizando incidentes...');
+        carregarMatrizOfensores(true);
+      }
+    }, AUTO_REFRESH_OFENSORES_MS);
+  }
 }
 
 function pararAutoRefresh() {
@@ -9215,9 +9224,12 @@ function pararAutoRefresh() {
     autoRefreshInterval = null;
     console.log('[WhatsApp] Auto-refresh parado');
 
-    // Indicador visual
     const indicador = document.getElementById('autoRefreshIndicator');
     if (indicador) indicador.style.display = 'none';
+  }
+  if (autoRefreshOfensoresInterval) {
+    clearInterval(autoRefreshOfensoresInterval);
+    autoRefreshOfensoresInterval = null;
   }
 }
 
