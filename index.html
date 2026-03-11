@@ -2042,6 +2042,97 @@
       50% { box-shadow: 0 2px 8px rgba(220, 53, 69, 0.5); }
     }
 
+    /* Badge de ofensores nos cards de área CopRede */
+    .area-ofensores-badge {
+      display: flex;
+      align-items: center;
+      gap: 3px;
+      font-size: 0.72rem;
+      margin-top: 4px;
+      padding-top: 4px;
+      border-top: 1px solid rgba(0,0,0,0.08);
+    }
+
+    /* Seção de incidentes por analista no modal do dia */
+    .ofensores-analista-section {
+      margin-top: 1rem;
+      padding-top: 0.5rem;
+    }
+
+    .ofensores-analista-card {
+      border-left: 4px solid #22c55e;
+      border-radius: 6px;
+      padding: 0.6rem 0.75rem;
+      margin-bottom: 0.5rem;
+      background: #f0fdf4;
+    }
+
+    .ofensores-analista-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-bottom: 4px;
+    }
+
+    .ofensores-analista-area {
+      font-weight: 700;
+      font-size: 0.8rem;
+      color: #333;
+    }
+
+    .ofensores-analista-nome {
+      font-size: 0.78rem;
+      color: #555;
+    }
+
+    .ofensores-analista-total {
+      margin-left: auto;
+      font-size: 0.78rem;
+      font-weight: 700;
+    }
+
+    .ofensores-analista-stats {
+      font-size: 0.72rem;
+      margin-bottom: 3px;
+    }
+
+    .ofensores-analista-lista {
+      margin-top: 6px;
+      border-top: 1px solid rgba(0,0,0,0.08);
+      padding-top: 4px;
+    }
+
+    .ofensores-analista-inc {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+      font-size: 0.68rem;
+      padding: 2px 0;
+      border-bottom: 1px solid rgba(0,0,0,0.05);
+      flex-wrap: wrap;
+    }
+
+    .ofensores-analista-id {
+      font-weight: 600;
+      color: #1d4ed8;
+      white-space: nowrap;
+    }
+
+    .ofensores-analista-city {
+      flex: 1;
+      color: #333;
+    }
+
+    .ofensores-analista-status {
+      color: #888;
+      white-space: nowrap;
+    }
+
+    .ofensores-analista-dur {
+      white-space: nowrap;
+    }
+
     .backend-status {
       display: inline-flex;
       align-items: center;
@@ -7835,7 +7926,91 @@ function mostrarDetalhesDia(dia) {
       </div>
     </div>
   `;
-  
+
+  // ── Seção: Incidentes por Analista ───────────────────────────────────
+  if (window.dadosMatrizOfensores?.ofensores?.length > 0) {
+    const numP = dadosDia.numPessoas || 4;
+    const ofPorArea = calcularOfensoresPorArea(numP);
+    const divisaoHoje = dadosDia.divisao || {};
+
+    let secaoHtml = `
+      <div class="ofensores-analista-section">
+        <div class="area-title" style="margin-top:0;">
+          <i class="bi bi-exclamation-triangle-fill" style="color:#dc2626;"></i>
+          <span>Incidentes por Analista</span>
+          <span class="badge ms-2" style="background:#dc2626;color:#fff;font-size:0.7rem;">
+            ${window.dadosMatrizOfensores.total} total
+          </span>
+        </div>`;
+
+    const areasExibidas = new Set();
+    for (const [area, pessoa] of Object.entries(divisaoHoje)) {
+      const of = ofPorArea[area];
+      const primeiroNome = obterPrimeiroNome(pessoa || '');
+      areasExibidas.add(area);
+
+      const totalOf = of?.total || 0;
+      const criticos = of?.criticos || 0;
+      const entre = of?.entre12e24h || 0;
+      const lista = of?.lista || [];
+
+      const corBorda = criticos > 0 ? '#dc2626' : entre > 0 ? '#f59e0b' : '#22c55e';
+      const corBg = criticos > 0 ? '#fef2f2' : entre > 0 ? '#fffbeb' : '#f0fdf4';
+
+      secaoHtml += `
+        <div class="ofensores-analista-card" style="border-left-color:${corBorda};background:${corBg};">
+          <div class="ofensores-analista-header">
+            <span class="ofensores-analista-area">${area}</span>
+            <span class="ofensores-analista-nome"><i class="bi bi-person-fill me-1"></i>${primeiroNome}</span>
+            <span class="ofensores-analista-total" style="color:${corBorda};">${totalOf} ofensor${totalOf !== 1 ? 'es' : ''}</span>
+          </div>`;
+
+      if (totalOf > 0) {
+        if (criticos > 0) secaoHtml += `<div class="ofensores-analista-stats"><i class="bi bi-exclamation-triangle-fill me-1" style="color:#dc2626;"></i>${criticos} críticos (+24h)</div>`;
+        if (entre > 0) secaoHtml += `<div class="ofensores-analista-stats"><i class="bi bi-clock me-1" style="color:#f59e0b;"></i>${entre} entre 12-24h</div>`;
+
+        // Lista os primeiros 5 incidentes
+        const exibir = lista.slice(0, 5);
+        secaoHtml += `<div class="ofensores-analista-lista">`;
+        exibir.forEach(inc => {
+          const h = calcularHorasOfensor(inc.dh_inicio);
+          const dur = formatarDuracaoOfensor(inc.dh_inicio);
+          const cor = h > 24 ? '#dc2626' : h > 12 ? '#f59e0b' : '#555';
+          const cluster = obterClusterIncidente(inc);
+          secaoHtml += `
+            <div class="ofensores-analista-inc">
+              <span class="ofensores-analista-id">${inc.id_mostra || '-'}</span>
+              <span class="ofensores-analista-city">${inc.nm_cidade || '-'}${cluster && cluster !== (inc.nm_cidade || '') ? ' <span style="color:#888;font-size:0.65rem;">(' + cluster + ')</span>' : ''}</span>
+              <span class="ofensores-analista-status">${inc.nm_status || '-'}</span>
+              <span class="ofensores-analista-dur" style="color:${cor};font-weight:600;">${dur}</span>
+            </div>`;
+        });
+        if (lista.length > 5) {
+          secaoHtml += `<div style="font-size:0.68rem;color:#888;text-align:center;margin-top:3px;">+ ${lista.length - 5} incidente(s)</div>`;
+        }
+        secaoHtml += `</div>`;
+      } else {
+        secaoHtml += `<div style="font-size:0.72rem;color:#888;padding:4px 0;">Nenhum incidente</div>`;
+      }
+      secaoHtml += `</div>`;
+    }
+
+    // Exibir área OUTRO se houver ofensores não mapeados
+    const outro = ofPorArea['OUTRO'];
+    if (outro?.total > 0) {
+      secaoHtml += `
+        <div class="ofensores-analista-card" style="border-left-color:#888;background:#f8f9fa;">
+          <div class="ofensores-analista-header">
+            <span class="ofensores-analista-area">Não mapeados</span>
+            <span class="ofensores-analista-total" style="color:#888;">${outro.total}</span>
+          </div>
+        </div>`;
+    }
+
+    secaoHtml += `</div>`;
+    html += secaoHtml;
+  }
+
   modalContent.innerHTML = html;
   modal.show();
 }
@@ -9007,8 +9182,142 @@ function trocarAbasTelegram(abaId) {
 // MATRIZ DE OFENSORES - Funções
 // ============================================
 
-let dadosMatrizOfensores = null;
+window.dadosMatrizOfensores = null;
 let matrizOfensoresCarregado = false;
+
+/**
+ * Mapeamento de cidades brasileiras para cluster CopRede.
+ * Usado como fallback quando o campo "regional" do Supabase vem vazio.
+ */
+const CIDADE_PARA_CLUSTER = {
+  // ── NORTE ───────────────────────────────────────────────────────────
+  'manaus': 'Norte', 'belem': 'Norte', 'porto velho': 'Norte',
+  'boa vista': 'Norte', 'macapa': 'Norte', 'macapa': 'Norte',
+  'palmas': 'Norte', 'rio branco': 'Norte', 'santarem': 'Norte',
+  'maraba': 'Norte', 'castanhal': 'Norte', 'ananindeua': 'Norte',
+  'parauapebas': 'Norte', 'altamira': 'Norte', 'itaituba': 'Norte',
+  'cametaboa': 'Norte', 'cameta': 'Norte', 'tucurui': 'Norte',
+  // ── NORDESTE ────────────────────────────────────────────────────────
+  'fortaleza': 'Nordeste', 'recife': 'Nordeste',
+  'joao pessoa': 'Nordeste', 'maceio': 'Nordeste',
+  'teresina': 'Nordeste', 'natal': 'Nordeste', 'sao luis': 'Nordeste',
+  'campina grande': 'Nordeste', 'caruaru': 'Nordeste',
+  'mossoró': 'Nordeste', 'mossoro': 'Nordeste',
+  'caucaia': 'Nordeste', 'juazeiro do norte': 'Nordeste',
+  'sobral': 'Nordeste', 'parnamirim': 'Nordeste',
+  'camaçari': 'Nordeste', 'camacari': 'Nordeste',
+  // ── BAHIA/SERGIPE ────────────────────────────────────────────────────
+  'salvador': 'Bahia', 'feira de santana': 'Bahia',
+  'vitoria da conquista': 'Bahia', 'ilheus': 'Bahia',
+  'itabuna': 'Bahia', 'juazeiro': 'Bahia', 'porto seguro': 'Bahia',
+  'aracaju': 'Bahia', 'nossa senhora do socorro': 'Bahia',
+  // ── CENTRO OESTE ────────────────────────────────────────────────────
+  'brasilia': 'Centro Oeste', 'goiania': 'Centro Oeste',
+  'campo grande': 'Centro Oeste', 'cuiaba': 'Centro Oeste',
+  'aparecida de goiania': 'Centro Oeste', 'anapolis': 'Centro Oeste',
+  'rondonopolis': 'Centro Oeste', 'tres lagoas': 'Centro Oeste',
+  'dourados': 'Centro Oeste', 'varzea grande': 'Centro Oeste',
+  'planaltina': 'Centro Oeste', 'aguas lindas de goias': 'Centro Oeste',
+  'taguatinga': 'Centro Oeste', 'ceilandia': 'Centro Oeste',
+  // ── MINAS GERAIS / BH ───────────────────────────────────────────────
+  'belo horizonte': 'BH Capital', 'uberlandia': 'BH Capital',
+  'contagem': 'BH Capital', 'juiz de fora': 'BH Capital',
+  'betim': 'BH Capital', 'montes claros': 'BH Capital',
+  'ribeirao das neves': 'BH Capital', 'uberaba': 'BH Capital',
+  'ipatinga': 'BH Capital', 'sete lagoas': 'BH Capital',
+  'divinopolis': 'BH Capital', 'governador valadares': 'BH Capital',
+  'pocos de caldas': 'BH Capital', 'coronel fabriciano': 'BH Capital',
+  'sabara': 'BH Capital', 'vespasiano': 'BH Capital',
+  // ── ESPÍRITO SANTO ───────────────────────────────────────────────────
+  'vitoria': 'Vitória', 'vila velha': 'Vitória', 'cariacica': 'Vitória',
+  'serra': 'Vitória', 'cachoeiro de itapemirim': 'Vitória',
+  'linhares': 'Vitória', 'sao mateus': 'Vitória',
+  'guarapari': 'Vitória', 'colatina': 'Vitória',
+  // ── RIO DE JANEIRO ───────────────────────────────────────────────────
+  'rio de janeiro': 'Rio Capital', 'niteroi': 'Rio Capital',
+  'petropolis': 'Rio Capital', 'nova iguacu': 'Rio Capital',
+  'duque de caxias': 'Rio Capital', 'campos dos goytacazes': 'Rio Capital',
+  'volta redonda': 'Rio Capital', 'angra dos reis': 'Rio Capital',
+  'macae': 'Rio Capital', 'sao goncalo': 'Rio Capital',
+  'belford roxo': 'Rio Capital', 'nova friburgo': 'Rio Capital',
+  'mesquita': 'Rio Capital', 'nilopolis': 'Rio Capital',
+  'queimados': 'Rio Capital', 'tres rios': 'Rio Capital',
+  'resende': 'Rio Capital', 'barra mansa': 'Rio Capital',
+  'saquarema': 'Rio Capital', 'cabo frio': 'Rio Capital',
+};
+
+/**
+ * Retorna o cluster CopRede a partir do nome da cidade.
+ * Retorna null se não encontrar.
+ */
+function mapearCidadeParaCluster(cidade) {
+  if (!cidade) return null;
+  const c = cidade.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+  if (CIDADE_PARA_CLUSTER[c]) return CIDADE_PARA_CLUSTER[c];
+  // Tentativa por substring (ex: "MANAUS / LESTE" → "manaus")
+  for (const [key, val] of Object.entries(CIDADE_PARA_CLUSTER)) {
+    if (c.startsWith(key) || c.includes(' ' + key)) return val;
+  }
+  return null;
+}
+
+/**
+ * Dado um incidente do Supabase, retorna o cluster adequado
+ * usando `regional` como primário e `nm_cidade` como fallback.
+ */
+function obterClusterIncidente(inc) {
+  return (inc.regional && inc.regional.trim())
+    ? inc.regional.trim()
+    : (mapearCidadeParaCluster(inc.nm_cidade) || '');
+}
+
+/**
+ * Calcula ofensores agrupados por chave de área da escala.
+ * @param {number} numPessoas - número de analistas na escala hoje
+ * @returns {Object} { areaKey: { total, criticos, entre12e24h, lista[] } }
+ */
+function calcularOfensoresPorArea(numPessoas) {
+  const ofensores = window.dadosMatrizOfensores?.ofensores || [];
+  const grupos = {};
+  for (const inc of ofensores) {
+    const cluster = obterClusterIncidente(inc);
+    const areaKey = mapearGrupoParaAreaFrontend(cluster, numPessoas) || 'OUTRO';
+    if (!grupos[areaKey]) grupos[areaKey] = { total: 0, criticos: 0, entre12e24h: 0, lista: [] };
+    grupos[areaKey].total++;
+    const h = calcularHorasOfensor(inc.dh_inicio);
+    if (h > 24) grupos[areaKey].criticos++;
+    else if (h > 12) grupos[areaKey].entre12e24h++;
+    grupos[areaKey].lista.push(inc);
+  }
+  return grupos;
+}
+
+/**
+ * Após carregar ofensores, atualiza os cards da areaSummaryGrid do CopRede
+ * para incluir contagem de ofensores por área.
+ */
+function atualizarAreaCardsComOfensores() {
+  const summaryGrid = document.getElementById('areaSummaryGrid');
+  if (!summaryGrid || !window.resumoAreasCopRede) return;
+  const numPessoas = window.numPessoasEscala || 4;
+  const ofData = calcularOfensoresPorArea(numPessoas);
+
+  summaryGrid.querySelectorAll('.area-summary-item').forEach(card => {
+    const areaName = card.querySelector('.area-name')?.textContent?.trim();
+    if (!areaName) return;
+    const of = ofData[areaName];
+    // Remover badge antigo se existir
+    card.querySelector('.area-ofensores-badge')?.remove();
+    if (of && of.total > 0) {
+      const badge = document.createElement('span');
+      badge.className = 'area-ofensores-badge';
+      badge.innerHTML = `<i class="bi bi-exclamation-triangle-fill me-1" style="color:#dc2626;"></i>`
+        + `<span style="font-weight:600;color:#dc2626;">${of.total} ofensor${of.total > 1 ? 'es' : ''}</span>`
+        + (of.criticos > 0 ? ` <span style="color:#dc2626;font-size:0.65rem;">(${of.criticos} +24h)</span>` : '');
+      card.appendChild(badge);
+    }
+  });
+}
 
 /**
  * Formata duração desde dh_inicio
@@ -9065,7 +9374,8 @@ function renderizarMatrizAreaGrid(ofensores) {
   // Agrupar ofensores por área da escala
   const grupos = {};
   for (const inc of ofensores) {
-    const areaKey = mapearGrupoParaAreaFrontend(inc.regional || '', numPessoas) || 'OUTRO';
+    const cluster = obterClusterIncidente(inc);
+    const areaKey = mapearGrupoParaAreaFrontend(cluster, numPessoas) || 'OUTRO';
     if (!grupos[areaKey]) grupos[areaKey] = { total: 0, criticos: 0, entre12e24h: 0 };
     grupos[areaKey].total++;
     const h = calcularHorasOfensor(inc.dh_inicio);
@@ -9138,7 +9448,7 @@ function renderizarTabelaOfensores(ofensores) {
         <td style="font-weight:600;font-size:0.75rem;">${inc.id_mostra || '-'}</td>
         <td>
           <div style="font-size:0.75rem;font-weight:600;">${inc.nm_cidade || '-'}</div>
-          <div style="font-size:0.65rem;color:#888;">${inc.regional || ''}</div>
+          <div style="font-size:0.65rem;color:#888;">${obterClusterIncidente(inc) || '-'}</div>
         </td>
         <td><span class="${statusCls}" style="font-size:0.72rem;">${inc.nm_status || '-'}</span></td>
         <td style="text-align:center;font-family:monospace;font-size:0.72rem;">${duracao}</td>
@@ -9168,13 +9478,16 @@ async function carregarMatrizOfensores(forcar = false) {
 
     if (!data.sucesso) throw new Error(data.erro || 'Erro desconhecido');
 
-    dadosMatrizOfensores = data;
+    window.dadosMatrizOfensores = data;
     matrizOfensoresCarregado = true;
 
     // Passa ofensores brutos — renderizarMatrizAreaGrid usa mapearGrupoParaAreaFrontend
     // com window.numPessoasEscala para alinhar com as chaves do CopRede Informa
     renderizarMatrizAreaGrid(data.ofensores || []);
     renderizarTabelaOfensores(data.ofensores || []);
+
+    // Enriquecer os cards de volume CopRede com dados de ofensores
+    atualizarAreaCardsComOfensores();
 
     // Badge com total de críticos (calcula direto dos ofensores brutos)
     const badge = document.getElementById('badgeOfensores');
@@ -9828,6 +10141,8 @@ function atualizarTabelaCopRede(dados) {
         <span class="area-responsible"><i class="bi bi-person me-1"></i>${info.responsavel}</span>
       </div>
     `).join('');
+    // Enriquecer com ofensores se já carregados
+    atualizarAreaCardsComOfensores();
   } else if (resumoDiv) {
     resumoDiv.style.display = 'none';
   }

@@ -960,21 +960,72 @@ const SUPABASE_URL = 'https://wthzxrgifjtenaujhdbb.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind0aHp4cmdpZmp0ZW5hdWpoZGJiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjkwMjYwODIsImV4cCI6MjA4NDYwMjA4Mn0.MGhDMxfbbKGc69Mut8M7ESmULS8d10VgeIu_vXcorpc';
 
 /**
- * Mapeia o campo "regional" do Supabase para as áreas do painel
+ * Mapeamento de cidades brasileiras para cluster CopRede (backend).
+ * Usado como fallback quando "regional" vem vazio do Supabase.
+ */
+const CIDADE_PARA_CLUSTER_BACKEND = {
+  // NORTE
+  manaus: 'Norte', belem: 'Norte', 'porto velho': 'Norte', 'boa vista': 'Norte',
+  macapa: 'Norte', palmas: 'Norte', 'rio branco': 'Norte', santarem: 'Norte',
+  maraba: 'Norte', castanhal: 'Norte', ananindeua: 'Norte', parauapebas: 'Norte',
+  // NORDESTE
+  fortaleza: 'Nordeste', recife: 'Nordeste', 'joao pessoa': 'Nordeste',
+  maceio: 'Nordeste', teresina: 'Nordeste', natal: 'Nordeste', 'sao luis': 'Nordeste',
+  'campina grande': 'Nordeste', caruaru: 'Nordeste', mossoro: 'Nordeste',
+  caucaia: 'Nordeste', sobral: 'Nordeste', parnamirim: 'Nordeste',
+  'juazeiro do norte': 'Nordeste',
+  // BAHIA/SERGIPE
+  salvador: 'Bahia', 'feira de santana': 'Bahia', 'vitoria da conquista': 'Bahia',
+  ilheus: 'Bahia', itabuna: 'Bahia', aracaju: 'Bahia', camacari: 'Bahia',
+  // CENTRO OESTE
+  brasilia: 'Centro Oeste', goiania: 'Centro Oeste', 'campo grande': 'Centro Oeste',
+  cuiaba: 'Centro Oeste', 'aparecida de goiania': 'Centro Oeste', anapolis: 'Centro Oeste',
+  rondonopolis: 'Centro Oeste', dourados: 'Centro Oeste', taguatinga: 'Centro Oeste',
+  // MG
+  'belo horizonte': 'BH Capital', uberlandia: 'BH Capital', contagem: 'BH Capital',
+  'juiz de fora': 'BH Capital', betim: 'BH Capital', 'montes claros': 'BH Capital',
+  'ribeirao das neves': 'BH Capital', uberaba: 'BH Capital', ipatinga: 'BH Capital',
+  // ES
+  vitoria: 'Vitória', 'vila velha': 'Vitória', cariacica: 'Vitória',
+  serra: 'Vitória', 'cachoeiro de itapemirim': 'Vitória', linhares: 'Vitória',
+  // RIO
+  'rio de janeiro': 'Rio Capital', niteroi: 'Rio Capital', petropolis: 'Rio Capital',
+  'nova iguacu': 'Rio Capital', 'duque de caxias': 'Rio Capital',
+  'campos dos goytacazes': 'Rio Capital', 'volta redonda': 'Rio Capital',
+  macae: 'Rio Capital', 'sao goncalo': 'Rio Capital', 'belford roxo': 'Rio Capital',
+};
+
+function cidadeParaClusterBackend(cidade) {
+  if (!cidade) return null;
+  const c = cidade.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+  if (CIDADE_PARA_CLUSTER_BACKEND[c]) return CIDADE_PARA_CLUSTER_BACKEND[c];
+  for (const [key, val] of Object.entries(CIDADE_PARA_CLUSTER_BACKEND)) {
+    if (c.startsWith(key)) return val;
+  }
+  return null;
+}
+
+/**
+ * Mapeia o campo "regional" do Supabase para as áreas do painel.
+ * Usa nm_cidade como fallback quando regional está vazio.
  * RIO | MG/ES/BA | CO/NO/NE | OUTRO
  */
-function mapearRegionalParaArea(regional) {
-  if (!regional) return 'OUTRO';
-  const r = regional.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+function mapearRegionalParaArea(regional, nmCidade) {
+  const fonte = (regional && regional.trim()) ? regional : (cidadeParaClusterBackend(nmCidade) || '');
+  if (!fonte) return 'OUTRO';
+  const r = fonte.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
   if (r.includes('rio') || r.includes('rj')) return 'RIO';
-  if (r.includes('minas') || r.includes('mg') || r.includes('espirito') || r.includes('es') ||
+  if (r.includes('minas') || r.includes('mg') || r.includes('bh') || r.includes('belo horizonte') ||
+      r.includes('espirito') || r.includes('vitoria') || r.includes('es') ||
       r.includes('bahia') || r.includes('ba') || r.includes('sergipe') || r.includes('se')) return 'MG/ES/BA';
   if (r.includes('norte') || r.includes('nordeste') || r.includes('centro') ||
       r.includes('co') || r.includes('ne') || r.includes('no') || r.includes('goias') ||
       r.includes('go') || r.includes('mato') || r.includes('para') || r.includes('am') ||
       r.includes('acre') || r.includes('rondonia') || r.includes('roraima') ||
       r.includes('amapa') || r.includes('tocantins') || r.includes('pernambuco') ||
-      r.includes('ceara') || r.includes('piaui') || r.includes('maranhao')) return 'CO/NO/NE';
+      r.includes('ceara') || r.includes('piaui') || r.includes('maranhao') ||
+      r.includes('manaus') || r.includes('belem') || r.includes('fortaleza') ||
+      r.includes('recife') || r.includes('natal') || r.includes('teresina')) return 'CO/NO/NE';
   return 'OUTRO';
 }
 
@@ -1015,7 +1066,7 @@ app.get('/api/matriz-ofensores', async (req, res) => {
     // Agrupar por área e calcular estatísticas
     const areaMap = { 'RIO': [], 'MG/ES/BA': [], 'CO/NO/NE': [], 'OUTRO': [] };
     for (const inc of ofensores) {
-      const area = mapearRegionalParaArea(inc.regional);
+      const area = mapearRegionalParaArea(inc.regional, inc.nm_cidade);
       areaMap[area].push(inc);
     }
 
