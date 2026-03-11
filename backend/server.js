@@ -1045,8 +1045,9 @@ function calcularHoras(dhInicio) {
  */
 app.get('/api/matriz-ofensores', async (req, res) => {
   try {
-    const limit = parseInt(req.query.limit) || 100;
-    const url = `${SUPABASE_URL}/rest/v1/incidents?select=id_mostra,nm_tipo,nm_cidade,nm_status,topologia,dh_inicio,regional,ds_sumario&order=dh_inicio.asc&limit=${limit}`;
+    const limit = parseInt(req.query.limit) || 200;
+    // Filtrar apenas incidentes ativos — exclui status terminais
+    const url = `${SUPABASE_URL}/rest/v1/incidents?select=id_mostra,nm_tipo,nm_cidade,nm_status,topologia,dh_inicio,regional,ds_sumario&nm_status=not.in.(FECHADO,RESOLVIDO,CANCELADO,ENCERRADO)&order=dh_inicio.asc&limit=${limit}`;
 
     const response = await fetch(url, {
       headers: {
