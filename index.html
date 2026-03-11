@@ -9794,6 +9794,18 @@ function atualizarTabelaCopRede(dados) {
 
   console.log('[COP] Resumo por área calculado:', resumoPorArea);
 
+  // Completar com áreas da escala que não tiveram eventos (volume 0)
+  // Garante que todos os técnicos escalados apareçam no painel mesmo sem eventos
+  const divisaoHoje = dadosResidencial?.[diaMensagem]?.divisao || {};
+  for (const [areaEscala, nomeCompleto] of Object.entries(divisaoHoje)) {
+    if (!resumoPorArea[areaEscala]) {
+      const partes = (nomeCompleto || '').split(' ');
+      const primeiroNome = partes.length > 1 ? `${partes[0]} ${partes[partes.length - 1]}` : partes[0];
+      resumoPorArea[areaEscala] = { volume: 0, responsavel: primeiroNome || '-' };
+      console.log(`[COP] Área "${areaEscala}" sem eventos → adicionada com volume 0 (${primeiroNome})`);
+    }
+  }
+
   // Salvar globalmente para uso na Matriz de Ofensores
   window.resumoAreasCopRede = resumoPorArea;
   window.numPessoasEscala = numPessoasHoje;
