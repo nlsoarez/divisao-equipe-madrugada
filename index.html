@@ -9247,6 +9247,8 @@ async function verificarConexaoBackend() {
       carregarCopRedeInforma(true);
       carregarAlertas();
       carregarEstatisticas();
+      // Carregar incidentes do Supabase automaticamente (alimenta seção Residencial)
+      carregarMatrizOfensores(false);
 
       // Atualizar badge na navegação
       atualizarBadgeNavegacao();
@@ -9279,6 +9281,8 @@ function trocarAbasTelegram(abaId) {
 
   if (abaId === 'cop-rede-informa') {
     document.getElementById('tabCopRedeInforma').classList.add('active');
+    // Carregar incidentes automaticamente ao abrir Residencial
+    carregarMatrizOfensores(false);
   } else if (abaId === 'empresarial') {
     document.getElementById('tabCopRedeEmpresarial').classList.add('active');
     carregarCopRedeEmpresarial();
