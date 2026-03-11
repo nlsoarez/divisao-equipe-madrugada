@@ -9794,6 +9794,18 @@ function atualizarTabelaCopRede(dados) {
 
   console.log('[COP] Resumo por área calculado:', resumoPorArea);
 
+  // Completar com áreas da escala que não tiveram eventos (volume 0)
+  // Garante que todos os técnicos escalados apareçam no painel mesmo sem eventos
+  const divisaoHoje = dadosResidencial?.[diaMensagem]?.divisao || {};
+  for (const [areaEscala, nomeCompleto] of Object.entries(divisaoHoje)) {
+    if (!resumoPorArea[areaEscala]) {
+      const partes = (nomeCompleto || '').split(' ');
+      const primeiroNome = partes.length > 1 ? `${partes[0]} ${partes[partes.length - 1]}` : partes[0];
+      resumoPorArea[areaEscala] = { volume: 0, responsavel: primeiroNome || '-' };
+      console.log(`[COP] Área "${areaEscala}" sem eventos → adicionada com volume 0 (${primeiroNome})`);
+    }
+  }
+
   // Salvar globalmente para uso na Matriz de Ofensores
   window.resumoAreasCopRede = resumoPorArea;
   window.numPessoasEscala = numPessoasHoje;
@@ -9954,7 +9966,9 @@ function mapearGrupoParaAreaFrontend(grupo, numPessoas = null) {
   const isVitoria = grupoLower === 'vitoria' || grupoLower === 'vitória';
   const isRio = grupoLower.includes('rio');
   const isES = isVitoria || grupoLower.includes('espirito santo') || grupoLower.includes('espírito santo') || grupoLower.includes(' es');
-  const isMG = grupoLower.includes('minas') || grupoLower.includes('mg');
+  const isMG = grupoLower.includes('minas') || grupoLower.includes('mg') ||
+               grupoLower.includes('bh capital') || grupoLower.includes('belo horizonte') ||
+               grupoLower === 'bh' || grupoLower.startsWith('bh ');
   const isBA = grupoLower.includes('bahia') || grupoLower.includes('sergipe') || grupoLower.includes(' ba') || grupoLower.includes(' se');
   const isNE = grupoLower.includes('nordeste') || grupoLower.includes(' ne');
 
