@@ -2042,6 +2042,99 @@
       50% { box-shadow: 0 2px 8px rgba(220, 53, 69, 0.5); }
     }
 
+    /* Cards de incidentes por analista (seção inline no Residencial) */
+    .inc-analista-card {
+      border-left: 4px solid #22c55e;
+      border-radius: 6px;
+      padding: 0.55rem 0.75rem;
+      margin-bottom: 0.5rem;
+      background: #f0fdf4;
+    }
+    .inc-analista-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-bottom: 3px;
+    }
+    .inc-analista-area {
+      font-weight: 700;
+      font-size: 0.82rem;
+      color: #1a1a1a;
+    }
+    .inc-analista-nome {
+      font-size: 0.78rem;
+      color: #555;
+    }
+    .inc-analista-right {
+      margin-left: auto;
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      font-size: 0.75rem;
+    }
+    .inc-vol-cop {
+      color: #388E3C;
+    }
+    .inc-total {
+      font-weight: 700;
+    }
+    .inc-stat {
+      font-size: 0.72rem;
+      margin-bottom: 2px;
+    }
+    .inc-lista {
+      margin-top: 5px;
+      border-top: 1px solid rgba(0,0,0,0.08);
+      padding-top: 4px;
+    }
+    .inc-row {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+      font-size: 0.68rem;
+      padding: 2px 0;
+      border-bottom: 1px solid rgba(0,0,0,0.04);
+      flex-wrap: nowrap;
+    }
+    .inc-id {
+      font-weight: 600;
+      color: #1d4ed8;
+      white-space: nowrap;
+      min-width: 115px;
+    }
+    .inc-city {
+      flex: 1;
+      color: #333;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .inc-cluster {
+      color: #888;
+      font-size: 0.62rem;
+    }
+    .inc-status {
+      white-space: nowrap;
+      min-width: 80px;
+    }
+    .inc-dur {
+      white-space: nowrap;
+      min-width: 28px;
+      text-align: right;
+    }
+    .inc-mais {
+      font-size: 0.68rem;
+      color: #888;
+      text-align: center;
+      margin-top: 3px;
+    }
+    .inc-zero {
+      font-size: 0.72rem;
+      color: #888;
+      padding: 2px 0;
+    }
+
     /* Badge de ofensores nos cards de área CopRede */
     .area-ofensores-badge {
       display: flex;
@@ -2698,10 +2791,10 @@
         <i class="bi bi-bell"></i>
         Novos Alertas
       </button>
-      <button class="telegram-tab" data-tab="matriz-ofensores" onclick="trocarAbasTelegram('matriz-ofensores')">
+      <!-- Aba Ofensores integrada ao Residencial — oculta, conteúdo exibido em linha -->
+      <button class="telegram-tab" data-tab="matriz-ofensores" onclick="trocarAbasTelegram('matriz-ofensores')" style="display:none;">
         <i class="bi bi-exclamation-triangle"></i>
         Ofensores
-        <span class="badge bg-danger ms-1" id="badgeOfensores" style="display:none;"></span>
       </button>
     </div>
 
@@ -2718,6 +2811,25 @@
           <button class="telegram-btn telegram-btn-primary" onclick="verDetalhesCopRedeResumo()">
             <i class="bi bi-info-circle me-1"></i> Ver Detalhes
           </button>
+        </div>
+      </div>
+
+      <!-- Seção de Incidentes Ativos por Analista (integrada — sem aba separada) -->
+      <div id="incidentesAtivosSection" style="display:none; margin-top: 0.75rem;">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <h6 style="margin:0;color:#c0392b;font-size:0.85rem;font-weight:600;">
+            <i class="bi bi-exclamation-triangle-fill me-1"></i>Incidentes Ativos por Analista
+            <span class="badge bg-danger ms-1" id="badgeOfensores" style="display:none;font-size:0.7rem;"></span>
+          </h6>
+          <button class="telegram-btn telegram-btn-primary" onclick="carregarMatrizOfensores(true)" title="Atualizar incidentes">
+            <i class="bi bi-arrow-clockwise"></i>
+          </button>
+        </div>
+        <div id="incidentesAtivosContent">
+          <p class="text-muted small text-center mb-0">Aguardando dados...</p>
+        </div>
+        <div id="incidentesAtivosInfo" class="text-center text-muted small mt-1" style="display:none;">
+          <i class="bi bi-clock me-1"></i><span id="incidentesAtivosTs"></span>
         </div>
       </div>
 
@@ -9262,13 +9374,17 @@ function mapearCidadeParaCluster(cidade) {
 }
 
 /**
- * Dado um incidente do Supabase, retorna o cluster adequado
- * usando `regional` como primário e `nm_cidade` como fallback.
+ * Dado um incidente do Supabase, retorna o cluster adequado.
+ * Usa nm_cidade como PRIMÁRIO (mais confiável), pois o campo regional
+ * contém códigos de zona operacional interna (ex: "LESTE") que não
+ * correspondem a clusters geográficos.
  */
 function obterClusterIncidente(inc) {
-  return (inc.regional && inc.regional.trim())
-    ? inc.regional.trim()
-    : (mapearCidadeParaCluster(inc.nm_cidade) || '');
+  // Tentar cidade primeiro — é a fonte mais confiável para mapeamento geográfico
+  const pelaCidade = mapearCidadeParaCluster(inc.nm_cidade);
+  if (pelaCidade) return pelaCidade;
+  // Fallback: campo regional (pode conter o nome real do cluster em alguns casos)
+  return (inc.regional && inc.regional.trim()) ? inc.regional.trim() : '';
 }
 
 /**
@@ -9317,6 +9433,117 @@ function atualizarAreaCardsComOfensores() {
       card.appendChild(badge);
     }
   });
+}
+
+/**
+ * Renderiza a seção "Incidentes Ativos por Analista" dentro da aba Residencial.
+ * Combina os dados de volumetria (CopRede) com os incidentes do Supabase,
+ * agrupando por área/analista da escala atual.
+ */
+function renderizarIncidentesPorAnalista() {
+  const section = document.getElementById('incidentesAtivosSection');
+  const content = document.getElementById('incidentesAtivosContent');
+  const tsEl = document.getElementById('incidentesAtivosTs');
+  const infoEl = document.getElementById('incidentesAtivosInfo');
+  if (!section || !content) return;
+
+  const resumoCop = window.resumoAreasCopRede;
+  const ofensoresData = window.dadosMatrizOfensores;
+
+  if (!resumoCop && !ofensoresData) return;
+
+  section.style.display = 'block';
+
+  const numPessoas = window.numPessoasEscala || 4;
+  const ofPorArea = calcularOfensoresPorArea(numPessoas);
+
+  // Atualizar badge de críticos
+  const badge = document.getElementById('badgeOfensores');
+  const totalCriticos = Object.values(ofPorArea).reduce((s, a) => s + (a.criticos || 0), 0);
+  if (badge) {
+    badge.textContent = totalCriticos;
+    badge.style.display = totalCriticos > 0 ? '' : 'none';
+  }
+
+  // Ordenar áreas: críticas primeiro
+  const areasOrdenadas = Object.keys(resumoCop || {});
+  if (!areasOrdenadas.length && ofensoresData) {
+    // Se só temos ofensores sem CopRede, usar áreas dos ofensores
+    areasOrdenadas.push(...Object.keys(ofPorArea).filter(a => a !== 'OUTRO'));
+  }
+
+  let html = '';
+  for (const area of areasOrdenadas) {
+    const info = resumoCop?.[area];
+    const of = ofPorArea[area] || { total: 0, criticos: 0, entre12e24h: 0, lista: [] };
+    const responsavel = info?.responsavel || '-';
+    const volCop = info?.volume ?? null;
+
+    const corBorda = of.criticos > 0 ? '#dc2626' : of.entre12e24h > 0 ? '#f59e0b' : '#22c55e';
+    const corBg = of.criticos > 0 ? '#fef2f2' : of.entre12e24h > 0 ? '#fffbeb' : '#f0fdf4';
+
+    html += `
+      <div class="inc-analista-card" style="border-left-color:${corBorda};background:${corBg};">
+        <div class="inc-analista-header">
+          <span class="inc-analista-area">${area}</span>
+          <span class="inc-analista-nome"><i class="bi bi-person-fill me-1"></i>${responsavel}</span>
+          <span class="inc-analista-right">
+            ${volCop !== null ? `<span class="inc-vol-cop"><i class="bi bi-inbox me-1"></i>${volCop} msgs</span>` : ''}
+            <span class="inc-total" style="color:${of.total > 0 ? corBorda : '#888'};">${of.total} incidente${of.total !== 1 ? 's' : ''}</span>
+          </span>
+        </div>`;
+
+    if (of.total > 0) {
+      if (of.criticos > 0) html += `<div class="inc-stat"><i class="bi bi-exclamation-triangle-fill me-1" style="color:#dc2626;"></i>${of.criticos} crítico${of.criticos > 1 ? 's' : ''} (+24h)</div>`;
+      if (of.entre12e24h > 0) html += `<div class="inc-stat"><i class="bi bi-clock me-1" style="color:#f59e0b;"></i>${of.entre12e24h} entre 12-24h</div>`;
+
+      html += `<div class="inc-lista">`;
+      of.lista.slice(0, 6).forEach(inc => {
+        const h = calcularHorasOfensor(inc.dh_inicio);
+        const dur = formatarDuracaoOfensor(inc.dh_inicio);
+        const cor = h > 24 ? '#dc2626' : h > 12 ? '#d97706' : '#555';
+        const cluster = obterClusterIncidente(inc);
+        const statusCls = (inc.nm_status || '').includes('PENDENTE') ? '#dc2626'
+          : (inc.nm_status || '').includes('DESIGNADO') ? '#d97706'
+          : (inc.nm_status || '').includes('PROGRESSO') ? '#1d4ed8' : '#888';
+        html += `
+          <div class="inc-row">
+            <span class="inc-id">${inc.id_mostra || '-'}</span>
+            <span class="inc-city">${inc.nm_cidade || '-'}${cluster && cluster !== inc.regional ? ` <span class="inc-cluster">${cluster}</span>` : ''}</span>
+            <span class="inc-status" style="color:${statusCls};">${inc.nm_status || '-'}</span>
+            <span class="inc-dur" style="color:${cor};font-weight:600;">${dur}</span>
+          </div>`;
+      });
+      if (of.lista.length > 6) {
+        html += `<div class="inc-mais">+ ${of.lista.length - 6} incidente(s)</div>`;
+      }
+      html += `</div>`;
+    } else {
+      html += `<div class="inc-zero">Nenhum incidente ativo</div>`;
+    }
+
+    html += `</div>`;
+  }
+
+  // OUTRO (não mapeados)
+  const outro = ofPorArea['OUTRO'];
+  if (outro?.total > 0) {
+    html += `
+      <div class="inc-analista-card" style="border-left-color:#aaa;background:#f8f9fa;">
+        <div class="inc-analista-header">
+          <span class="inc-analista-area">Não mapeados</span>
+          <span class="inc-total" style="color:#888;">${outro.total} incidente${outro.total !== 1 ? 's' : ''}</span>
+        </div>
+      </div>`;
+  }
+
+  content.innerHTML = html || '<p class="text-muted small text-center mb-0">Nenhum dado disponível</p>';
+
+  if (ofensoresData?.timestamp && infoEl && tsEl) {
+    const ts = new Date(ofensoresData.timestamp).toLocaleString('pt-BR');
+    tsEl.textContent = `${ofensoresData.total} incidentes · Atualizado: ${ts}`;
+    infoEl.style.display = '';
+  }
 }
 
 /**
@@ -9488,6 +9715,9 @@ async function carregarMatrizOfensores(forcar = false) {
 
     // Enriquecer os cards de volume CopRede com dados de ofensores
     atualizarAreaCardsComOfensores();
+
+    // Renderizar seção unificada de incidentes por analista (aba Residencial)
+    renderizarIncidentesPorAnalista();
 
     // Badge com total de críticos (calcula direto dos ofensores brutos)
     const badge = document.getElementById('badgeOfensores');
@@ -10143,6 +10373,8 @@ function atualizarTabelaCopRede(dados) {
     `).join('');
     // Enriquecer com ofensores se já carregados
     atualizarAreaCardsComOfensores();
+    // Renderizar seção unificada de incidentes por analista
+    renderizarIncidentesPorAnalista();
   } else if (resumoDiv) {
     resumoDiv.style.display = 'none';
   }
