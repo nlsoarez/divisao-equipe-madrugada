@@ -1046,8 +1046,10 @@ function calcularHoras(dhInicio) {
 app.get('/api/matriz-ofensores', async (req, res) => {
   try {
     const limit = parseInt(req.query.limit) || 200;
-    // Filtrar apenas incidentes ativos — exclui status terminais
-    const url = `${SUPABASE_URL}/rest/v1/incidents?select=id_mostra,nm_tipo,nm_cidade,nm_status,topologia,dh_inicio,regional,ds_sumario&nm_status=not.in.(FECHADO,RESOLVIDO,CANCELADO,ENCERRADO)&order=dh_inicio.asc&limit=${limit}`;
+    // Busca todos os campos de mapeamento geográfico: grupo e cluster são os campos
+    // canônicos do portal de origem para identificar área (não usar só regional/cidade)
+    // Filtrar fora apenas status tratada/treated (igual ao portal de origem que exclui encerrados)
+    const url = `${SUPABASE_URL}/rest/v1/incidents?select=id_mostra,nm_tipo,nm_cidade,nm_status,topologia,dh_inicio,regional,grupo,cluster,ds_sumario&nm_status=not.in.(treated,tratada)&order=dh_inicio.asc&limit=${limit}`;
 
     const response = await fetch(url, {
       headers: {

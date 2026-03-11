@@ -9432,10 +9432,14 @@ function mapearCidadeParaCluster(cidade) {
  * correspondem a clusters geográficos.
  */
 function obterClusterIncidente(inc) {
-  // Tentar cidade primeiro — é a fonte mais confiável para mapeamento geográfico
+  // Prioridade 1: campo grupo — campo canônico do portal de origem para área
+  if (inc.grupo && inc.grupo.trim()) return inc.grupo.trim();
+  // Prioridade 2: campo cluster
+  if (inc.cluster && inc.cluster.trim()) return inc.cluster.trim();
+  // Prioridade 3: mapear pela cidade
   const pelaCidade = mapearCidadeParaCluster(inc.nm_cidade);
   if (pelaCidade) return pelaCidade;
-  // Fallback: campo regional (pode conter o nome real do cluster em alguns casos)
+  // Fallback: regional
   return (inc.regional && inc.regional.trim()) ? inc.regional.trim() : '';
 }
 
@@ -9448,12 +9452,11 @@ function calcularOfensoresPorArea(numPessoas) {
   const ofensores = window.dadosMatrizOfensores?.ofensores || [];
   const grupos = {};
   for (const inc of ofensores) {
-    const h = calcularHorasOfensor(inc.dh_inicio);
-    if (h <= 6) continue; // Somente outages acima de 6h são considerados ofensores
     const cluster = obterClusterIncidente(inc);
     const areaKey = mapearGrupoParaAreaFrontend(cluster, numPessoas) || 'OUTRO';
     if (!grupos[areaKey]) grupos[areaKey] = { total: 0, criticos: 0, entre12e24h: 0, lista: [] };
     grupos[areaKey].total++;
+    const h = calcularHorasOfensor(inc.dh_inicio);
     if (h > 24) grupos[areaKey].criticos++;
     else if (h > 12) grupos[areaKey].entre12e24h++;
     grupos[areaKey].lista.push(inc);
@@ -9478,11 +9481,15 @@ function atualizarAreaCardsComOfensores() {
     // Remover badge antigo se existir
     card.querySelector('.area-ofensores-badge')?.remove();
     if (of && of.total > 0) {
+      // "Ofensores" = somente incidentes acima de 6h
+      const ofensoresAcima6h = of.lista.filter(inc => calcularHorasOfensor(inc.dh_inicio) > 6).length;
+      const criticos = of.lista.filter(inc => calcularHorasOfensor(inc.dh_inicio) > 24).length;
+      if (ofensoresAcima6h === 0) return;
       const badge = document.createElement('span');
       badge.className = 'area-ofensores-badge';
       badge.innerHTML = `<i class="bi bi-exclamation-triangle-fill me-1" style="color:#dc2626;"></i>`
-        + `<span style="font-weight:600;color:#dc2626;">${of.total} ofensor${of.total > 1 ? 'es' : ''}</span>`
-        + (of.criticos > 0 ? ` <span style="color:#dc2626;font-size:0.65rem;">(${of.criticos} +24h)</span>` : '');
+        + `<span style="font-weight:600;color:#dc2626;">${ofensoresAcima6h} ofensor${ofensoresAcima6h > 1 ? 'es' : ''}</span>`
+        + (criticos > 0 ? ` <span style="color:#dc2626;font-size:0.65rem;">(${criticos} +24h)</span>` : '');
       card.appendChild(badge);
     }
   });
