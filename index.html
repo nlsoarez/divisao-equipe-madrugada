@@ -2607,6 +2607,11 @@
         <i class="bi bi-bell"></i>
         Novos Alertas
       </button>
+      <button class="telegram-tab" data-tab="matriz-ofensores" onclick="trocarAbasTelegram('matriz-ofensores')">
+        <i class="bi bi-exclamation-triangle"></i>
+        Ofensores
+        <span class="badge bg-danger ms-1" id="badgeOfensores" style="display:none;"></span>
+      </button>
     </div>
 
     <!-- Conteúdo da aba COP REDE INFORMA -->
@@ -2710,6 +2715,47 @@
     </div>
 
   </div>
+
+    <!-- Conteúdo da aba MATRIZ DE OFENSORES -->
+    <div class="telegram-content" id="tabMatrizOfensores">
+      <!-- Resumo por Área com Volume Cruzado -->
+      <div id="matrizOfensoresResumo" style="margin-bottom:1rem;">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <h6 style="margin:0;color:#388E3C;font-size:0.85rem;font-weight:600;">
+            <i class="bi bi-exclamation-triangle-fill me-1 text-danger"></i>Ofensores por Área
+          </h6>
+          <button class="telegram-btn telegram-btn-primary" onclick="carregarMatrizOfensores(true)" title="Atualizar">
+            <i class="bi bi-arrow-clockwise"></i>
+          </button>
+        </div>
+        <div class="area-volume-grid" id="matrizAreaGrid">
+          <p class="text-muted small text-center mb-0">Carregando...</p>
+        </div>
+      </div>
+
+      <!-- Tabela de Ofensores -->
+      <div class="table-responsive" style="max-height:420px;overflow-y:auto;">
+        <table class="telegram-table" id="tabelaOfensores" style="font-size:0.78rem;">
+          <thead>
+            <tr>
+              <th>Incidente</th>
+              <th>Cidade / Regional</th>
+              <th>Status</th>
+              <th style="text-align:center;">Tempo</th>
+              <th style="text-align:center;">+24h?</th>
+            </tr>
+          </thead>
+          <tbody id="tbodyOfensores">
+            <tr>
+              <td colspan="5" class="text-center text-muted small">Clique em "Ofensores" para carregar</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div id="matrizOfensoresInfo" class="text-center text-muted small mt-2" style="display:none;">
+        <i class="bi bi-clock me-1"></i><span id="matrizUltimaAtualizacao"></span>
+      </div>
+    </div>
 
   </div><!-- Fim tabTelegram -->
 
@@ -8951,6 +8997,182 @@ function trocarAbasTelegram(abaId) {
     carregarCopRedeEmpresarial();
   } else if (abaId === 'novos-alertas') {
     document.getElementById('tabNovosAlertas').classList.add('active');
+  } else if (abaId === 'matriz-ofensores') {
+    document.getElementById('tabMatrizOfensores').classList.add('active');
+    carregarMatrizOfensores(false);
+  }
+}
+
+// ============================================
+// MATRIZ DE OFENSORES - Funções
+// ============================================
+
+let dadosMatrizOfensores = null;
+let matrizOfensoresCarregado = false;
+
+/**
+ * Formata duração desde dh_inicio
+ */
+function formatarDuracaoOfensor(dhInicio) {
+  if (!dhInicio) return '--';
+  try {
+    const diffMs = Date.now() - new Date(dhInicio).getTime();
+    const horas = Math.floor(diffMs / 3600000);
+    const dias = Math.floor(horas / 24);
+    const hRest = horas % 24;
+    if (dias > 0) return `${dias}d ${hRest}h`;
+    return `${horas}h`;
+  } catch { return '--'; }
+}
+
+/**
+ * Verifica se está acima de 24h
+ */
+function ofensorAcima24h(dhInicio) {
+  if (!dhInicio) return false;
+  try {
+    return (Date.now() - new Date(dhInicio).getTime()) / 3600000 > 24;
+  } catch { return false; }
+}
+
+/**
+ * Retorna classe CSS de volume conforme o total de ofensores
+ */
+function getCorOfensores(qtd) {
+  if (qtd >= 20) return 'volume-critico';
+  if (qtd >= 10) return 'volume-atencao';
+  return 'volume-ok';
+}
+
+/**
+ * Renderiza o resumo de ofensores por área, cruzando com volume CopRede quando disponível
+ */
+function renderizarMatrizAreaGrid(porArea) {
+  const grid = document.getElementById('matrizAreaGrid');
+  if (!grid) return;
+
+  // Pegar volumes atuais do CopRede Informa para cruzamento (usa resumoPorArea)
+  const volumesCopRede = {};
+  if (dadosCopRedeInforma && dadosCopRedeInforma.length > 0) {
+    const ultima = dadosCopRedeInforma.find(m => m.resumoPorArea && Object.keys(m.resumoPorArea).length > 0);
+    if (ultima?.resumoPorArea) {
+      for (const [area, vol] of Object.entries(ultima.resumoPorArea)) {
+        volumesCopRede[area] = (volumesCopRede[area] || 0) + (vol || 0);
+      }
+    }
+  }
+
+  const areasOrdem = ['RIO', 'MG/ES/BA', 'CO/NO/NE', 'OUTRO'];
+  let html = '';
+
+  for (const areaKey of areasOrdem) {
+    const info = porArea.find(p => p.area === areaKey);
+    if (!info || info.total === 0) continue;
+
+    const volCop = volumesCopRede[areaKey] || null;
+    const corCss = getCorOfensores(info.total);
+    const volStr = volCop !== null ? `<span class="area-count" title="Volume CopRede"><i class="bi bi-inbox me-1"></i>${volCop} msgs</span>` : '';
+
+    html += `
+      <div class="area-volume-item ${corCss}" style="flex-direction:column;align-items:flex-start;gap:4px;">
+        <div style="display:flex;justify-content:space-between;width:100%;align-items:center;">
+          <span class="area-name" style="font-size:0.8rem;">${areaKey}</span>
+          <span class="area-volume" style="font-size:1rem;">${info.total}</span>
+        </div>
+        <div style="display:flex;gap:8px;font-size:0.7rem;color:#666;flex-wrap:wrap;">
+          ${info.criticos > 0 ? `<span style="color:#ef4444;font-weight:600;"><i class="bi bi-exclamation-triangle-fill me-1"></i>${info.criticos} críticos (+24h)</span>` : ''}
+          ${info.entre12e24h > 0 ? `<span style="color:#f59e0b;"><i class="bi bi-clock me-1"></i>${info.entre12e24h} entre 12-24h</span>` : ''}
+          ${volStr}
+        </div>
+      </div>`;
+  }
+
+  grid.innerHTML = html || '<p class="text-muted small text-center mb-0">Nenhum ofensor encontrado</p>';
+}
+
+/**
+ * Renderiza a tabela de ofensores
+ */
+function renderizarTabelaOfensores(ofensores) {
+  const tbody = document.getElementById('tbodyOfensores');
+  if (!tbody) return;
+
+  if (!ofensores || ofensores.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted small">Nenhum ofensor encontrado</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = ofensores.map(inc => {
+    const acima24 = ofensorAcima24h(inc.dh_inicio);
+    const duracao = formatarDuracaoOfensor(inc.dh_inicio);
+    const statusCls = (inc.nm_status || '').includes('PENDENTE') ? 'text-danger' :
+                      (inc.nm_status || '').includes('DESIGNADO') ? 'text-warning' : 'text-muted';
+    return `
+      <tr>
+        <td style="font-weight:600;font-size:0.75rem;">${inc.id_mostra || '-'}</td>
+        <td>
+          <div style="font-size:0.75rem;font-weight:600;">${inc.nm_cidade || '-'}</div>
+          <div style="font-size:0.65rem;color:#888;">${inc.regional || ''}</div>
+        </td>
+        <td><span class="${statusCls}" style="font-size:0.72rem;">${inc.nm_status || '-'}</span></td>
+        <td style="text-align:center;font-family:monospace;font-size:0.72rem;">${duracao}</td>
+        <td style="text-align:center;">
+          ${acima24
+            ? '<span style="background:#dc2626;color:#fff;font-size:0.65rem;font-weight:700;padding:2px 6px;border-radius:12px;">CRÍTICO</span>'
+            : '<span style="color:#888;font-size:0.7rem;">-</span>'}
+        </td>
+      </tr>`;
+  }).join('');
+}
+
+/**
+ * Carrega Matriz de Ofensores do backend (que faz proxy para Supabase)
+ */
+async function carregarMatrizOfensores(forcar = false) {
+  if (!backendUrl) return;
+  if (!forcar && matrizOfensoresCarregado) return;
+
+  const grid = document.getElementById('matrizAreaGrid');
+  if (grid) grid.innerHTML = '<p class="text-muted small text-center mb-0">Carregando...</p>';
+
+  try {
+    const resp = await fetch(`${backendUrl}/api/matriz-ofensores`);
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    const data = await resp.json();
+
+    if (!data.sucesso) throw new Error(data.erro || 'Erro desconhecido');
+
+    dadosMatrizOfensores = data;
+    matrizOfensoresCarregado = true;
+
+    renderizarMatrizAreaGrid(data.porArea || []);
+    renderizarTabelaOfensores(data.ofensores || []);
+
+    // Badge com total de críticos
+    const badge = document.getElementById('badgeOfensores');
+    const criticos = (data.porArea || []).reduce((s, a) => s + a.criticos, 0);
+    if (badge) {
+      if (criticos > 0) {
+        badge.textContent = criticos;
+        badge.style.display = '';
+      } else {
+        badge.style.display = 'none';
+      }
+    }
+
+    // Info de atualização
+    const infoEl = document.getElementById('matrizOfensoresInfo');
+    const spanEl = document.getElementById('matrizUltimaAtualizacao');
+    if (infoEl && spanEl) {
+      const ts = data.timestamp ? new Date(data.timestamp).toLocaleString('pt-BR') : '';
+      spanEl.textContent = `${data.total} ofensores · Atualizado: ${ts}`;
+      infoEl.style.display = '';
+    }
+
+    console.log('[Ofensores] Matriz carregada:', data.total, 'incidentes');
+  } catch (err) {
+    console.error('[Ofensores] Erro:', err.message);
+    if (grid) grid.innerHTML = `<p class="text-danger small text-center mb-0"><i class="bi bi-exclamation-triangle me-1"></i>Erro: ${err.message}</p>`;
   }
 }
 
