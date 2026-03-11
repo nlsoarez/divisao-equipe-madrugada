@@ -2046,16 +2046,23 @@
     .inc-analista-card {
       border-left: 4px solid #22c55e;
       border-radius: 6px;
-      padding: 0.55rem 0.75rem;
+      padding: 0;
       margin-bottom: 0.5rem;
       background: #f0fdf4;
+      overflow: hidden;
     }
     .inc-analista-header {
       display: flex;
       align-items: center;
       gap: 8px;
       flex-wrap: wrap;
-      margin-bottom: 3px;
+      padding: 0.55rem 0.75rem 0.4rem;
+      cursor: pointer;
+      user-select: none;
+      transition: background 0.15s;
+    }
+    .inc-analista-header:hover {
+      filter: brightness(0.97);
     }
     .inc-analista-area {
       font-weight: 700;
@@ -2079,32 +2086,58 @@
     .inc-total {
       font-weight: 700;
     }
+    .inc-toggle-icon {
+      font-size: 0.7rem;
+      color: #888;
+      transition: transform 0.2s;
+      margin-left: 2px;
+    }
+    .inc-toggle-icon.open {
+      transform: rotate(180deg);
+    }
+    .inc-summary-row {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      padding: 0 0.75rem 0.45rem;
+    }
+    .inc-stat-inline {
+      font-size: 0.7rem;
+      display: flex;
+      align-items: center;
+      gap: 3px;
+    }
+    .inc-stat-inline.critical { color: #dc2626; }
+    .inc-stat-inline.warn     { color: #d97706; }
     .inc-stat {
       font-size: 0.72rem;
       margin-bottom: 2px;
     }
     .inc-lista {
-      margin-top: 5px;
       border-top: 1px solid rgba(0,0,0,0.08);
-      padding-top: 4px;
+      padding: 4px 0.75rem 0.5rem;
     }
     .inc-row {
-      display: flex;
+      display: grid;
+      grid-template-columns: 115px 1fr auto auto;
       gap: 6px;
       align-items: center;
       font-size: 0.68rem;
-      padding: 2px 0;
-      border-bottom: 1px solid rgba(0,0,0,0.04);
-      flex-wrap: nowrap;
+      padding: 4px 0;
+      border-bottom: 1px solid rgba(0,0,0,0.05);
     }
-    .inc-id {
+    .inc-row:last-child { border-bottom: none; }
+    .inc-link {
       font-weight: 600;
       color: #1d4ed8;
+      text-decoration: none;
       white-space: nowrap;
-      min-width: 115px;
+    }
+    .inc-link:hover {
+      text-decoration: underline;
+      color: #1e40af;
     }
     .inc-city {
-      flex: 1;
       color: #333;
       overflow: hidden;
       text-overflow: ellipsis;
@@ -2116,18 +2149,21 @@
     }
     .inc-status {
       white-space: nowrap;
-      min-width: 80px;
+      text-align: right;
+      font-size: 0.67rem;
+      font-weight: 600;
     }
     .inc-dur {
       white-space: nowrap;
-      min-width: 28px;
       text-align: right;
+      font-weight: 600;
+      min-width: 32px;
     }
     .inc-mais {
       font-size: 0.68rem;
       color: #888;
       text-align: center;
-      margin-top: 3px;
+      margin-top: 4px;
     }
     .inc-zero {
       font-size: 0.72rem;
@@ -9485,24 +9521,32 @@ function renderizarIncidentesPorAnalista() {
 
     const corBorda = of.criticos > 0 ? '#dc2626' : of.entre12e24h > 0 ? '#f59e0b' : '#22c55e';
     const corBg = of.criticos > 0 ? '#fef2f2' : of.entre12e24h > 0 ? '#fffbeb' : '#f0fdf4';
+    const collapseId = 'inc-area-' + area.replace(/[^a-zA-Z0-9]/g, '-');
 
     html += `
       <div class="inc-analista-card" style="border-left-color:${corBorda};background:${corBg};">
-        <div class="inc-analista-header">
+        <div class="inc-analista-header" onclick="toggleIncidentes('${collapseId}')">
           <span class="inc-analista-area">${area}</span>
           <span class="inc-analista-nome"><i class="bi bi-person-fill me-1"></i>${responsavel}</span>
           <span class="inc-analista-right">
             ${volCop !== null ? `<span class="inc-vol-cop"><i class="bi bi-inbox me-1"></i>${volCop} msgs</span>` : ''}
             <span class="inc-total" style="color:${of.total > 0 ? corBorda : '#888'};">${of.total} incidente${of.total !== 1 ? 's' : ''}</span>
+            <i class="bi bi-chevron-down inc-toggle-icon" id="icon-${collapseId}"></i>
           </span>
         </div>`;
 
-    if (of.total > 0) {
-      if (of.criticos > 0) html += `<div class="inc-stat"><i class="bi bi-exclamation-triangle-fill me-1" style="color:#dc2626;"></i>${of.criticos} crítico${of.criticos > 1 ? 's' : ''} (+24h)</div>`;
-      if (of.entre12e24h > 0) html += `<div class="inc-stat"><i class="bi bi-clock me-1" style="color:#f59e0b;"></i>${of.entre12e24h} entre 12-24h</div>`;
+    // Resumo de alertas (sempre visível no cabeçalho)
+    if (of.total > 0 && (of.criticos > 0 || of.entre12e24h > 0)) {
+      html += `<div class="inc-summary-row">`;
+      if (of.criticos > 0) html += `<span class="inc-stat-inline critical"><i class="bi bi-exclamation-triangle-fill"></i> ${of.criticos} crítico${of.criticos > 1 ? 's' : ''} (+24h)</span>`;
+      if (of.entre12e24h > 0) html += `<span class="inc-stat-inline warn"><i class="bi bi-clock"></i> ${of.entre12e24h} entre 12-24h</span>`;
+      html += `</div>`;
+    }
 
-      html += `<div class="inc-lista">`;
-      of.lista.slice(0, 6).forEach(inc => {
+    // Lista colapsável de incidentes
+    html += `<div id="${collapseId}" class="inc-lista" style="display:none;">`;
+    if (of.total > 0) {
+      of.lista.forEach(inc => {
         const h = calcularHorasOfensor(inc.dh_inicio);
         const dur = formatarDuracaoOfensor(inc.dh_inicio);
         const cor = h > 24 ? '#dc2626' : h > 12 ? '#d97706' : '#555';
@@ -9510,21 +9554,22 @@ function renderizarIncidentesPorAnalista() {
         const statusCls = (inc.nm_status || '').includes('PENDENTE') ? '#dc2626'
           : (inc.nm_status || '').includes('DESIGNADO') ? '#d97706'
           : (inc.nm_status || '').includes('PROGRESSO') ? '#1d4ed8' : '#888';
+        const idMostra = inc.id_mostra || '-';
+        const linkInc = idMostra !== '-'
+          ? `<a class="inc-link" href="https://outage.claro.com.br/inc/view/${idMostra}" target="_blank" rel="noopener">${idMostra}</a>`
+          : idMostra;
         html += `
           <div class="inc-row">
-            <span class="inc-id">${inc.id_mostra || '-'}</span>
+            <span>${linkInc}</span>
             <span class="inc-city">${inc.nm_cidade || '-'}${cluster && cluster !== inc.regional ? ` <span class="inc-cluster">${cluster}</span>` : ''}</span>
             <span class="inc-status" style="color:${statusCls};">${inc.nm_status || '-'}</span>
-            <span class="inc-dur" style="color:${cor};font-weight:600;">${dur}</span>
+            <span class="inc-dur" style="color:${cor};">${dur}</span>
           </div>`;
       });
-      if (of.lista.length > 6) {
-        html += `<div class="inc-mais">+ ${of.lista.length - 6} incidente(s)</div>`;
-      }
-      html += `</div>`;
     } else {
       html += `<div class="inc-zero">Nenhum incidente ativo</div>`;
     }
+    html += `</div>`;
 
     html += `</div>`;
   }
@@ -9532,11 +9577,15 @@ function renderizarIncidentesPorAnalista() {
   // OUTRO (não mapeados)
   const outro = ofPorArea['OUTRO'];
   if (outro?.total > 0) {
+    const collapseIdOutro = 'inc-area-OUTRO';
     html += `
       <div class="inc-analista-card" style="border-left-color:#aaa;background:#f8f9fa;">
-        <div class="inc-analista-header">
+        <div class="inc-analista-header" onclick="toggleIncidentes('${collapseIdOutro}')">
           <span class="inc-analista-area">Não mapeados</span>
-          <span class="inc-total" style="color:#888;">${outro.total} incidente${outro.total !== 1 ? 's' : ''}</span>
+          <span class="inc-analista-right">
+            <span class="inc-total" style="color:#888;">${outro.total} incidente${outro.total !== 1 ? 's' : ''}</span>
+            <i class="bi bi-chevron-down inc-toggle-icon" id="icon-${collapseIdOutro}"></i>
+          </span>
         </div>
       </div>`;
   }
@@ -9548,6 +9597,18 @@ function renderizarIncidentesPorAnalista() {
     tsEl.textContent = `${ofensoresData.total} incidentes · Atualizado: ${ts}`;
     infoEl.style.display = '';
   }
+}
+
+/**
+ * Abre/fecha a lista de incidentes de um card analista
+ */
+function toggleIncidentes(collapseId) {
+  const el = document.getElementById(collapseId);
+  const icon = document.getElementById('icon-' + collapseId);
+  if (!el) return;
+  const isOpen = el.style.display !== 'none';
+  el.style.display = isOpen ? 'none' : '';
+  if (icon) icon.classList.toggle('open', !isOpen);
 }
 
 /**
