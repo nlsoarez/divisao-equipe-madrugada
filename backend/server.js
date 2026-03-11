@@ -953,6 +953,93 @@ app.post('/api/cache/limpar', async (req, res) => {
 });
 
 // ============================================
+// ROTA MATRIZ DE OFENSORES (Coprede / Supabase)
+// ============================================
+
+const SUPABASE_URL = 'https://wthzxrgifjtenaujhdbb.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind0aHp4cmdpZmp0ZW5hdWpoZGJiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjkwMjYwODIsImV4cCI6MjA4NDYwMjA4Mn0.MGhDMxfbbKGc69Mut8M7ESmULS8d10VgeIu_vXcorpc';
+
+/**
+ * Mapeia o campo "regional" do Supabase para as áreas do painel
+ * RIO | MG/ES/BA | CO/NO/NE | OUTRO
+ */
+function mapearRegionalParaArea(regional) {
+  if (!regional) return 'OUTRO';
+  const r = regional.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  if (r.includes('rio') || r.includes('rj')) return 'RIO';
+  if (r.includes('minas') || r.includes('mg') || r.includes('espirito') || r.includes('es') ||
+      r.includes('bahia') || r.includes('ba') || r.includes('sergipe') || r.includes('se')) return 'MG/ES/BA';
+  if (r.includes('norte') || r.includes('nordeste') || r.includes('centro') ||
+      r.includes('co') || r.includes('ne') || r.includes('no') || r.includes('goias') ||
+      r.includes('go') || r.includes('mato') || r.includes('para') || r.includes('am') ||
+      r.includes('acre') || r.includes('rondonia') || r.includes('roraima') ||
+      r.includes('amapa') || r.includes('tocantins') || r.includes('pernambuco') ||
+      r.includes('ceara') || r.includes('piaui') || r.includes('maranhao')) return 'CO/NO/NE';
+  return 'OUTRO';
+}
+
+/**
+ * Calcula duração em horas desde dh_inicio
+ */
+function calcularHoras(dhInicio) {
+  if (!dhInicio) return 0;
+  try {
+    return (Date.now() - new Date(dhInicio).getTime()) / 3600000;
+  } catch { return 0; }
+}
+
+/**
+ * Buscar Matriz de Ofensores do portal Coprede (Supabase)
+ * Retorna top 100 incidentes mais antigos, agrupados por área
+ */
+app.get('/api/matriz-ofensores', async (req, res) => {
+  try {
+    const limit = parseInt(req.query.limit) || 100;
+    const url = `${SUPABASE_URL}/rest/v1/incidents?select=id_mostra,nm_tipo,nm_cidade,nm_status,topologia,dh_inicio,regional,ds_sumario&order=dh_inicio.asc&limit=${limit}`;
+
+    const response = await fetch(url, {
+      headers: {
+        'apikey': SUPABASE_ANON_KEY,
+        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    if (!response.ok) {
+      const errText = await response.text();
+      throw new Error(`Supabase ${response.status}: ${errText}`);
+    }
+
+    const ofensores = await response.json();
+
+    // Agrupar por área e calcular estatísticas
+    const areaMap = { 'RIO': [], 'MG/ES/BA': [], 'CO/NO/NE': [], 'OUTRO': [] };
+    for (const inc of ofensores) {
+      const area = mapearRegionalParaArea(inc.regional);
+      areaMap[area].push(inc);
+    }
+
+    const porArea = Object.entries(areaMap).map(([area, incs]) => ({
+      area,
+      total: incs.length,
+      criticos: incs.filter(i => calcularHoras(i.dh_inicio) > 24).length,
+      entre12e24h: incs.filter(i => { const h = calcularHoras(i.dh_inicio); return h > 12 && h <= 24; }).length,
+    }));
+
+    res.json({
+      sucesso: true,
+      total: ofensores.length,
+      ofensores,
+      porArea,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('[API] Erro ao buscar Matriz de Ofensores:', error.message);
+    res.status(500).json({ sucesso: false, erro: error.message });
+  }
+});
+
+// ============================================
 // INICIALIZAÇÃO DO SERVIDOR
 // ============================================
 
@@ -1059,6 +1146,7 @@ app.listen(SERVER_CONFIG.PORT, async () => {
   console.log('  Dados COP REDE:');
   console.log('  GET  /api/cop-rede-informa');
   console.log('  GET  /api/alertas');
+  console.log('  GET  /api/matriz-ofensores');
   console.log('');
   console.log('  Alocação de HUB:');
   console.log('  GET  /api/alocacao-hub/ultima');
