@@ -9492,6 +9492,12 @@ function renderizarIncidentesPorAnalista() {
 
   if (!resumoCop && !ofensoresData) return;
 
+  // Salvar estado aberto/fechado dos cards antes de re-renderizar
+  const abertos = new Set();
+  content.querySelectorAll('.inc-lista').forEach(el => {
+    if (el.style.display !== 'none') abertos.add(el.id);
+  });
+
   section.style.display = 'block';
 
   const numPessoas = window.numPessoasEscala || 4;
@@ -9591,6 +9597,14 @@ function renderizarIncidentesPorAnalista() {
   }
 
   content.innerHTML = html || '<p class="text-muted small text-center mb-0">Nenhum dado disponível</p>';
+
+  // Restaurar cards que estavam abertos antes da re-renderização
+  abertos.forEach(id => {
+    const el = document.getElementById(id);
+    const icon = document.getElementById('icon-' + id);
+    if (el) { el.style.display = ''; }
+    if (icon) { icon.classList.add('open'); }
+  });
 
   if (ofensoresData?.timestamp && infoEl && tsEl) {
     const ts = new Date(ofensoresData.timestamp).toLocaleString('pt-BR');
