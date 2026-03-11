@@ -9448,11 +9448,12 @@ function calcularOfensoresPorArea(numPessoas) {
   const ofensores = window.dadosMatrizOfensores?.ofensores || [];
   const grupos = {};
   for (const inc of ofensores) {
+    const h = calcularHorasOfensor(inc.dh_inicio);
+    if (h <= 6) continue; // Somente outages acima de 6h são considerados ofensores
     const cluster = obterClusterIncidente(inc);
     const areaKey = mapearGrupoParaAreaFrontend(cluster, numPessoas) || 'OUTRO';
     if (!grupos[areaKey]) grupos[areaKey] = { total: 0, criticos: 0, entre12e24h: 0, lista: [] };
     grupos[areaKey].total++;
-    const h = calcularHorasOfensor(inc.dh_inicio);
     if (h > 24) grupos[areaKey].criticos++;
     else if (h > 12) grupos[areaKey].entre12e24h++;
     grupos[areaKey].lista.push(inc);
@@ -9519,7 +9520,7 @@ function renderizarIncidentesPorAnalista() {
   const badge = document.getElementById('badgeOfensores');
   const totalCriticos = Object.values(ofPorArea).reduce((s, a) => s + (a.criticos || 0), 0);
   if (badge) {
-    badge.textContent = totalCriticos;
+    badge.textContent = `${totalCriticos} >24h`;
     badge.style.display = totalCriticos > 0 ? '' : 'none';
   }
 
