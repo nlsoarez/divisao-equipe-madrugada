@@ -2647,16 +2647,16 @@
   </div>
 
   <!-- Escalonamento: Seção de visualização (visível para todos) -->
-  <div id="escalonamentoSection" class="mt-3" style="display: none;">
-    <div id="escalonamentoHeader" onclick="toggleEscalonamento()" style="background: linear-gradient(135deg, #1565C0 0%, #0D47A1 100%); color: white; padding: 0.75rem 1rem; border-radius: 8px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; user-select: none;">
+  <div id="escalonamentoSection" class="mt-4 mb-2" style="display: none;">
+    <div id="escalonamentoHeader" onclick="toggleEscalonamento()" style="background: linear-gradient(135deg, #388E3C 0%, #2E7D32 100%); color: white; padding: 0.75rem 1rem; border-radius: 8px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; user-select: none;">
       <span><i class="bi bi-telephone-fill me-2"></i>Escalonamento - Rede Externa</span>
       <i class="bi bi-chevron-down" id="escalonamentoChevron" style="transition: transform 0.2s;"></i>
     </div>
     <div id="escalonamentoBody" style="display: none;">
-      <div style="background: #e3f2fd; padding: 0.5rem 0.75rem; border-left: 1px solid #90caf9; border-right: 1px solid #90caf9; overflow-x: auto;">
+      <div style="background: #E8F5E9; padding: 0.5rem 0.75rem; border-left: 1px solid #A5D6A7; border-right: 1px solid #A5D6A7; overflow-x: auto;">
         <div id="escalonamentoTabs" style="display: flex; gap: 0.25rem; flex-wrap: wrap;"></div>
       </div>
-      <div id="escalonamentoContent" style="padding: 1rem; background: white; border-radius: 0 0 8px 8px; border: 1px solid #90caf9; border-top: none; max-height: 70vh; overflow-y: auto;">
+      <div id="escalonamentoContent" style="padding: 1rem; background: white; border-radius: 0 0 8px 8px; border: 1px solid #A5D6A7; border-top: none; max-height: 70vh; overflow-y: auto;">
         <div class="text-center text-muted py-4">
           <i class="bi bi-hand-index" style="font-size: 2rem;"></i>
           <p class="mt-2">Selecione uma região acima</p>
@@ -11987,7 +11987,7 @@ function renderEscalonamentoSheet(sheetName) {
     return;
   }
 
-  var NIVEL_COLORS = ['#1565C0', '#2E7D32', '#C62828', '#E65100', '#6A1B9A'];
+  var NIVEL_COLORS = ['#1B5E20', '#2E7D32', '#388E3C', '#43A047', '#66BB6A'];
   var html = '';
 
   sections.forEach(function(section, idx) {
@@ -12004,7 +12004,7 @@ function renderEscalonamentoSheet(sheetName) {
     }
 
     html += '<div class="table-responsive"><table class="table table-sm table-hover mb-0" style="font-size:0.78rem;">';
-    html += '<thead style="background:#f0f4ff;"><tr>';
+    html += '<thead style="background:#E8F5E9;"><tr>';
     displayHeaders.forEach(function(h) {
       html += '<th style="white-space:nowrap;">' + escapeHtml(h) + '</th>';
     });
