@@ -2883,7 +2883,28 @@
 
     <!-- Conteúdo da aba EMPRESARIAL -->
     <div class="telegram-content" id="tabCopRedeEmpresarial">
-      <!-- Botão de sincronização -->
+
+      <!-- ── Seção SIR por Cluster (dados ao vivo do portal Embratel SIR) ── -->
+      <div id="sirEmpresarialSection" style="margin-bottom:1rem;border-bottom:1px solid #e9ecef;padding-bottom:0.75rem;">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <h6 style="margin:0;color:#c0392b;font-size:0.85rem;font-weight:600;">
+            <i class="bi bi-exclamation-triangle-fill me-1"></i>Incidentes SIR por Cluster
+            <span class="badge bg-danger ms-1" id="badgeSirEmpresarial" style="display:none;font-size:0.7rem;"></span>
+          </h6>
+          <button class="telegram-btn telegram-btn-primary" onclick="carregarMatrizEmpresarial(true)" title="Atualizar SIR Empresarial">
+            <i class="bi bi-arrow-clockwise"></i>
+          </button>
+        </div>
+        <div id="sirEmpresarialContent">
+          <p class="text-muted small text-center mb-0">Aguardando dados...</p>
+        </div>
+        <div id="sirEmpresarialInfo" class="text-center text-muted small mt-1" style="display:none;">
+          <i class="bi bi-clock me-1"></i><span id="sirEmpresarialTs"></span>
+        </div>
+      </div>
+      <!-- ────────────────────────────────────────────────────────────────── -->
+
+      <!-- Botão de sincronização WhatsApp -->
       <div class="d-flex justify-content-end mb-2">
         <button class="telegram-btn telegram-btn-primary" onclick="carregarCopRedeEmpresarial(true)" title="Sincronizar dados empresarial">
           <i class="bi bi-arrow-clockwise"></i> Sincronizar
@@ -8834,9 +8855,12 @@ let backendConectado = false;
 let autoRefreshInterval = null;
 let autoRefreshHubInterval = null;
 let autoRefreshOfensoresInterval = null;
+let autoRefreshEmpresarialInterval = null;
+let dadosMatrizEmpresarial = null;
 const AUTO_REFRESH_MS = 10000; // 10 segundos
 const AUTO_REFRESH_HUB_MS = 30000; // 30 segundos para HUB
 const AUTO_REFRESH_OFENSORES_MS = 60000; // 60 segundos para matriz de ofensores
+const AUTO_REFRESH_EMPRESARIAL_MS = 120000; // 2 minutos para SIR empresarial
 let alertasAnteriores = []; // Para detectar novos alertas
 let primeiraCargatAlertas = true; // Flag para evitar tocar som na primeira carga
 let errosConsecutivos = 0; // Contador de erros para backoff
@@ -9216,6 +9240,17 @@ function iniciarAutoRefresh() {
       }
     }, AUTO_REFRESH_OFENSORES_MS);
   }
+
+  // Refresh da Matriz Empresarial SIR a cada 2 minutos
+  carregarMatrizEmpresarial(false);
+  if (!autoRefreshEmpresarialInterval) {
+    autoRefreshEmpresarialInterval = setInterval(() => {
+      if (backendConectado) {
+        console.log('[Empresarial SIR] Auto-refresh: atualizando clusters...');
+        carregarMatrizEmpresarial(false);
+      }
+    }, AUTO_REFRESH_EMPRESARIAL_MS);
+  }
 }
 
 function pararAutoRefresh() {
@@ -9230,6 +9265,10 @@ function pararAutoRefresh() {
   if (autoRefreshOfensoresInterval) {
     clearInterval(autoRefreshOfensoresInterval);
     autoRefreshOfensoresInterval = null;
+  }
+  if (autoRefreshEmpresarialInterval) {
+    clearInterval(autoRefreshEmpresarialInterval);
+    autoRefreshEmpresarialInterval = null;
   }
 }
 
@@ -9297,6 +9336,8 @@ async function verificarConexaoBackend() {
       carregarEstatisticas();
       // Carregar incidentes do Supabase automaticamente (alimenta seção Residencial)
       carregarMatrizOfensores(false);
+      // Carregar SIR Empresarial (clusters Rio)
+      carregarMatrizEmpresarial(false);
 
       // Atualizar badge na navegação
       atualizarBadgeNavegacao();
@@ -9334,6 +9375,7 @@ function trocarAbasTelegram(abaId) {
   } else if (abaId === 'empresarial') {
     document.getElementById('tabCopRedeEmpresarial').classList.add('active');
     carregarCopRedeEmpresarial();
+    carregarMatrizEmpresarial(false);
   } else if (abaId === 'novos-alertas') {
     document.getElementById('tabNovosAlertas').classList.add('active');
   } else if (abaId === 'matriz-ofensores') {
@@ -9996,6 +10038,82 @@ async function carregarCopRedeEmpresarial(forcarAtualizacao = false) {
     console.log('[Empresarial] COP Rede Empresarial atualizado:', dadosCopRedeEmpresarial.length, 'mensagens');
   } catch (error) {
     console.warn('[Empresarial] Erro ao carregar:', error.message);
+  }
+}
+
+// ============================================
+// MATRIZ EMPRESARIAL SIR — Clusters Rio
+// ============================================
+
+const CLUSTER_NOMES_EMP = {
+  BXD: 'BAIXADA', CZS: 'CENTRO SUL', MTP: 'METROPOLITANA',
+  NO1: 'NORTE 1', NO2: 'NORTE 2', NO3: 'NORTE 3', NOF: 'NORTE FLUMINENSE',
+  LGS: 'RIO DE JANEIRO', SEF: 'SERRA', SUL2: 'SUL', OE1: 'OESTE'
+};
+const CLUSTER_ORDER_EMP = ['LGS', 'BXD', 'MTP', 'NO1', 'NO2', 'NO3', 'NOF', 'CZS', 'SEF', 'SUL2', 'OE1'];
+
+async function carregarMatrizEmpresarial(forcar = false) {
+  if (!backendUrl) return;
+  try {
+    const url = `${backendUrl}/api/matriz-empresarial${forcar ? '?t=' + Date.now() : ''}`;
+    const response = await fetch(url, { cache: 'no-store' });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    dadosMatrizEmpresarial = await response.json();
+    renderizarSirEmpresarial();
+  } catch (error) {
+    console.warn('[Empresarial SIR] Erro ao carregar:', error.message);
+  }
+}
+
+function renderizarSirEmpresarial() {
+  const content = document.getElementById('sirEmpresarialContent');
+  const infoEl = document.getElementById('sirEmpresarialInfo');
+  const tsEl = document.getElementById('sirEmpresarialTs');
+  const badge = document.getElementById('badgeSirEmpresarial');
+  if (!content || !dadosMatrizEmpresarial?.sucesso) return;
+
+  const { porCluster, updatedAt, totalRal, totalRec, timestamp } = dadosMatrizEmpresarial;
+
+  // Calcular total geral para o badge
+  const totalGeral = CLUSTER_ORDER_EMP.reduce((s, c) => s + (porCluster[c]?.total || 0), 0);
+  if (badge) {
+    badge.textContent = totalGeral;
+    badge.style.display = totalGeral > 0 ? '' : 'none';
+  }
+
+  let html = '<div style="display:grid;grid-template-columns:1fr;gap:4px;">';
+  for (const cod of CLUSTER_ORDER_EMP) {
+    const d = porCluster[cod] || { ral: 0, rec: 0, total: 0, porTipo: {} };
+    const isLgs = cod === 'LGS';
+    const corBorda = isLgs ? '#c0392b' : (d.total > 0 ? '#388E3C' : '#adb5bd');
+    const corBg = isLgs ? '#fff5f5' : (d.total > 0 ? '#f0fdf4' : '#f8f9fa');
+    const nomeCod = CLUSTER_NOMES_EMP[cod] || cod;
+
+    // Pill de tipos
+    let tiposPills = '';
+    for (const [tipo, cnt] of Object.entries(d.porTipo || {}).sort((a, b) => b[1] - a[1])) {
+      const cor = tipo === 'REC' ? '#1d4ed8' : tipo === 'BACKBONE' ? '#7c3aed' : tipo === 'FOTÔNICA' ? '#0891b2' : tipo === 'ACESSO CLIENTE' ? '#b45309' : '#555';
+      tiposPills += `<span style="font-size:0.6rem;background:${cor}15;color:${cor};border:1px solid ${cor}40;border-radius:3px;padding:0 4px;margin-right:3px;">${tipo.replace('ACESSO CLIENTE','AC')} ${cnt}</span>`;
+    }
+
+    html += `
+      <div style="border-left:3px solid ${corBorda};border-radius:5px;background:${corBg};padding:0.35rem 0.6rem;display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+        <span style="font-weight:700;font-size:0.75rem;color:#1a1a1a;min-width:36px;">${cod}</span>
+        <span style="font-size:0.7rem;color:#555;flex:1;">${isLgs ? '🚨 ' : ''}${nomeCod}</span>
+        ${tiposPills}
+        <span style="margin-left:auto;font-size:0.75rem;font-weight:700;color:${d.total > 0 ? corBorda : '#aaa'};">${d.total}</span>
+        ${d.ral > 0 || d.rec > 0 ? `<span style="font-size:0.62rem;color:#888;">RAL:${d.ral} REC:${d.rec}</span>` : ''}
+      </div>`;
+  }
+  html += '</div>';
+
+  content.innerHTML = html;
+
+  if (infoEl && tsEl) {
+    const fonte = updatedAt ? `SIR: ${updatedAt}` : '';
+    const ts = new Date(timestamp).toLocaleString('pt-BR');
+    tsEl.textContent = `RAL total: ${totalRal} · REC total: ${totalRec} · Atualizado: ${ts}${fonte ? ' · ' + fonte : ''}`;
+    infoEl.style.display = '';
   }
 }
 
