@@ -624,10 +624,18 @@ const CLUSTERS_SIR_ORDER = [
   'MINAS GERAIS', 'NORTE', 'CENTRO OESTE', 'NORDESTE', 'BAHIA/SERGIPE'
 ];
 
+// Ordem de exibição das subdivisões do Rio (campo "cidade" no dashboard.json)
+const RIO_SUBDIVISAO_ORDER = [
+  'RIO DE JANEIRO', 'BAIXADA', 'METROPOLITANA',
+  'NORTE 1', 'NORTE 2', 'NORTE 3', 'NORTE FLUMINENSE',
+  'CENTRO SUL', 'SERRA', 'SUL FLUMINENSE', 'DESPACHO (DP)'
+];
+
 /**
  * GET /api/matriz-empresarial
  * Busca o dashboard.json do portal Embratel SIR e retorna
  * totais de RAL (filtrado por tipo) + REC agrupados por cluster.
+ * Para RIO DE JANEIRO inclui subdivisão por campo "cidade".
  */
 app.get('/api/matriz-empresarial', async (req, res) => {
   try {
@@ -644,7 +652,7 @@ app.get('/api/matriz-empresarial', async (req, res) => {
     // Inicializar porCluster com zeros
     const porCluster = {};
     for (const c of CLUSTERS_SIR_ORDER) {
-      porCluster[c] = { ral: 0, rec: 0, total: 0, porTipo: {} };
+      porCluster[c] = { ral: 0, rec: 0, total: 0, porTipo: {}, subclusters: {} };
     }
 
     // RAL items — filtrar por tipo
@@ -655,6 +663,15 @@ app.get('/api/matriz-empresarial', async (req, res) => {
       porCluster[item.cluster].total++;
       const t = item.ralType;
       porCluster[item.cluster].porTipo[t] = (porCluster[item.cluster].porTipo[t] || 0) + 1;
+
+      // Para Rio: agrupar também por subdivisão (campo cidade)
+      if (item.cluster === 'RIO DE JANEIRO' && item.cidade) {
+        const sub = porCluster['RIO DE JANEIRO'].subclusters;
+        if (!sub[item.cidade]) sub[item.cidade] = { ral: 0, rec: 0, total: 0, porTipo: {} };
+        sub[item.cidade].ral++;
+        sub[item.cidade].total++;
+        sub[item.cidade].porTipo[t] = (sub[item.cidade].porTipo[t] || 0) + 1;
+      }
     }
 
     // REC items — todos os clusters (sem filtro de tipo)
@@ -663,6 +680,14 @@ app.get('/api/matriz-empresarial', async (req, res) => {
       porCluster[item.cluster].rec++;
       porCluster[item.cluster].total++;
       porCluster[item.cluster].porTipo['REC'] = (porCluster[item.cluster].porTipo['REC'] || 0) + 1;
+
+      if (item.cluster === 'RIO DE JANEIRO' && item.cidade) {
+        const sub = porCluster['RIO DE JANEIRO'].subclusters;
+        if (!sub[item.cidade]) sub[item.cidade] = { ral: 0, rec: 0, total: 0, porTipo: {} };
+        sub[item.cidade].rec++;
+        sub[item.cidade].total++;
+        sub[item.cidade].porTipo['REC'] = (sub[item.cidade].porTipo['REC'] || 0) + 1;
+      }
     }
 
     res.json({
@@ -672,6 +697,7 @@ app.get('/api/matriz-empresarial', async (req, res) => {
       totalRec: data.REC?.total || 0,
       porCluster,
       clusterOrder: CLUSTERS_SIR_ORDER,
+      rioSubdivisaoOrder: RIO_SUBDIVISAO_ORDER,
       timestamp: new Date().toISOString()
     });
   } catch (error) {
