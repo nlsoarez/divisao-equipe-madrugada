@@ -2647,7 +2647,7 @@
   </div>
 
   <!-- Escalonamento: Seção de visualização (visível para todos) -->
-  <div id="escalonamentoSection" class="mt-4 mb-2" style="display: none;">
+  <div id="escalonamentoSection" class="mt-3" style="display: none;">
     <div id="escalonamentoHeader" onclick="toggleEscalonamento()" style="background: linear-gradient(135deg, #388E3C 0%, #2E7D32 100%); color: white; padding: 0.75rem 1rem; border-radius: 8px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; user-select: none;">
       <span><i class="bi bi-telephone-fill me-2"></i>Escalonamento - Rede Externa</span>
       <i class="bi bi-chevron-down" id="escalonamentoChevron" style="transition: transform 0.2s;"></i>
@@ -3199,7 +3199,7 @@
   </div>
 
   <!-- Calendário -->
-  <div id="calendarSection" style="display: none;">
+  <div id="calendarSection" class="mt-3" style="display: none;">
 
     <!-- Cabeçalho do Calendário com Navegação -->
     <div class="calendar-container">
@@ -11563,9 +11563,9 @@ function renderHubEmbed(containerId, alocacao) {
   if (!container) return;
 
   const isMADRUGADA = alocacao.tipoAlocacao === 'MADRUGADA';
-  const corBadge = isMADRUGADA ? '#1565c0' : '#f57f17';
-  const bgBadge = isMADRUGADA ? '#e3f2fd' : '#fff8e1';
-  const bordaEsq = isMADRUGADA ? '#1976d2' : '#ff9800';
+  const corBadge = isMADRUGADA ? '#1B5E20' : '#2E7D32';
+  const bgBadge = isMADRUGADA ? '#C8E6C9' : '#E8F5E9';
+  const bordaEsq = isMADRUGADA ? '#2E7D32' : '#388E3C';
 
   let linhasTabela = '';
   if (!isMADRUGADA && alocacao.regioes) {
@@ -11603,8 +11603,8 @@ function renderHubEmbed(containerId, alocacao) {
   const hubHeaderId = containerId + '_header';
 
   container.innerHTML = `
-    <div style="border:1px solid #e0e0e0; border-radius:8px; overflow:hidden; margin-bottom:0.5rem;">
-      <div id="${hubHeaderId}" onclick="toggleHubEmbed('${hubBodyId}','${hubChevronId}','${hubHeaderId}')" style="background:linear-gradient(135deg,#ff9800,#f57c00); color:#fff; padding:0.5rem 1rem; display:flex; align-items:center; gap:0.5rem; cursor:pointer; user-select:none;">
+    <div style="border:1px solid #A5D6A7; border-radius:8px; overflow:hidden;">
+      <div id="${hubHeaderId}" onclick="toggleHubEmbed('${hubBodyId}','${hubChevronId}','${hubHeaderId}')" style="background:linear-gradient(135deg,#388E3C,#2E7D32); color:#fff; padding:0.5rem 1rem; display:flex; align-items:center; gap:0.5rem; cursor:pointer; user-select:none;">
         <i class="bi bi-geo-alt-fill"></i>
         <strong>Alocacao de HUB</strong>
         <span style="background:${bgBadge}; color:${corBadge}; border-radius:4px; padding:2px 8px; font-size:0.8rem; font-weight:700;">${alocacao.tipoAlocacao}</span>
