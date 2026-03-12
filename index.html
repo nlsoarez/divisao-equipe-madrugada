@@ -10111,29 +10111,51 @@ function renderizarSirEmpresarial() {
     badge.style.display = totalGeral > 0 ? '' : 'none';
   }
 
+  // Helper para gerar pills de tipo
+  function tiposPillsHtml(porTipo) {
+    let pills = '';
+    for (const [tipo, cnt] of Object.entries(porTipo || {}).sort((a, b) => b[1] - a[1])) {
+      const cor = tipo === 'REC' ? '#1d4ed8' : tipo === 'BACKBONE' ? '#7c3aed' : tipo === 'FOTÔNICA' ? '#0891b2' : tipo === 'ACESSO CLIENTE' ? '#b45309' : '#555';
+      pills += `<span style="font-size:0.6rem;background:${cor}15;color:${cor};border:1px solid ${cor}40;border-radius:3px;padding:0 4px;margin-right:3px;">${tipo.replace('ACESSO CLIENTE','AC')} ${cnt}</span>`;
+    }
+    return pills;
+  }
+
+  const rioSubOrder = dadosMatrizEmpresarial.rioSubdivisaoOrder || [];
+
   let html = '<div style="display:grid;grid-template-columns:1fr;gap:4px;">';
   for (const { cluster, subEscala, areaCode } of SIR_CLUSTER_MAP) {
-    const d = porCluster[cluster] || { ral: 0, rec: 0, total: 0, porTipo: {} };
+    const d = porCluster[cluster] || { ral: 0, rec: 0, total: 0, porTipo: {}, subclusters: {} };
     const corBorda = d.total > 0 ? '#c0392b' : '#adb5bd';
     const corBg = d.total > 0 ? '#fff5f5' : '#f8f9fa';
-
     const responsavel = getResponsavel(subEscala, areaCode);
-
-    // Pill de tipos
-    let tiposPills = '';
-    for (const [tipo, cnt] of Object.entries(d.porTipo || {}).sort((a, b) => b[1] - a[1])) {
-      const cor = tipo === 'REC' ? '#1d4ed8' : tipo === 'BACKBONE' ? '#7c3aed' : tipo === 'FOTÔNICA' ? '#0891b2' : tipo === 'ACESSO CLIENTE' ? '#b45309' : '#555';
-      tiposPills += `<span style="font-size:0.6rem;background:${cor}15;color:${cor};border:1px solid ${cor}40;border-radius:3px;padding:0 4px;margin-right:3px;">${tipo.replace('ACESSO CLIENTE','AC')} ${cnt}</span>`;
-    }
 
     html += `
       <div style="border-left:3px solid ${corBorda};border-radius:5px;background:${corBg};padding:0.35rem 0.6rem;display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
         <span style="font-weight:700;font-size:0.72rem;color:#1a1a1a;min-width:110px;">${cluster}</span>
-        ${tiposPills}
+        ${tiposPillsHtml(d.porTipo)}
         <span style="margin-left:auto;font-size:0.75rem;font-weight:700;color:${d.total > 0 ? corBorda : '#aaa'};">${d.total}</span>
         ${responsavel ? `<span style="font-size:0.65rem;color:#555;white-space:nowrap;"><i class="bi bi-person" style="font-size:0.6rem;"></i> ${responsavel}</span>` : ''}
         ${d.ral > 0 || d.rec > 0 ? `<span style="font-size:0.62rem;color:#888;">RAL:${d.ral} REC:${d.rec}</span>` : ''}
       </div>`;
+
+    // Para Rio: expandir as subdivisões abaixo
+    if (cluster === 'RIO DE JANEIRO' && d.subclusters && Object.keys(d.subclusters).length > 0) {
+      const subs = d.subclusters;
+      // Usar a ordem do servidor; adicionar ao final quaisquer subclusters não mapeados
+      const ordenados = [...rioSubOrder.filter(s => subs[s]), ...Object.keys(subs).filter(s => !rioSubOrder.includes(s))];
+      for (const subNome of ordenados) {
+        const sd = subs[subNome];
+        if (!sd || sd.total === 0) continue;
+        html += `
+          <div style="margin-left:12px;border-left:2px solid #e88;border-radius:4px;background:#fff8f8;padding:0.25rem 0.5rem;display:flex;align-items:center;gap:5px;flex-wrap:wrap;">
+            <span style="font-size:0.65rem;color:#555;min-width:100px;">↳ ${subNome}</span>
+            ${tiposPillsHtml(sd.porTipo)}
+            <span style="margin-left:auto;font-size:0.7rem;font-weight:700;color:#c0392b;">${sd.total}</span>
+            ${sd.ral > 0 || sd.rec > 0 ? `<span style="font-size:0.6rem;color:#888;">RAL:${sd.ral} REC:${sd.rec}</span>` : ''}
+          </div>`;
+      }
+    }
   }
   html += '</div>';
 
