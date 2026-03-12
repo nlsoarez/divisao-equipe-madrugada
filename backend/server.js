@@ -443,24 +443,34 @@ app.post('/api/webhook/mensagem', async (req, res) => {
     };
 
     const { processarMensagem } = require('./parser');
-    const resultado = processarMensagem(msgFake);
+    const { processarMensagemEmpresarial } = require('./parserEmpresarial');
 
-    if (!resultado) {
+    // Tentar parser principal (COP REDE INFORMA / Novo Evento)
+    let resultado = processarMensagem(msgFake);
+
+    if (resultado) {
+      console.log('[Webhook] ✅ Tipo:', resultado.tipo);
+      if (resultado.tipo === 'COP_REDE_INFORMA') {
+        await storage.adicionarCopRedeInforma(resultado.dados);
+        console.log('[Webhook] 💾 COP REDE INFORMA salvo!');
+      } else if (resultado.tipo === 'NOVO_EVENTO') {
+        await storage.adicionarAlerta(resultado.dados);
+        console.log('[Webhook] 💾 Alerta salvo!');
+      }
+    } else {
+      // Tentar parser empresarial (COP REDE EMPRESARIAL — Rio/ES e Leste)
+      const resultadoEmp = processarMensagemEmpresarial(msgFake);
+      if (resultadoEmp && resultadoEmp.tipo === 'COP_REDE_INFORMA') {
+        await storage.adicionarCopRedeEmpresarial(resultadoEmp.dados);
+        console.log('[Webhook] 💾 COP REDE EMPRESARIAL salvo!');
+        console.log('[Webhook] =====================================');
+        return res.json({ sucesso: true, tipo: 'COP_REDE_EMPRESARIAL', mensagem: 'Mensagem empresarial processada com sucesso' });
+      }
       console.log('[Webhook] ⚠️ Mensagem não reconhecida');
       return res.status(400).json({
         sucesso: false,
-        erro: 'Mensagem não reconhecida. Deve começar com "COP REDE INFORMA" ou "🚨 Novo Evento Detectado!"'
+        erro: 'Mensagem não reconhecida. Deve começar com "COP REDE INFORMA", "💎 COP REDE INF:" ou "🚨 Novo Evento Detectado!"'
       });
-    }
-
-    console.log('[Webhook] ✅ Tipo:', resultado.tipo);
-
-    if (resultado.tipo === 'COP_REDE_INFORMA') {
-      await storage.adicionarCopRedeInforma(resultado.dados);
-      console.log('[Webhook] 💾 COP REDE INFORMA salvo!');
-    } else if (resultado.tipo === 'NOVO_EVENTO') {
-      await storage.adicionarAlerta(resultado.dados);
-      console.log('[Webhook] 💾 Alerta salvo!');
     }
 
     console.log('[Webhook] =====================================');

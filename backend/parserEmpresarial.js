@@ -42,8 +42,9 @@ function normalizarNomeCluster(nome) {
  */
 function identificarTipoEmpresarial(texto) {
   if (!texto) return false;
-  const primeira = texto.split('\n')[0].trim().replace(/\*/g, '').trim();
-  return primeira.includes('COP REDE INF');
+  const primeira = texto.split('\n')[0].trim().replace(/\*/g, '').trim().toUpperCase();
+  // "COP REDE INF" sem "INFORMA" (diferencia do canal principal "COP REDE INFORMA")
+  return primeira.includes('COP REDE INF') && !primeira.includes('INFORMA');
 }
 
 /**
