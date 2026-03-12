@@ -9335,6 +9335,7 @@ async function verificarConexaoBackend() {
       // Carregar dados automaticamente com forçar atualização
       // para garantir dados frescos do JSONBin (não usar cache)
       carregarCopRedeInforma(true);
+      carregarCopRedeEmpresarial(false);
       carregarAlertas();
       carregarEstatisticas();
       // Carregar incidentes do Supabase automaticamente (alimenta seção Residencial)
@@ -10152,6 +10153,7 @@ function renderizarSirEmpresarial() {
             <span style="font-size:0.65rem;color:#555;min-width:100px;">↳ ${subNome}</span>
             ${tiposPillsHtml(sd.porTipo)}
             <span style="margin-left:auto;font-size:0.7rem;font-weight:700;color:#c0392b;">${sd.total}</span>
+            ${responsavel ? `<span style="font-size:0.6rem;color:#666;white-space:nowrap;"><i class="bi bi-person" style="font-size:0.55rem;"></i> ${responsavel}</span>` : ''}
             ${sd.ral > 0 || sd.rec > 0 ? `<span style="font-size:0.6rem;color:#888;">RAL:${sd.ral} REC:${sd.rec}</span>` : ''}
           </div>`;
       }
