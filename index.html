@@ -9249,8 +9249,9 @@ function iniciarAutoRefresh() {
   if (!autoRefreshEmpresarialInterval) {
     autoRefreshEmpresarialInterval = setInterval(() => {
       if (backendConectado) {
-        console.log('[Empresarial SIR] Auto-refresh: atualizando clusters...');
+        console.log('[Empresarial SIR] Auto-refresh: atualizando clusters e volume...');
         carregarMatrizEmpresarial(false);
+        carregarCopRedeEmpresarial(false);
       }
     }, AUTO_REFRESH_EMPRESARIAL_MS);
   }
@@ -10061,6 +10062,22 @@ const SIR_CLUSTER_MAP = [
   { cluster: 'BAHIA/SERGIPE',   subEscala: 'leste',  areaCode: 'BA' }
 ];
 
+// Mapeamento: cidade (subdivisão do dashboard.json) → códigos da área na escala Rio/ES
+// CENTRO SUL aparece para dois códigos diferentes (OE1 e SU2) com responsáveis diferentes
+const SUBDIVISAO_RIO_AREA_CODES = {
+  'RIO DE JANEIRO':  ['LGS'],
+  'BAIXADA':         ['BX1'],
+  'METROPOLITANA':   ['MTP'],
+  'NORTE 1':         ['NO1'],
+  'NORTE 2':         ['NO2'],
+  'NORTE 3':         ['NO3'],
+  'NORTE FLUMINENSE':['NOF'],
+  'CENTRO SUL':      ['OE1', 'SU2'],
+  'SERRA':           ['SEF'],
+  'SUL FLUMINENSE':  ['SUF'],
+  'DESPACHO (DP)':   []
+};
+
 async function carregarMatrizEmpresarial(forcar = false) {
   if (!backendUrl) return;
   try {
@@ -10103,6 +10120,17 @@ function renderizarSirEmpresarial() {
       }
     }
     return null;
+  }
+
+  // Retorna analista(s) de uma subdivisão do Rio usando os códigos de área da escala
+  function getResponsavelSubdivisao(subNome) {
+    const codes = SUBDIVISAO_RIO_AREA_CODES[subNome] || [];
+    const responsaveis = [];
+    for (const code of codes) {
+      const r = getResponsavel('rio_es', code);
+      if (r && !responsaveis.includes(r)) responsaveis.push(r);
+    }
+    return responsaveis.length > 0 ? responsaveis.join(' / ') : null;
   }
 
   // Calcular total geral para o badge
@@ -10148,12 +10176,13 @@ function renderizarSirEmpresarial() {
       for (const subNome of ordenados) {
         const sd = subs[subNome];
         if (!sd || sd.total === 0) continue;
+        const subResp = getResponsavelSubdivisao(subNome);
         html += `
           <div style="margin-left:12px;border-left:2px solid #e88;border-radius:4px;background:#fff8f8;padding:0.25rem 0.5rem;display:flex;align-items:center;gap:5px;flex-wrap:wrap;">
             <span style="font-size:0.65rem;color:#555;min-width:100px;">↳ ${subNome}</span>
             ${tiposPillsHtml(sd.porTipo)}
             <span style="margin-left:auto;font-size:0.7rem;font-weight:700;color:#c0392b;">${sd.total}</span>
-            ${responsavel ? `<span style="font-size:0.6rem;color:#666;white-space:nowrap;"><i class="bi bi-person" style="font-size:0.55rem;"></i> ${responsavel}</span>` : ''}
+            ${subResp ? `<span style="font-size:0.6rem;color:#444;white-space:nowrap;font-weight:600;"><i class="bi bi-person" style="font-size:0.55rem;"></i> ${subResp}</span>` : ''}
             ${sd.ral > 0 || sd.rec > 0 ? `<span style="font-size:0.6rem;color:#888;">RAL:${sd.ral} REC:${sd.rec}</span>` : ''}
           </div>`;
       }
