@@ -608,6 +608,76 @@ app.post('/api/cop-rede-empresarial/sincronizar', async (req, res) => {
 });
 
 // ============================================
+// MATRIZ EMPRESARIAL SIR — Clusters Rio
+// ============================================
+
+// Tipos de RAL aceitos (os demais são descartados)
+const TIPOS_SIR_EMPRESARIAL = new Set(['ACESSO CLIENTE', 'BACKBONE', 'COLETOR', 'FOTÔNICA', 'PPC', 'REC']);
+// Clusters Rio mapeados pelo usuário
+const CLUSTERS_RIO_EMP = ['BXD', 'CZS', 'MTP', 'NO1', 'NO2', 'NO3', 'NOF', 'LGS', 'SEF', 'SUL2', 'OE1'];
+// Nome completo de cada cluster
+const NOME_CLUSTER_EMP = {
+  BXD: 'BAIXADA', CZS: 'CENTRO SUL', MTP: 'METROPOLITANA',
+  NO1: 'NORTE 1', NO2: 'NORTE 2', NO3: 'NORTE 3', NOF: 'NORTE FLUMINENSE',
+  LGS: 'RIO DE JANEIRO', SEF: 'SERRA', SUL2: 'SUL', OE1: 'OESTE'
+};
+
+/**
+ * GET /api/matriz-empresarial
+ * Busca o dashboard.json do portal Embratel SIR e retorna
+ * totais de RAL (filtrado por tipo) + REC agrupados por cluster Rio.
+ */
+app.get('/api/matriz-empresarial', async (req, res) => {
+  try {
+    const url = `https://cpralonrj-pralon.github.io/embratel-sir/data/dashboard.json?t=${Date.now()}`;
+    const response = await fetch(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (compatible; dashboard-bot/1.0)',
+        'Accept': 'application/json, */*'
+      }
+    });
+    if (!response.ok) throw new Error(`HTTP ${response.status} ao buscar dashboard SIR`);
+    const data = await response.json();
+
+    // Inicializar porCluster com zeros
+    const porCluster = {};
+    for (const c of CLUSTERS_RIO_EMP) {
+      porCluster[c] = { nome: NOME_CLUSTER_EMP[c], ral: 0, rec: 0, total: 0, porTipo: {} };
+    }
+
+    // RAL items — filtrar por tipo
+    for (const item of (data.RAL?.items || [])) {
+      if (!CLUSTERS_RIO_EMP.includes(item.cluster)) continue;
+      if (!TIPOS_SIR_EMPRESARIAL.has(item.ralType)) continue;
+      porCluster[item.cluster].ral++;
+      porCluster[item.cluster].total++;
+      const t = item.ralType;
+      porCluster[item.cluster].porTipo[t] = (porCluster[item.cluster].porTipo[t] || 0) + 1;
+    }
+
+    // REC items — todos os clusters Rio (sem filtro de tipo)
+    for (const item of (data.REC?.items || [])) {
+      if (!CLUSTERS_RIO_EMP.includes(item.cluster)) continue;
+      porCluster[item.cluster].rec++;
+      porCluster[item.cluster].total++;
+      porCluster[item.cluster].porTipo['REC'] = (porCluster[item.cluster].porTipo['REC'] || 0) + 1;
+    }
+
+    res.json({
+      sucesso: true,
+      updatedAt: data.updatedAt || null,
+      totalRal: data.RAL?.total || 0,
+      totalRec: data.REC?.total || 0,
+      porCluster,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('[API] Erro ao buscar Matriz Empresarial SIR:', error.message);
+    res.status(500).json({ sucesso: false, erro: error.message });
+  }
+});
+
+// ============================================
 // ROTAS DE ALERTAS
 // ============================================
 
