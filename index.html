@@ -2623,6 +2623,45 @@
   <!-- Alocacao de HUB embarcada (somente visualizadores; admin usa aba Alocação HUB) -->
   <div id="hubEmbedResidencial" class="mt-3"></div>
 
+  <!-- Admin: Painel de upload do escalonamento -->
+  <div class="config-accordion mt-3" id="escalonamentoPanelResidencial" style="display: none;">
+    <div class="config-header collapsed" data-bs-toggle="collapse" data-bs-target="#escalonamentoPanelBody">
+      <span><i class="bi bi-telephone-fill me-2"></i>Gerenciar Escalonamento</span>
+      <i class="bi bi-chevron-down"></i>
+    </div>
+    <div id="escalonamentoPanelBody" class="collapse">
+      <div class="config-body">
+        <div class="d-flex gap-2 align-items-center flex-wrap">
+          <button class="btn btn-sm btn-outline-primary" onclick="document.getElementById('fileInputEscalonamento').click()">
+            <i class="bi bi-upload me-1"></i>Upload planilha de escalonamento
+          </button>
+          <input type="file" id="fileInputEscalonamento" accept=".xlsx,.xls" style="display: none;" onchange="uploadEscalonamento(this)">
+          <button class="btn btn-sm btn-outline-danger" id="btnLimparEscalonamento" onclick="limparEscalonamento()" style="display: none;">
+            <i class="bi bi-trash me-1"></i>Remover
+          </button>
+        </div>
+        <span class="text-muted small d-block mt-2" id="escalonamentoInfo">Nenhuma planilha carregada</span>
+        <small class="text-muted">Cada aba da planilha será exibida como uma sub-aba de região</small>
+      </div>
+    </div>
+  </div>
+
+  <!-- Escalonamento: Seção de visualização (visível para todos) -->
+  <div id="escalonamentoSection" class="mt-3" style="display: none;">
+    <div style="background: linear-gradient(135deg, #1565C0 0%, #0D47A1 100%); color: white; padding: 0.75rem 1rem; border-radius: 8px 8px 0 0;">
+      <span><i class="bi bi-telephone-fill me-2"></i>Escalonamento - Rede Externa</span>
+    </div>
+    <div style="background: #e3f2fd; padding: 0.5rem 0.75rem; border-left: 1px solid #90caf9; border-right: 1px solid #90caf9; overflow-x: auto;">
+      <div id="escalonamentoTabs" style="display: flex; gap: 0.25rem; flex-wrap: wrap;"></div>
+    </div>
+    <div id="escalonamentoContent" style="padding: 1rem; background: white; border-radius: 0 0 8px 8px; border: 1px solid #90caf9; border-top: none; max-height: 70vh; overflow-y: auto;">
+      <div class="text-center text-muted py-4">
+        <i class="bi bi-hand-index" style="font-size: 2rem;"></i>
+        <p class="mt-2">Selecione uma região acima</p>
+      </div>
+    </div>
+  </div>
+
   </div><!-- Fim tabResidencial -->
 
   <!-- Conteúdo da Aba Rio/ES -->
@@ -3481,6 +3520,10 @@ let calendarios = {
   calendario2: null   // Dados do segundo calendário
 };
 let calendarioAtivo = 'calendario1';  // Qual calendário está sendo visualizado
+
+// Dados do escalonamento (planilha de contatos por região)
+let escalonamentoDados = {};  // { sheetName: [ {nivel, subtitulo, headers, dados} ] }
+let escalonamentoAbaAtiva = '';
 
 // ============================================
 // FUNÇÕES AUXILIARES
@@ -5362,6 +5405,7 @@ async function salvarConfiguracaoCalendarios(tentativa = 1) {
     calendarioAtivo: calendarioAtivo,
     calendario1: calendarios.calendario1,
     calendario2: calendarios.calendario2,
+    escalonamento: Object.keys(escalonamentoDados).length > 0 ? escalonamentoDados : null,
     ultima_atualizacao: new Date().toISOString()
   };
 
@@ -5851,6 +5895,19 @@ function processarDadosCarregados(dados) {
     calendarios.calendario2 = dados.calendario2 || null;
     calendarioAtivo = dados.calendarioAtivo || 'calendario1';
 
+    // Restaurar escalonamento se disponível
+    if (dados.escalonamento && typeof dados.escalonamento === 'object') {
+      escalonamentoDados = dados.escalonamento;
+      const regioes = Object.keys(escalonamentoDados);
+      if (regioes.length > 0) {
+        const infoEl = document.getElementById('escalonamentoInfo');
+        if (infoEl) infoEl.textContent = `Planilha carregada (${regioes.length} regiões)`;
+        const btnLimpar = document.getElementById('btnLimparEscalonamento');
+        if (btnLimpar) btnLimpar.style.display = '';
+        renderEscalonamentoTabs();
+      }
+    }
+
     console.log('✅ Calendários restaurados:', {
       cal1: calendarios.calendario1 ? `${MESES[calendarios.calendario1.mes]}/${calendarios.calendario1.ano}` : 'Vazio',
       cal2: calendarios.calendario2 ? `${MESES[calendarios.calendario2.mes]}/${calendarios.calendario2.ano}` : 'Vazio',
@@ -6206,13 +6263,16 @@ function iniciarComoAdmin() {
   // Mostrar painel de gerenciamento baseado no calendário ativo
   const calendarioPanelResidencial = document.getElementById('calendarioPanelResidencial');
   const calendarioPanelEmpresarial = document.getElementById('calendarioPanelEmpresarial');
+  const escalonamentoPanelResidencial = document.getElementById('escalonamentoPanelResidencial');
 
   if (calendarioAtivo === 'calendario1') {
     if (calendarioPanelResidencial) calendarioPanelResidencial.style.display = 'block';
     if (calendarioPanelEmpresarial) calendarioPanelEmpresarial.style.display = 'none';
+    if (escalonamentoPanelResidencial) escalonamentoPanelResidencial.style.display = 'block';
   } else {
     if (calendarioPanelResidencial) calendarioPanelResidencial.style.display = 'none';
     if (calendarioPanelEmpresarial) calendarioPanelEmpresarial.style.display = 'block';
+    if (escalonamentoPanelResidencial) escalonamentoPanelResidencial.style.display = 'none';
   }
 
   showToast('👑 Modo administrador ativado', 'warning');
@@ -6273,8 +6333,10 @@ function iniciarComoVisualizador() {
   // Esconder painéis de gerenciamento (somente admin)
   const calendarioPanelResidencial = document.getElementById('calendarioPanelResidencial');
   const calendarioPanelEmpresarial = document.getElementById('calendarioPanelEmpresarial');
+  const escalonamentoPanelResidencial = document.getElementById('escalonamentoPanelResidencial');
   if (calendarioPanelResidencial) calendarioPanelResidencial.style.display = 'none';
   if (calendarioPanelEmpresarial) calendarioPanelEmpresarial.style.display = 'none';
+  if (escalonamentoPanelResidencial) escalonamentoPanelResidencial.style.display = 'none';
 
   showToast('👁️ Modo visualização ativado', 'info');
 }
@@ -11722,6 +11784,248 @@ function obterTextoStatus(status) {
 document.addEventListener('DOMContentLoaded', function() {
   inicializarTelegram();
 });
+
+// ============================================
+// ESCALONAMENTO - PLANILHA DE CONTATOS
+// ============================================
+
+function uploadEscalonamento(inputElement) {
+  const file = inputElement.files?.[0];
+  if (!file) return;
+  showLoading();
+
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      const data = new Uint8Array(e.target.result);
+      const workbook = XLSX.read(data, { type: 'array' });
+      escalonamentoDados = {};
+
+      workbook.SheetNames.forEach(function(sheetName) {
+        const sheet = workbook.Sheets[sheetName];
+        const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
+        const sections = parseEscalonamentoSheet(rows);
+        if (sections.length > 0) {
+          escalonamentoDados[sheetName] = sections;
+        }
+      });
+
+      const regioes = Object.keys(escalonamentoDados);
+      const infoEl = document.getElementById('escalonamentoInfo');
+      if (infoEl) infoEl.textContent = 'Planilha carregada: ' + file.name + ' (' + regioes.length + ' regiões)';
+      const btnLimpar = document.getElementById('btnLimparEscalonamento');
+      if (btnLimpar) btnLimpar.style.display = '';
+
+      renderEscalonamentoTabs();
+      salvarConfiguracaoCalendarios();
+      showToast('✅ Escalonamento carregado (' + regioes.length + ' regiões)', 'success');
+    } catch (err) {
+      console.error('Erro ao processar escalonamento:', err);
+      showToast('❌ Erro ao processar planilha: ' + err.message, 'danger');
+    } finally {
+      hideLoading();
+      inputElement.value = '';
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function parseEscalonamentoSheet(rows) {
+  const sections = [];
+  let currentNivel = null;
+  let currentSubtitulo = '';
+  let currentHeaders = null;
+  let currentDados = [];
+
+  const NIVEL_PATTERN = /\d+\s*[°oOºª]\s*n[íi]vel/i;
+  const KNOWN_COLS = ['UF', 'REGIONAL', 'MERCADO', 'NOME', 'CARGO', 'E-MAIL', 'EMAIL', 'TELEFONE', 'FONE'];
+
+  function flushSection() {
+    if (currentNivel && currentHeaders && currentDados.length > 0) {
+      sections.push({
+        nivel: currentNivel,
+        subtitulo: currentSubtitulo,
+        headers: currentHeaders,
+        dados: currentDados.slice()
+      });
+    }
+  }
+
+  for (var i = 0; i < rows.length; i++) {
+    var row = rows[i];
+    var cellValues = row.map(function(c) { return String(c || '').trim(); });
+    var nonEmpty = cellValues.filter(function(v) { return v !== ''; });
+
+    if (nonEmpty.length === 0) continue;
+
+    var firstNonEmpty = nonEmpty[0] || '';
+
+    // Detect nivel header (e.g. "1° NÍVEL DE ESCALONAMENTO")
+    if (NIVEL_PATTERN.test(firstNonEmpty) && nonEmpty.length <= 3) {
+      flushSection();
+      currentNivel = firstNonEmpty;
+      currentSubtitulo = '';
+      currentHeaders = null;
+      currentDados = [];
+      continue;
+    }
+
+    // Detect column headers row
+    var upperCells = cellValues.map(function(v) { return v.toUpperCase(); });
+    var matchedCols = KNOWN_COLS.filter(function(k) { return upperCells.indexOf(k) !== -1; });
+    if (matchedCols.length >= 3) {
+      // New table within same or new section
+      if (currentHeaders && currentDados.length > 0) {
+        flushSection();
+        currentDados = [];
+        currentSubtitulo = '';
+      }
+      currentHeaders = upperCells;
+      continue;
+    }
+
+    // Subtitle: single or dual non-empty cell before column headers
+    if (currentNivel && !currentHeaders && nonEmpty.length <= 2) {
+      currentSubtitulo = nonEmpty.join(' - ');
+      continue;
+    }
+
+    // Data row
+    if (currentHeaders && nonEmpty.length >= 2) {
+      var obj = {};
+      currentHeaders.forEach(function(col, idx) {
+        if (col) obj[col] = cellValues[idx] || '';
+      });
+      currentDados.push(obj);
+    }
+  }
+
+  flushSection();
+  return sections;
+}
+
+function renderEscalonamentoTabs() {
+  var tabsEl = document.getElementById('escalonamentoTabs');
+  var section = document.getElementById('escalonamentoSection');
+  if (!tabsEl) return;
+
+  var regioes = Object.keys(escalonamentoDados);
+  if (regioes.length === 0) {
+    if (section) section.style.display = 'none';
+    return;
+  }
+
+  if (section) section.style.display = 'block';
+  tabsEl.innerHTML = '';
+
+  regioes.forEach(function(sheetName) {
+    var btn = document.createElement('button');
+    btn.className = 'btn btn-sm btn-outline-primary escalonamento-tab-btn';
+    btn.dataset.sheet = sheetName;
+    btn.textContent = sheetName;
+    btn.style.cssText = 'font-size: 0.8rem; padding: 0.2rem 0.6rem;';
+    btn.onclick = function() { renderEscalonamentoSheet(sheetName); };
+    tabsEl.appendChild(btn);
+  });
+
+  // Auto-select first tab
+  renderEscalonamentoSheet(regioes[0]);
+}
+
+function renderEscalonamentoSheet(sheetName) {
+  escalonamentoAbaAtiva = sheetName;
+
+  document.querySelectorAll('.escalonamento-tab-btn').forEach(function(btn) {
+    var isActive = btn.dataset.sheet === sheetName;
+    btn.className = 'btn btn-sm escalonamento-tab-btn ' + (isActive ? 'btn-primary' : 'btn-outline-primary');
+    btn.style.cssText = 'font-size: 0.8rem; padding: 0.2rem 0.6rem;';
+  });
+
+  var content = document.getElementById('escalonamentoContent');
+  if (!content) return;
+
+  var sections = escalonamentoDados[sheetName] || [];
+  if (!sections.length) {
+    content.innerHTML = '<div class="text-center text-muted py-4">Sem dados para esta região</div>';
+    return;
+  }
+
+  var NIVEL_COLORS = ['#1565C0', '#2E7D32', '#C62828', '#E65100', '#6A1B9A'];
+  var html = '';
+
+  sections.forEach(function(section, idx) {
+    var color = NIVEL_COLORS[idx % NIVEL_COLORS.length];
+    var displayHeaders = section.headers.filter(function(h) { return h && h !== ''; });
+
+    html += '<div class="mb-4">';
+    html += '<div style="background:' + color + ';color:white;padding:0.35rem 0.75rem;border-radius:4px;font-weight:bold;font-size:0.82rem;margin-bottom:0.25rem;">'
+      + escapeHtml(section.nivel || ('NÍVEL ' + (idx + 1))) + '</div>';
+
+    if (section.subtitulo) {
+      html += '<div style="font-size:0.78rem;color:#555;margin-bottom:0.4rem;padding-left:0.25rem;">'
+        + escapeHtml(section.subtitulo) + '</div>';
+    }
+
+    html += '<div class="table-responsive"><table class="table table-sm table-hover mb-0" style="font-size:0.78rem;">';
+    html += '<thead style="background:#f0f4ff;"><tr>';
+    displayHeaders.forEach(function(h) {
+      html += '<th style="white-space:nowrap;">' + escapeHtml(h) + '</th>';
+    });
+    html += '</tr></thead><tbody>';
+
+    section.dados.forEach(function(row) {
+      html += '<tr>';
+      displayHeaders.forEach(function(col) {
+        var val = row[col] || '';
+        if (col === 'TELEFONE' || col === 'FONE') {
+          var wa = whatsappLink(val);
+          if (wa && val) {
+            html += '<td style="white-space:nowrap;"><a href="' + wa + '" target="_blank" style="color:#25D366;">'
+              + '<i class="bi bi-whatsapp"></i> ' + escapeHtml(val) + '</a></td>';
+          } else {
+            html += '<td>' + escapeHtml(val) + '</td>';
+          }
+        } else if (col === 'E-MAIL' || col === 'EMAIL') {
+          if (val) {
+            html += '<td style="font-size:0.72rem;"><a href="mailto:' + escapeHtml(val) + '">' + escapeHtml(val) + '</a></td>';
+          } else {
+            html += '<td></td>';
+          }
+        } else {
+          html += '<td>' + escapeHtml(val) + '</td>';
+        }
+      });
+      html += '</tr>';
+    });
+
+    html += '</tbody></table></div></div>';
+  });
+
+  content.innerHTML = html;
+}
+
+function limparEscalonamento() {
+  if (!confirm('Remover os dados de escalonamento?')) return;
+  escalonamentoDados = {};
+  escalonamentoAbaAtiva = '';
+  document.getElementById('escalonamentoSection').style.display = 'none';
+  document.getElementById('escalonamentoTabs').innerHTML = '';
+  document.getElementById('escalonamentoContent').innerHTML = '';
+  var infoEl = document.getElementById('escalonamentoInfo');
+  if (infoEl) infoEl.textContent = 'Nenhuma planilha carregada';
+  var btnLimpar = document.getElementById('btnLimparEscalonamento');
+  if (btnLimpar) btnLimpar.style.display = 'none';
+  salvarConfiguracaoCalendarios();
+  showToast('Escalonamento removido', 'info');
+}
+
+function escapeHtml(str) {
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
 </script>
 </body>
 </html>
