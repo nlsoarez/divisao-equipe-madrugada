@@ -2648,16 +2648,19 @@
 
   <!-- Escalonamento: Seção de visualização (visível para todos) -->
   <div id="escalonamentoSection" class="mt-3" style="display: none;">
-    <div style="background: linear-gradient(135deg, #1565C0 0%, #0D47A1 100%); color: white; padding: 0.75rem 1rem; border-radius: 8px 8px 0 0;">
+    <div id="escalonamentoHeader" onclick="toggleEscalonamento()" style="background: linear-gradient(135deg, #1565C0 0%, #0D47A1 100%); color: white; padding: 0.75rem 1rem; border-radius: 8px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; user-select: none;">
       <span><i class="bi bi-telephone-fill me-2"></i>Escalonamento - Rede Externa</span>
+      <i class="bi bi-chevron-down" id="escalonamentoChevron" style="transition: transform 0.2s;"></i>
     </div>
-    <div style="background: #e3f2fd; padding: 0.5rem 0.75rem; border-left: 1px solid #90caf9; border-right: 1px solid #90caf9; overflow-x: auto;">
-      <div id="escalonamentoTabs" style="display: flex; gap: 0.25rem; flex-wrap: wrap;"></div>
-    </div>
-    <div id="escalonamentoContent" style="padding: 1rem; background: white; border-radius: 0 0 8px 8px; border: 1px solid #90caf9; border-top: none; max-height: 70vh; overflow-y: auto;">
-      <div class="text-center text-muted py-4">
-        <i class="bi bi-hand-index" style="font-size: 2rem;"></i>
-        <p class="mt-2">Selecione uma região acima</p>
+    <div id="escalonamentoBody" style="display: none;">
+      <div style="background: #e3f2fd; padding: 0.5rem 0.75rem; border-left: 1px solid #90caf9; border-right: 1px solid #90caf9; overflow-x: auto;">
+        <div id="escalonamentoTabs" style="display: flex; gap: 0.25rem; flex-wrap: wrap;"></div>
+      </div>
+      <div id="escalonamentoContent" style="padding: 1rem; background: white; border-radius: 0 0 8px 8px; border: 1px solid #90caf9; border-top: none; max-height: 70vh; overflow-y: auto;">
+        <div class="text-center text-muted py-4">
+          <i class="bi bi-hand-index" style="font-size: 2rem;"></i>
+          <p class="mt-2">Selecione uma região acima</p>
+        </div>
       </div>
     </div>
   </div>
@@ -11595,15 +11598,20 @@ function renderHubEmbed(containerId, alocacao) {
     ? `<div class="mt-2 small text-muted"><i class="bi bi-calendar-x me-1"></i>Folgas: ${alocacao.folgas.join(', ')}</div>`
     : '';
 
+  const hubBodyId = containerId + '_body';
+  const hubChevronId = containerId + '_chevron';
+  const hubHeaderId = containerId + '_header';
+
   container.innerHTML = `
     <div style="border:1px solid #e0e0e0; border-radius:8px; overflow:hidden; margin-bottom:0.5rem;">
-      <div style="background:linear-gradient(135deg,#ff9800,#f57c00); color:#fff; padding:0.5rem 1rem; display:flex; align-items:center; gap:0.5rem;">
+      <div id="${hubHeaderId}" onclick="toggleHubEmbed('${hubBodyId}','${hubChevronId}','${hubHeaderId}')" style="background:linear-gradient(135deg,#ff9800,#f57c00); color:#fff; padding:0.5rem 1rem; display:flex; align-items:center; gap:0.5rem; cursor:pointer; user-select:none;">
         <i class="bi bi-geo-alt-fill"></i>
         <strong>Alocacao de HUB</strong>
-        <span style="margin-left:auto; background:${bgBadge}; color:${corBadge}; border-radius:4px; padding:2px 8px; font-size:0.8rem; font-weight:700;">${alocacao.tipoAlocacao}</span>
+        <span style="background:${bgBadge}; color:${corBadge}; border-radius:4px; padding:2px 8px; font-size:0.8rem; font-weight:700;">${alocacao.tipoAlocacao}</span>
         <span style="font-size:0.8rem; opacity:0.85;">${alocacao.data || ''}</span>
+        <i class="bi bi-chevron-down" id="${hubChevronId}" style="margin-left:auto; transition:transform 0.2s; flex-shrink:0;"></i>
       </div>
-      <div style="padding:0.5rem; background:#fff;">
+      <div id="${hubBodyId}" style="display:none; padding:0.5rem; background:#fff;">
         <div class="table-responsive">
           <table class="table table-sm table-hover mb-0">
             <thead style="background:${bgBadge};"><tr>${theadCols}</tr></thead>
@@ -11784,6 +11792,35 @@ function obterTextoStatus(status) {
 document.addEventListener('DOMContentLoaded', function() {
   inicializarTelegram();
 });
+
+// ============================================
+// TOGGLE COLLAPSE - HUB EMBED E ESCALONAMENTO
+// ============================================
+
+function toggleEscalonamento() {
+  const body = document.getElementById('escalonamentoBody');
+  const chevron = document.getElementById('escalonamentoChevron');
+  const header = document.getElementById('escalonamentoHeader');
+  if (!body) return;
+  const isOpen = body.style.display !== 'none';
+  body.style.display = isOpen ? 'none' : 'block';
+  if (chevron) chevron.style.transform = isOpen ? '' : 'rotate(180deg)';
+  if (header) header.style.borderRadius = isOpen ? '8px' : '8px 8px 0 0';
+}
+
+function toggleHubEmbed(bodyId, chevronId, headerId) {
+  const body = document.getElementById(bodyId);
+  const chevron = document.getElementById(chevronId);
+  const header = document.getElementById(headerId);
+  if (!body) return;
+  const isOpen = body.style.display !== 'none';
+  body.style.display = isOpen ? 'none' : 'block';
+  if (chevron) chevron.style.transform = isOpen ? '' : 'rotate(180deg)';
+  if (header) {
+    const parentDiv = header.parentElement;
+    if (parentDiv) parentDiv.style.borderRadius = isOpen ? '8px' : '8px';
+  }
+}
 
 // ============================================
 // ESCALONAMENTO - PLANILHA DE CONTATOS
