@@ -3834,6 +3834,9 @@ function uploadCalendarioEmpresarial(subEscala, inputElement) {
         }
       }
 
+      // Re-renderizar SIR com nova correlação de escala
+      if (dadosMatrizEmpresarial?.sucesso) renderizarSirEmpresarial();
+
       hideLoading();
       const nomeSubEscala = subEscala === 'rio_es' ? 'Rio/Es' : 'Leste';
       showToast(`✅ Escala ${nomeSubEscala} carregada com sucesso!`, 'success');
@@ -10042,15 +10045,20 @@ async function carregarCopRedeEmpresarial(forcarAtualizacao = false) {
 }
 
 // ============================================
-// MATRIZ EMPRESARIAL SIR — Clusters Rio
+// MATRIZ EMPRESARIAL SIR — Clusters do portal
 // ============================================
 
-const CLUSTER_NOMES_EMP = {
-  BXD: 'BAIXADA', CZS: 'CENTRO SUL', MTP: 'METROPOLITANA',
-  NO1: 'NORTE 1', NO2: 'NORTE 2', NO3: 'NORTE 3', NOF: 'NORTE FLUMINENSE',
-  LGS: 'RIO DE JANEIRO', SEF: 'SERRA', SUL2: 'SUL', OE1: 'OESTE'
-};
-const CLUSTER_ORDER_EMP = ['LGS', 'BXD', 'MTP', 'NO1', 'NO2', 'NO3', 'NOF', 'CZS', 'SEF', 'SUL2', 'OE1'];
+// Mapeamento: cluster do portal → { subEscala, código da área na divisao }
+// Para Rio/ES: areaCode null = toda a equipe cobre RIO; 'ES' = quem tem ES no área
+const SIR_CLUSTER_MAP = [
+  { cluster: 'RIO DE JANEIRO', subEscala: 'rio_es', areaCode: null },
+  { cluster: 'ESPIRITO SANTO',  subEscala: 'rio_es', areaCode: 'ES' },
+  { cluster: 'MINAS GERAIS',    subEscala: 'leste',  areaCode: 'MG' },
+  { cluster: 'NORTE',           subEscala: 'leste',  areaCode: 'NO' },
+  { cluster: 'CENTRO OESTE',    subEscala: 'leste',  areaCode: 'CO' },
+  { cluster: 'NORDESTE',        subEscala: 'leste',  areaCode: 'NE' },
+  { cluster: 'BAHIA/SERGIPE',   subEscala: 'leste',  areaCode: 'BA' }
+];
 
 async function carregarMatrizEmpresarial(forcar = false) {
   if (!backendUrl) return;
@@ -10074,20 +10082,42 @@ function renderizarSirEmpresarial() {
 
   const { porCluster, updatedAt, totalRal, totalRec, timestamp } = dadosMatrizEmpresarial;
 
+  // Obter dia da escala para o momento atual
+  const dia = obterDiaEscalaMadrugada(new Date());
+
+  // Retorna o(s) responsável(eis) para um cluster a partir da escala
+  function getResponsavel(subEscala, areaCode) {
+    const dadosDia = calendarios.calendario2?.[subEscala]?.dadosOriginais?.[dia];
+    if (!dadosDia) return null;
+    if (areaCode === null) {
+      // Para RIO DE JANEIRO: toda a equipe Rio/ES cobre Rio
+      const trabalhando = dadosDia.trabalhando || [];
+      return trabalhando.length > 0 ? trabalhando.map(n => extrairPrimeiroNome(n) || n).join(', ') : null;
+    }
+    // Para outros clusters: encontrar a área que contém o código
+    const divisao = dadosDia.divisao || {};
+    for (const [area, pessoa] of Object.entries(divisao)) {
+      if (area.split('/').map(s => s.trim()).includes(areaCode)) {
+        return extrairPrimeiroNome(pessoa) || pessoa;
+      }
+    }
+    return null;
+  }
+
   // Calcular total geral para o badge
-  const totalGeral = CLUSTER_ORDER_EMP.reduce((s, c) => s + (porCluster[c]?.total || 0), 0);
+  const totalGeral = SIR_CLUSTER_MAP.reduce((s, { cluster }) => s + (porCluster[cluster]?.total || 0), 0);
   if (badge) {
     badge.textContent = totalGeral;
     badge.style.display = totalGeral > 0 ? '' : 'none';
   }
 
   let html = '<div style="display:grid;grid-template-columns:1fr;gap:4px;">';
-  for (const cod of CLUSTER_ORDER_EMP) {
-    const d = porCluster[cod] || { ral: 0, rec: 0, total: 0, porTipo: {} };
-    const isLgs = cod === 'LGS';
-    const corBorda = isLgs ? '#c0392b' : (d.total > 0 ? '#388E3C' : '#adb5bd');
-    const corBg = isLgs ? '#fff5f5' : (d.total > 0 ? '#f0fdf4' : '#f8f9fa');
-    const nomeCod = CLUSTER_NOMES_EMP[cod] || cod;
+  for (const { cluster, subEscala, areaCode } of SIR_CLUSTER_MAP) {
+    const d = porCluster[cluster] || { ral: 0, rec: 0, total: 0, porTipo: {} };
+    const corBorda = d.total > 0 ? '#c0392b' : '#adb5bd';
+    const corBg = d.total > 0 ? '#fff5f5' : '#f8f9fa';
+
+    const responsavel = getResponsavel(subEscala, areaCode);
 
     // Pill de tipos
     let tiposPills = '';
@@ -10098,10 +10128,10 @@ function renderizarSirEmpresarial() {
 
     html += `
       <div style="border-left:3px solid ${corBorda};border-radius:5px;background:${corBg};padding:0.35rem 0.6rem;display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
-        <span style="font-weight:700;font-size:0.75rem;color:#1a1a1a;min-width:36px;">${cod}</span>
-        <span style="font-size:0.7rem;color:#555;flex:1;">${isLgs ? '🚨 ' : ''}${nomeCod}</span>
+        <span style="font-weight:700;font-size:0.72rem;color:#1a1a1a;min-width:110px;">${cluster}</span>
         ${tiposPills}
         <span style="margin-left:auto;font-size:0.75rem;font-weight:700;color:${d.total > 0 ? corBorda : '#aaa'};">${d.total}</span>
+        ${responsavel ? `<span style="font-size:0.65rem;color:#555;white-space:nowrap;"><i class="bi bi-person" style="font-size:0.6rem;"></i> ${responsavel}</span>` : ''}
         ${d.ral > 0 || d.rec > 0 ? `<span style="font-size:0.62rem;color:#888;">RAL:${d.ral} REC:${d.rec}</span>` : ''}
       </div>`;
   }
