@@ -613,19 +613,21 @@ app.post('/api/cop-rede-empresarial/sincronizar', async (req, res) => {
 
 // Tipos de RAL aceitos (os demais são descartados)
 const TIPOS_SIR_EMPRESARIAL = new Set(['ACESSO CLIENTE', 'BACKBONE', 'COLETOR', 'FOTÔNICA', 'PPC', 'REC']);
-// Clusters Rio mapeados pelo usuário
-const CLUSTERS_RIO_EMP = ['BXD', 'CZS', 'MTP', 'NO1', 'NO2', 'NO3', 'NOF', 'LGS', 'SEF', 'SUL2', 'OE1'];
-// Nome completo de cada cluster
-const NOME_CLUSTER_EMP = {
-  BXD: 'BAIXADA', CZS: 'CENTRO SUL', MTP: 'METROPOLITANA',
-  NO1: 'NORTE 1', NO2: 'NORTE 2', NO3: 'NORTE 3', NOF: 'NORTE FLUMINENSE',
-  LGS: 'RIO DE JANEIRO', SEF: 'SERRA', SUL2: 'SUL', OE1: 'OESTE'
-};
+// Clusters reais do portal Embratel SIR (valores do campo "cluster" no dashboard.json)
+const CLUSTERS_SIR_EMP = new Set([
+  'RIO DE JANEIRO', 'ESPIRITO SANTO',
+  'NORTE', 'MINAS GERAIS', 'CENTRO OESTE', 'NORDESTE', 'BAHIA/SERGIPE'
+]);
+// Ordem de exibição dos clusters
+const CLUSTERS_SIR_ORDER = [
+  'RIO DE JANEIRO', 'ESPIRITO SANTO',
+  'MINAS GERAIS', 'NORTE', 'CENTRO OESTE', 'NORDESTE', 'BAHIA/SERGIPE'
+];
 
 /**
  * GET /api/matriz-empresarial
  * Busca o dashboard.json do portal Embratel SIR e retorna
- * totais de RAL (filtrado por tipo) + REC agrupados por cluster Rio.
+ * totais de RAL (filtrado por tipo) + REC agrupados por cluster.
  */
 app.get('/api/matriz-empresarial', async (req, res) => {
   try {
@@ -641,13 +643,13 @@ app.get('/api/matriz-empresarial', async (req, res) => {
 
     // Inicializar porCluster com zeros
     const porCluster = {};
-    for (const c of CLUSTERS_RIO_EMP) {
-      porCluster[c] = { nome: NOME_CLUSTER_EMP[c], ral: 0, rec: 0, total: 0, porTipo: {} };
+    for (const c of CLUSTERS_SIR_ORDER) {
+      porCluster[c] = { ral: 0, rec: 0, total: 0, porTipo: {} };
     }
 
     // RAL items — filtrar por tipo
     for (const item of (data.RAL?.items || [])) {
-      if (!CLUSTERS_RIO_EMP.includes(item.cluster)) continue;
+      if (!CLUSTERS_SIR_EMP.has(item.cluster)) continue;
       if (!TIPOS_SIR_EMPRESARIAL.has(item.ralType)) continue;
       porCluster[item.cluster].ral++;
       porCluster[item.cluster].total++;
@@ -655,9 +657,9 @@ app.get('/api/matriz-empresarial', async (req, res) => {
       porCluster[item.cluster].porTipo[t] = (porCluster[item.cluster].porTipo[t] || 0) + 1;
     }
 
-    // REC items — todos os clusters Rio (sem filtro de tipo)
+    // REC items — todos os clusters (sem filtro de tipo)
     for (const item of (data.REC?.items || [])) {
-      if (!CLUSTERS_RIO_EMP.includes(item.cluster)) continue;
+      if (!CLUSTERS_SIR_EMP.has(item.cluster)) continue;
       porCluster[item.cluster].rec++;
       porCluster[item.cluster].total++;
       porCluster[item.cluster].porTipo['REC'] = (porCluster[item.cluster].porTipo['REC'] || 0) + 1;
@@ -669,6 +671,7 @@ app.get('/api/matriz-empresarial', async (req, res) => {
       totalRal: data.RAL?.total || 0,
       totalRec: data.REC?.total || 0,
       porCluster,
+      clusterOrder: CLUSTERS_SIR_ORDER,
       timestamp: new Date().toISOString()
     });
   } catch (error) {
