@@ -3972,8 +3972,9 @@ function carregarCalendarioEmpresarialGrid(subEscala) {
 
   if (!grid) return;
 
-  // Recalcular divisões com a configuração correta antes de exibir
+  // Recalcular divisões e aplicar trocas antes de exibir
   recalcularDivisoesEmpresarial(subEscala);
+  aplicarTrocasEmpresarial(subEscala);
 
   const subEscalaDados = calendarios.calendario2?.[subEscala];
 
@@ -3998,7 +3999,7 @@ function carregarCalendarioEmpresarialGrid(subEscala) {
   // Ocultar mensagem de vazio quando há dados
   if (emptyMsg) emptyMsg.style.display = 'none';
 
-  const dados = subEscalaDados.dadosOriginais;
+  const dados = subEscalaDados.dadosProcessados || subEscalaDados.dadosOriginais;
   const mes = subEscalaDados.mes;
   const ano = subEscalaDados.ano;
 
@@ -4780,7 +4781,7 @@ function handleDiaClickEmpresarial(subEscala, dia) {
   const subEscalaDados = calendarios.calendario2?.[subEscala];
   if (!subEscalaDados || !subEscalaDados.dadosOriginais) return;
 
-  const dadosDia = subEscalaDados.dadosOriginais[dia];
+  const dadosDia = (subEscalaDados.dadosProcessados || subEscalaDados.dadosOriginais)[dia];
   if (!dadosDia) {
     showToast('❌ Este dia não tem dados', 'warning');
     return;
@@ -4817,7 +4818,7 @@ function mostrarModalSelecaoPessoaEmpresarial(subEscala, dia, etapa) {
   const subEscalaDados = calendarios.calendario2?.[subEscala];
   if (!subEscalaDados || !subEscalaDados.dadosOriginais) return;
 
-  const dadosDia = subEscalaDados.dadosOriginais[dia];
+  const dadosDia = (subEscalaDados.dadosProcessados || subEscalaDados.dadosOriginais)[dia];
   if (!dadosDia || !dadosDia.trabalhando || dadosDia.trabalhando.length === 0) {
     showToast('❌ Nenhuma pessoa disponível neste dia', 'warning');
     return;
@@ -5029,10 +5030,8 @@ function aplicarTrocasEmpresarial(subEscala) {
   const subEscalaDados = calendarios.calendario2?.[subEscala];
   if (!subEscalaDados || !subEscalaDados.trocas) return;
 
-  // Criar cópia dos dados originais se não existir dadosProcessados
-  if (!subEscalaDados.dadosProcessados) {
-    subEscalaDados.dadosProcessados = JSON.parse(JSON.stringify(subEscalaDados.dadosOriginais));
-  }
+  // Sempre recriar dadosProcessados a partir dos originais para garantir idempotência
+  subEscalaDados.dadosProcessados = JSON.parse(JSON.stringify(subEscalaDados.dadosOriginais));
 
   subEscalaDados.trocas.filter(t => t.status === 'ativa').forEach(troca => {
     const diaA = troca.dia_a;
@@ -6322,8 +6321,20 @@ function iniciarComoVisualizador() {
   const swapStatus = document.getElementById('swapStatus');
   if (swapStatus) swapStatus.style.display = 'none';
 
-  // Desativar modo de troca
+  // Esconder botões de trocas empresariais (Rio/ES e Leste)
+  const btnAgendarTrocasRioEs = document.getElementById('btnAgendarTrocasRioEs');
+  if (btnAgendarTrocasRioEs) btnAgendarTrocasRioEs.style.display = 'none';
+  const btnAgendarTrocasLeste = document.getElementById('btnAgendarTrocasLeste');
+  if (btnAgendarTrocasLeste) btnAgendarTrocasLeste.style.display = 'none';
+  const swapStatusRioEs = document.getElementById('swapStatusRioEs');
+  if (swapStatusRioEs) swapStatusRioEs.style.display = 'none';
+  const swapStatusLeste = document.getElementById('swapStatusLeste');
+  if (swapStatusLeste) swapStatusLeste.style.display = 'none';
+
+  // Desativar modo de troca (residencial e empresarial)
   modoTroca = false;
+  modoTrocaEmpresarial.rio_es = false;
+  modoTrocaEmpresarial.leste = false;
 
   // Mostrar navegação de abas para visualizadores também
   const adminNavTabs = document.getElementById('adminNavTabs');
