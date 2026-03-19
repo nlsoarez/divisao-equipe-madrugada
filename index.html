@@ -267,7 +267,7 @@
       padding: 0.5rem 1rem !important;
       font-size: 0.85rem !important;
       font-weight: 500 !important;
-      display: inline-flex !important;
+      /* display NÃO pode ter !important — o JS controla display:none para viewer */
       align-items: center !important;
       gap: 0.5rem !important;
       cursor: pointer !important;
@@ -3312,7 +3312,7 @@
       </div>
       <div class="modal-footer">
         <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancelar</button>
-        <button type="button" class="btn btn-sm" style="background: linear-gradient(135deg, #388E3C 0%, #2E7D32 100%); color: white; border: none;" onclick="confirmarTroca()">Confirmar troca</button>
+        <button type="button" id="btnConfirmarTroca" class="btn btn-sm" style="background: linear-gradient(135deg, #388E3C 0%, #2E7D32 100%); color: white; border: none;" onclick="confirmarTroca()">Confirmar troca</button>
       </div>
     </div>
   </div>
@@ -4956,8 +4956,8 @@ function mostrarModalConfirmacaoTrocaEmpresarial(subEscala) {
     `;
   }
 
-  // Modificar botão de confirmação temporariamente
-  const btnConfirmar = document.querySelector('#swapModal .btn-success');
+  // Modificar botão de confirmação temporariamente para chamar o handler empresarial
+  const btnConfirmar = document.getElementById('btnConfirmarTroca');
   if (btnConfirmar) {
     btnConfirmar.setAttribute('onclick', 'confirmarTrocaEmpresarial()');
   }
@@ -5008,8 +5008,8 @@ function confirmarTrocaEmpresarial() {
   if (btn) btn.classList.remove('active');
   if (status) status.style.display = 'none';
 
-  // Restaurar botão de confirmação original
-  const btnConfirmar = document.querySelector('#swapModal .btn-success');
+  // Restaurar botão de confirmação original (residencial)
+  const btnConfirmar = document.getElementById('btnConfirmarTroca');
   if (btnConfirmar) {
     btnConfirmar.setAttribute('onclick', 'confirmarTroca()');
   }
