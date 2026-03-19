@@ -10347,27 +10347,74 @@ function renderCopEmpresarialEmbed(containerId, dados, subEscala) {
 
   if (subEscala === 'rio_es') {
     // --- Painel Rio/ES ---
-    // Rio é dividido igualmente entre todas as pessoas;
-    // quem cobre ES recebe Rio/N + volume ES.
+    // Mapeia nomes de clusters das mensagens COP REDE para códigos de sub-área.
+    // Os códigos correspondem aos usados nas áreas da divisão (ex: NO2/BX1/OE1/SUF).
+    function getCodigoClusterRioES(nome) {
+      const l = nome.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+      if (l === 'norte 1' || l === 'norte1' || l === 'no1') return 'NO1';
+      if (l === 'norte 2' || l === 'norte2' || l === 'no2') return 'NO2';
+      if (l === 'norte 3' || l === 'norte3' || l === 'no3') return 'NO3';
+      if (l.includes('baixada') || l === 'bx1') return 'BX1';
+      if (l.includes('metropol') || l === 'mtp') return 'MTP';
+      if (l.includes('centro sul') || l === 'czs') return 'CZS';
+      if (l.includes('sul fluminense') || l === 'suf') return 'SUF';
+      if (l.includes('norte fluminense') || l === 'nof') return 'NOF';
+      if (l === 'sul 2' || l === 'zona sul 2' || l === 'su2') return 'SU2';
+      if (l.includes('sudeste fluminense') || l === 'sef') return 'SEF';
+      if (l === 'oeste 1' || l === 'oe1') return 'OE1';
+      if (l === 'lagoas' || l === 'lgs') return 'LGS';
+      if (l.includes('espirito santo') || l === 'es') return 'ES';
+      return null;
+    }
 
-    let volRio = 0, volES = 0;
+    // Monta mapa: código de sub-área → volume
+    const volumePorCodigo = {};
+    let volRioGeral = 0, volESGeral = 0;
     for (const [grupoNome, quantidade] of Object.entries(ultimaMensagem.resumo.grupo)) {
-      const l = grupoNome.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-      if (l.includes('rio')) volRio += quantidade;
-      else if (l.includes('espirito santo')) volES += quantidade;
+      const codigo = getCodigoClusterRioES(grupoNome);
+      if (codigo) {
+        volumePorCodigo[codigo] = (volumePorCodigo[codigo] || 0) + quantidade;
+      } else {
+        // Clusters genéricos (ex: "Rio de Janeiro" total sem sub-divisão)
+        const l = grupoNome.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+        if (l.includes('espirito santo') || l === 'es') volESGeral += quantidade;
+        else volRioGeral += quantidade;
+      }
     }
 
-    // Quem cobre ES: chave do divisao cujo primeiro segmento é 'ES'
-    let nomeES = null;
-    for (const [area, pessoa] of Object.entries(divisaoDia)) {
-      if (area.split('/')[0].trim() === 'ES') { nomeES = pessoa; break; }
-    }
+    // Verifica se há dados de sub-clusters (além de ES genérico)
+    const temSubClusters = Object.keys(volumePorCodigo).some(c => c !== 'ES');
 
-    const numP = trabalhandoDia.length || numPessoas || 1;
-    const rioPorPessoa = Math.floor(volRio / numP);
+    if (Object.keys(divisaoDia).length > 0 && temSubClusters) {
+      // Com escala e dados detalhados: volume por área conforme a divisão
+      for (const [area, pessoa] of Object.entries(divisaoDia)) {
+        const codigos = area.split('/').map(c => c.trim());
+        const volume = codigos.reduce((sum, cod) => sum + (volumePorCodigo[cod] || 0), 0);
+        const firstName = extrairPrimeiroNome(pessoa || '') || '-';
+        areasHTML += `
+          <div class="area-summary-item ${getCorVolume(volume)}">
+            <span class="area-name">${area}</span>
+            <span class="area-volume">${volume}</span>
+            <span class="area-responsible"><i class="bi bi-person me-1"></i>${firstName}</span>
+          </div>`;
+      }
+    } else if (trabalhandoDia.length > 0 || Object.keys(divisaoDia).length > 0) {
+      // Fallback: sem dados detalhados de sub-cluster — divide Rio igualmente;
+      // quem cobre ES recebe Rio/N + volume ES.
+      const volRio = volRioGeral + Object.entries(volumePorCodigo)
+        .filter(([c]) => c !== 'ES').reduce((s, [, v]) => s + v, 0);
+      const volES = (volumePorCodigo['ES'] || 0) + volESGeral;
 
-    if (trabalhandoDia.length > 0) {
-      areasHTML = trabalhandoDia.map(nomeCompleto => {
+      let nomeES = null;
+      for (const [area, pessoa] of Object.entries(divisaoDia)) {
+        if (area.split('/')[0].trim() === 'ES') { nomeES = pessoa; break; }
+      }
+
+      const pessoas = trabalhandoDia.length > 0 ? trabalhandoDia : Object.values(divisaoDia);
+      const numP = pessoas.length || numPessoas || 1;
+      const rioPorPessoa = Math.floor(volRio / numP);
+
+      areasHTML = pessoas.map(nomeCompleto => {
         const firstName = extrairPrimeiroNome(nomeCompleto);
         const cobreES = nomeES && nomeES.toUpperCase() === firstName.toUpperCase();
         const volume = rioPorPessoa + (cobreES ? volES : 0);
@@ -10380,15 +10427,15 @@ function renderCopEmpresarialEmbed(containerId, dados, subEscala) {
           </div>`;
       }).join('');
     } else {
-      // Sem escala carregada: exibe totais simples
-      [['RIO DE JANEIRO', volRio], ['ESPIRITO SANTO', volES]].forEach(([nome, vol]) => {
-        if (vol > 0) areasHTML += `
-          <div class="area-summary-item ${getCorVolume(vol)}">
-            <span class="area-name">${nome}</span>
-            <span class="area-volume">${vol}</span>
+      // Sem escala: exibe clusters disponíveis sem responsável
+      for (const [grupoNome, quantidade] of Object.entries(ultimaMensagem.resumo.grupo)) {
+        if (quantidade > 0) areasHTML += `
+          <div class="area-summary-item ${getCorVolume(quantidade)}">
+            <span class="area-name">${grupoNome}</span>
+            <span class="area-volume">${quantidade}</span>
             <span class="area-responsible"><i class="bi bi-person me-1"></i>-</span>
           </div>`;
-      });
+      }
     }
 
   } else {
