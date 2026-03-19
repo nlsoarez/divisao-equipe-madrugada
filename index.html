@@ -10128,7 +10128,6 @@ const SIR_CLUSTER_MAP = [
 ];
 
 // Mapeamento: cidade (subdivisão do dashboard.json) → códigos da área na escala Rio/ES
-// CENTRO SUL aparece para dois códigos diferentes (OE1 e SU2) com responsáveis diferentes
 const SUBDIVISAO_RIO_AREA_CODES = {
   'RIO DE JANEIRO':  ['LGS'],
   'BAIXADA':         ['BX1'],
@@ -10137,10 +10136,15 @@ const SUBDIVISAO_RIO_AREA_CODES = {
   'NORTE 2':         ['NO2'],
   'NORTE 3':         ['NO3'],
   'NORTE FLUMINENSE':['NOF'],
-  'CENTRO SUL':      ['OE1', 'SU2'],
+  'CENTRO SUL':      ['CZS'],
   'SERRA':           ['SEF'],
   'SUL FLUMINENSE':  ['SUF'],
   'DESPACHO (DP)':   []
+};
+
+// Nome de exibição alternativo para sub-clusters (quando o nome do portal difere da sigla interna)
+const SUBDIVISAO_RIO_NOME_DISPLAY = {
+  'RIO DE JANEIRO': 'LGS'
 };
 
 async function carregarMatrizEmpresarial(forcar = false) {
@@ -10242,9 +10246,10 @@ function renderizarSirEmpresarial() {
         const sd = subs[subNome];
         if (!sd || sd.total === 0) continue;
         const subResp = getResponsavelSubdivisao(subNome);
+        const subLabel = SUBDIVISAO_RIO_NOME_DISPLAY[subNome] || subNome;
         html += `
           <div style="margin-left:12px;border-left:2px solid #e88;border-radius:4px;background:#fff8f8;padding:0.25rem 0.5rem;display:flex;align-items:center;gap:5px;flex-wrap:wrap;">
-            <span style="font-size:0.65rem;color:#555;min-width:100px;">↳ ${subNome}</span>
+            <span style="font-size:0.65rem;color:#555;min-width:100px;">↳ ${subLabel}</span>
             ${tiposPillsHtml(sd.porTipo)}
             <span style="margin-left:auto;font-size:0.7rem;font-weight:700;color:#c0392b;">${sd.total}</span>
             ${subResp ? `<span style="font-size:0.6rem;color:#444;white-space:nowrap;font-weight:600;"><i class="bi bi-person" style="font-size:0.55rem;"></i> ${subResp}</span>` : ''}
