@@ -10352,46 +10352,56 @@ function renderCopEmpresarialEmbed(containerId, dados, subEscala) {
 
   if (subEscala === 'rio_es') {
     // --- Painel Rio/ES ---
-    // Mapeia nomes de clusters das mensagens COP REDE para códigos de sub-área.
-    // Os códigos correspondem aos usados nas áreas da divisão (ex: NO2/BX1/OE1/SUF).
-    function getCodigoClusterRioES(nome) {
-      const l = nome.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-      if (l === 'norte 1' || l === 'norte1' || l === 'no1') return 'NO1';
-      if (l === 'norte 2' || l === 'norte2' || l === 'no2') return 'NO2';
-      if (l === 'norte 3' || l === 'norte3' || l === 'no3') return 'NO3';
-      if (l.includes('baixada') || l === 'bx1') return 'BX1';
-      if (l.includes('metropol') || l === 'mtp') return 'MTP';
-      if (l.includes('centro sul') || l === 'czs') return 'CZS';
-      if (l.includes('sul fluminense') || l === 'suf') return 'SUF';
-      if (l.includes('norte fluminense') || l === 'nof') return 'NOF';
-      if (l === 'sul 2' || l === 'zona sul 2' || l === 'su2') return 'SU2';
-      if (l.includes('sudeste fluminense') || l === 'sef') return 'SEF';
-      if (l === 'oeste 1' || l === 'oe1') return 'OE1';
-      if (l === 'lagoas' || l === 'lgs') return 'LGS';
-      if (l.includes('espirito santo') || l === 'es') return 'ES';
-      return null;
-    }
+    // Fonte primária: dados do SIR (sub-clusters granulares via SUBDIVISAO_RIO_AREA_CODES).
+    // Fallback: dados do COP REDE, que geralmente traz apenas o total geral do Rio.
 
-    // Monta mapa: código de sub-área → volume
     const volumePorCodigo = {};
-    let volRioGeral = 0, volESGeral = 0;
-    for (const [grupoNome, quantidade] of Object.entries(ultimaMensagem.resumo.grupo)) {
-      const codigo = getCodigoClusterRioES(grupoNome);
-      if (codigo) {
-        volumePorCodigo[codigo] = (volumePorCodigo[codigo] || 0) + quantidade;
-      } else {
-        // Clusters genéricos (ex: "Rio de Janeiro" total sem sub-divisão)
-        const l = grupoNome.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-        if (l.includes('espirito santo') || l === 'es') volESGeral += quantidade;
-        else volRioGeral += quantidade;
+    let temSubClusters = false;
+
+    // 1ª opção: SIR sub-clusters (já carregados em dadosMatrizEmpresarial)
+    const sirRio = dadosMatrizEmpresarial?.porCluster?.['RIO DE JANEIRO'];
+    const sirES  = dadosMatrizEmpresarial?.porCluster?.['ESPIRITO SANTO'];
+    if (sirRio?.subclusters && Object.keys(sirRio.subclusters).length > 0) {
+      for (const [subNome, sd] of Object.entries(sirRio.subclusters)) {
+        const codes = SUBDIVISAO_RIO_AREA_CODES[subNome] || [];
+        for (const code of codes) {
+          volumePorCodigo[code] = (volumePorCodigo[code] || 0) + (sd.total || 0);
+        }
       }
+      if (sirES?.total > 0) {
+        volumePorCodigo['ES'] = (volumePorCodigo['ES'] || 0) + sirES.total;
+      }
+      temSubClusters = Object.keys(volumePorCodigo).some(c => c !== 'ES');
     }
 
-    // Verifica se há dados de sub-clusters (além de ES genérico)
-    const temSubClusters = Object.keys(volumePorCodigo).some(c => c !== 'ES');
+    // 2ª opção: COP REDE com sub-clusters (ex: formato "Detalhe Cluster × Status")
+    if (!temSubClusters) {
+      function getCodigoClusterRioES(nome) {
+        const l = nome.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+        if (l === 'norte 1' || l === 'norte1' || l === 'no1') return 'NO1';
+        if (l === 'norte 2' || l === 'norte2' || l === 'no2') return 'NO2';
+        if (l === 'norte 3' || l === 'norte3' || l === 'no3') return 'NO3';
+        if (l.includes('baixada') || l === 'bx1') return 'BX1';
+        if (l.includes('metropol') || l === 'mtp') return 'MTP';
+        if (l.includes('centro sul') || l === 'czs') return 'CZS';
+        if (l.includes('sul fluminense') || l === 'suf') return 'SUF';
+        if (l.includes('norte fluminense') || l === 'nof') return 'NOF';
+        if (l === 'sul 2' || l === 'zona sul 2' || l === 'su2') return 'SU2';
+        if (l.includes('sudeste fluminense') || l === 'sef') return 'SEF';
+        if (l === 'oeste 1' || l === 'oe1') return 'OE1';
+        if (l === 'lagoas' || l === 'lgs') return 'LGS';
+        if (l.includes('espirito santo') || l === 'es') return 'ES';
+        return null;
+      }
+      for (const [grupoNome, quantidade] of Object.entries(ultimaMensagem.resumo.grupo)) {
+        const codigo = getCodigoClusterRioES(grupoNome);
+        if (codigo) volumePorCodigo[codigo] = (volumePorCodigo[codigo] || 0) + quantidade;
+      }
+      temSubClusters = Object.keys(volumePorCodigo).some(c => c !== 'ES');
+    }
 
     if (Object.keys(divisaoDia).length > 0 && temSubClusters) {
-      // Com escala e dados detalhados: volume por área conforme a divisão
+      // Com escala e dados detalhados: volume real por área da divisão
       for (const [area, pessoa] of Object.entries(divisaoDia)) {
         const codigos = area.split('/').map(c => c.trim());
         const volume = codigos.reduce((sum, cod) => sum + (volumePorCodigo[cod] || 0), 0);
@@ -10404,11 +10414,15 @@ function renderCopEmpresarialEmbed(containerId, dados, subEscala) {
           </div>`;
       }
     } else if (trabalhandoDia.length > 0 || Object.keys(divisaoDia).length > 0) {
-      // Fallback: sem dados detalhados de sub-cluster — divide Rio igualmente;
-      // quem cobre ES recebe Rio/N + volume ES.
-      const volRio = volRioGeral + Object.entries(volumePorCodigo)
-        .filter(([c]) => c !== 'ES').reduce((s, [, v]) => s + v, 0);
-      const volES = (volumePorCodigo['ES'] || 0) + volESGeral;
+      // Fallback: só total geral do Rio — divide igualmente; ES vai ao responsável por ES
+      let volRio = 0, volES = 0;
+      for (const [grupoNome, quantidade] of Object.entries(ultimaMensagem.resumo.grupo)) {
+        const l = grupoNome.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+        if (l.includes('espirito santo') || l === 'es') volES += quantidade;
+        else volRio += quantidade;
+      }
+      // Complementar ES com SIR se disponível
+      if (sirES?.total > 0 && volES === 0) volES = sirES.total;
 
       let nomeES = null;
       for (const [area, pessoa] of Object.entries(divisaoDia)) {
