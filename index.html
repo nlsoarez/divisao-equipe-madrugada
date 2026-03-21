@@ -2705,7 +2705,7 @@
   <div id="calendarSectionRioEs" style="display: none;">
     <!-- Calendário Rio/Es -->
     <div class="calendar-container empresarial-calendar">
-      <div class="calendar-header" style="background: linear-gradient(135deg, #388E3C 0%, #1B5E20 100%);">
+      <div class="calendar-header">
         <div class="calendar-title-wrapper">
           <h5 class="calendar-title" id="calendarTitleRioEs">Rio/ES</h5>
           <span class="escala-tipo-badge empresarial" style="font-size: 0.7rem;">Rio/ES</span>
@@ -2791,7 +2791,7 @@
   <div id="calendarSectionLeste" style="display: none;">
     <!-- Calendário Leste -->
     <div class="calendar-container empresarial-calendar">
-      <div class="calendar-header" style="background: linear-gradient(135deg, #388E3C 0%, #1B5E20 100%);">
+      <div class="calendar-header">
         <div class="calendar-title-wrapper">
           <h5 class="calendar-title" id="calendarTitleLeste">Leste</h5>
           <span class="escala-tipo-badge empresarial" style="font-size: 0.7rem;">Leste</span>
@@ -4054,6 +4054,15 @@ function carregarCalendarioEmpresarialGrid(subEscala) {
       const numAusentes = dadosDia.ausentes ? dadosDia.ausentes.length : 0;
       if (numAusentes > 0) {
         content += `<div class="calendar-day-absent">${numAusentes} ausente(s)</div>`;
+      }
+
+      // Verificar se há trocas ativas para este dia
+      const trocasAtivas = (subEscalaDados.trocas || []).filter(t =>
+        (t.dia_a === dia || t.dia_b === dia) && t.status === 'ativa'
+      );
+      if (trocasAtivas.length > 0) {
+        cell.classList.add('swapped');
+        content += `<div class="swap-icon"><i class="bi bi-arrow-left-right"></i></div>`;
       }
 
       // Verificar se é dia selecionado para troca
