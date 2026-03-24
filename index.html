@@ -10493,16 +10493,32 @@ function renderCopEmpresarialEmbed(containerId, dados, subEscala) {
     }
 
     // Monta mapa: código do cluster → volume total
+    // 1ª opção: SIR (mesma fonte do painel principal, valores consistentes)
     const volumePorCodigo = {};
-    for (const [grupoNome, quantidade] of Object.entries(ultimaMensagem.resumo.grupo)) {
-      if (clusterPertenceRioES(grupoNome)) continue;
-      const codigo = getCodigoClusterLeste(grupoNome);
-      if (codigo) volumePorCodigo[codigo] = (volumePorCodigo[codigo] || 0) + quantidade;
+    let temDadosSIR = false;
+    if (dadosMatrizEmpresarial?.porCluster) {
+      for (const { cluster, subEscala: se, areaCode } of SIR_CLUSTER_MAP) {
+        if (se !== 'leste') continue;
+        const d = dadosMatrizEmpresarial.porCluster[cluster];
+        if (d?.total > 0) {
+          volumePorCodigo[areaCode] = (volumePorCodigo[areaCode] || 0) + d.total;
+          temDadosSIR = true;
+        }
+      }
+    }
+    // 2ª opção: COP REDE (fallback quando SIR não disponível)
+    if (!temDadosSIR) {
+      for (const [grupoNome, quantidade] of Object.entries(ultimaMensagem.resumo.grupo)) {
+        if (clusterPertenceRioES(grupoNome)) continue;
+        const codigo = getCodigoClusterLeste(grupoNome);
+        if (codigo) volumePorCodigo[codigo] = (volumePorCodigo[codigo] || 0) + quantidade;
+      }
     }
 
     if (Object.keys(divisaoDia).length > 0) {
       // Contar quantas áreas compartilham cada código (para dividir o volume proporcionalmente)
-      // Ex: MG aparece em MG/NO e NO/MG → codigoContagem['MG'] = 2 → cada área recebe MG/2
+      // Ex: MG/NO e NO/MG → codigoContagem['MG']=2, codigoContagem['NO']=2 → cada área recebe metade
+      // Ex: NE/BA e CO/BA → codigoContagem['BA']=2 → cada área recebe BA/2
       const codigoContagem = {};
       for (const [area] of Object.entries(divisaoDia)) {
         if (clusterPertenceRioES(area)) continue;
@@ -10511,7 +10527,7 @@ function renderCopEmpresarialEmbed(containerId, dados, subEscala) {
         }
       }
 
-      // Com escala: volume por área dividindo clusters compartilhados
+      // Com escala: volume por área dividindo clusters compartilhados entre analistas
       for (const [area, pessoa] of Object.entries(divisaoDia)) {
         if (clusterPertenceRioES(area)) continue;
         const codigos = area.split('/').map(c => c.trim());
