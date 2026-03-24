@@ -10501,13 +10501,25 @@ function renderCopEmpresarialEmbed(containerId, dados, subEscala) {
     }
 
     if (Object.keys(divisaoDia).length > 0) {
-      // Com escala: volume por área somando o volume total de cada cluster correspondente
-      // Ex: CO/MG → Igor (CO:20 + MG:17 = 37), NE/NO/BA → Gabriela (NE:10 + NO:102 + BA:9 = 121)
+      // Contar quantas áreas compartilham cada código (para dividir o volume proporcionalmente)
+      // Ex: MG/NO e NO/MG → codigoContagem['MG']=2, codigoContagem['NO']=2 → cada área recebe metade
+      // Ex: NE/BA e CO/BA → codigoContagem['BA']=2 → cada área recebe BA/2
+      const codigoContagem = {};
+      for (const [area] of Object.entries(divisaoDia)) {
+        if (clusterPertenceRioES(area)) continue;
+        for (const cod of area.split('/').map(c => c.trim())) {
+          codigoContagem[cod] = (codigoContagem[cod] || 0) + 1;
+        }
+      }
+
+      // Com escala: volume por área dividindo clusters compartilhados entre analistas
       for (const [area, pessoa] of Object.entries(divisaoDia)) {
         if (clusterPertenceRioES(area)) continue;
         const codigos = area.split('/').map(c => c.trim());
         const volume = Math.round(codigos.reduce((sum, cod) => {
-          return sum + (volumePorCodigo[cod] || 0);
+          const vol = volumePorCodigo[cod] || 0;
+          const divisoes = codigoContagem[cod] || 1;
+          return sum + vol / divisoes;
         }, 0));
         const firstName = extrairPrimeiroNome(pessoa || '') || '-';
         areasHTML += `
