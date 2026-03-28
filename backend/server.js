@@ -622,7 +622,7 @@ app.post('/api/cop-rede-empresarial/sincronizar', async (req, res) => {
 // ============================================
 
 // Tipos de RAL aceitos (os demais são descartados)
-const TIPOS_SIR_EMPRESARIAL = new Set(['ACESSO CLIENTE', 'BACKBONE', 'COLETOR', 'FOTÔNICA', 'PPC', 'REC']);
+const TIPOS_SIR_EMPRESARIAL = new Set(['ACESSO CLIENTE', 'BACKBONE', 'COLETOR', 'FOTÔNICA', 'REC']);
 // Clusters reais do portal Embratel SIR (valores do campo "cluster" no dashboard.json)
 const CLUSTERS_SIR_EMP = new Set([
   'RIO DE JANEIRO', 'ESPIRITO SANTO',
@@ -700,11 +700,15 @@ app.get('/api/matriz-empresarial', async (req, res) => {
       }
     }
 
+    // Totais calculados a partir dos dados já filtrados (apenas tipos aceitos)
+    const totalRalFiltrado = Object.values(porCluster).reduce((sum, c) => sum + c.ral, 0);
+    const totalRecFiltrado = Object.values(porCluster).reduce((sum, c) => sum + c.rec, 0);
+
     res.json({
       sucesso: true,
       updatedAt: data.updatedAt || null,
-      totalRal: data.RAL?.total || 0,
-      totalRec: data.REC?.total || 0,
+      totalRal: totalRalFiltrado,
+      totalRec: totalRecFiltrado,
       porCluster,
       clusterOrder: CLUSTERS_SIR_ORDER,
       rioSubdivisaoOrder: RIO_SUBDIVISAO_ORDER,
