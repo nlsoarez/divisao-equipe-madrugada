@@ -133,7 +133,7 @@ const CONFIG = {
   // Fernanda e Sandro prioritários para MG/NO
   // Gabriela, Magno e Aldenes prioritários para CO/NE/BA
   //
-  PRIORIDADES_LESTE: {
+    PRIORIDADES_LESTE: {
     2: {
       areas: {
         'CO/MG': ['IGOR', 'FERNANDA', 'SANDRO', 'GABRIELA', 'MAGNO', 'ALDENES'],
@@ -149,28 +149,28 @@ const CONFIG = {
     },
     4: {
       areas: {
-        'MG/NO': ['IGOR', 'FERNANDA', 'SANDRO', 'GABRIELA', 'MAGNO', 'ALDENES'],
-        'NO/MG': ['IGOR', 'FERNANDA', 'SANDRO', 'GABRIELA', 'MAGNO', 'ALDENES'],
-        'NE/BA': ['GABRIELA', 'MAGNO', 'ALDENES', 'FERNANDA', 'IGOR', 'SANDRO'],
-        'CO/BA': ['GABRIELA', 'MAGNO', 'ALDENES', 'FERNANDA', 'IGOR', 'SANDRO']
+        'CO/NO': ['GABRIELA', 'MAGNO', 'ALDENES', 'IGOR', 'FERNANDA', 'SANDRO'],
+        'CO/NE': ['GABRIELA', 'MAGNO', 'ALDENES', 'FERNANDA', 'IGOR', 'SANDRO'],
+        'MG/BA': ['IGOR', 'FERNANDA', 'SANDRO', 'GABRIELA', 'MAGNO', 'ALDENES'],
+        'NO/NE': ['IGOR', 'FERNANDA', 'SANDRO', 'GABRIELA', 'MAGNO', 'ALDENES']
       }
     },
     5: {
       areas: {
-        'MG/NO': ['IGOR', 'FERNANDA', 'SANDRO', 'GABRIELA', 'MAGNO', 'ALDENES'],
-        'NO/MG': ['IGOR', 'FERNANDA', 'SANDRO', 'GABRIELA', 'MAGNO', 'ALDENES'],
-        'NE/CO': ['GABRIELA', 'MAGNO', 'ALDENES', 'FERNANDA', 'IGOR', 'SANDRO'],
+        'CO/MG': ['GABRIELA', 'MAGNO', 'ALDENES', 'IGOR', 'FERNANDA', 'SANDRO'],
         'CO/NE': ['GABRIELA', 'MAGNO', 'ALDENES', 'FERNANDA', 'IGOR', 'SANDRO'],
-        'APOIO SIR/BA': ['ALDENES', 'MAGNO', 'GABRIELA', 'FERNANDA', 'IGOR', 'SANDRO']
+        'CO/NO': ['GABRIELA', 'MAGNO', 'ALDENES', 'IGOR', 'FERNANDA', 'SANDRO'],
+        'NE/BA': ['GABRIELA', 'MAGNO', 'ALDENES', 'FERNANDA', 'IGOR', 'SANDRO'],
+        'MG/NO': ['IGOR', 'FERNANDA', 'SANDRO', 'GABRIELA', 'MAGNO', 'ALDENES']
       }
     },
     6: {
       areas: {
-        'MG/NO': ['IGOR', 'FERNANDA', 'SANDRO', 'GABRIELA', 'MAGNO', 'ALDENES'],
-        'NO/MG': ['IGOR', 'FERNANDA', 'SANDRO', 'GABRIELA', 'MAGNO', 'ALDENES'],
-        'NE/CO': ['GABRIELA', 'MAGNO', 'ALDENES', 'FERNANDA', 'IGOR', 'SANDRO'],
+        'CO/MG': ['GABRIELA', 'MAGNO', 'ALDENES', 'IGOR', 'FERNANDA', 'SANDRO'],
         'CO/NE': ['GABRIELA', 'MAGNO', 'ALDENES', 'FERNANDA', 'IGOR', 'SANDRO'],
-        'BA/NE': ['SANDRO', 'FERNANDA', 'GABRIELA', 'MAGNO', 'ALDENES', 'IGOR'],
+        'CO/NO': ['GABRIELA', 'MAGNO', 'ALDENES', 'IGOR', 'FERNANDA', 'SANDRO'],
+        'NE/BA': ['GABRIELA', 'MAGNO', 'ALDENES', 'FERNANDA', 'IGOR', 'SANDRO'],
+        'MG/NO': ['IGOR', 'FERNANDA', 'SANDRO', 'GABRIELA', 'MAGNO', 'ALDENES'],
         'APOIO SIR': ['ALDENES', 'MAGNO', 'GABRIELA', 'FERNANDA', 'IGOR', 'SANDRO']
       }
     }
@@ -205,24 +205,24 @@ const CONFIG = {
     },
     3: {
       areas: {
-        'NO2/BX1/OE1/SUF/CZS': ['RODRIGO', 'ROBERTO', 'JEFFERSON', 'MONICA', 'SUELLEN'],
-        'MTP/NO1/NOF/NO3': ['ROBERTO', 'JEFFERSON', 'MONICA', 'RODRIGO', 'SUELLEN'],
-        'ES/SU2/SEF/LGS': ['SUELLEN', 'MONICA', 'ROBERTO', 'RODRIGO', 'JEFFERSON']
+        'NO2/BX1/OE1/SUF/CZS': ['ROBERTO', 'ROBERTO', 'JEFFERSON', 'MONICA', 'SUELLEN'],
+        'MTP/NO1/NOF/NO3': ['RODRIGO', 'JEFFERSON', 'MONICA', 'RODRIGO', 'SUELLEN'],
+        'ES/SU2/SEF/LGS': ['SUELLEN', 'ROBERTO', 'MONICA', 'RODRIGO', 'JEFFERSON']
       }
     },
     4: {
       areas: {
         'ES/SU2/SEF': ['SUELLEN', 'MONICA', 'ROBERTO', 'RODRIGO', 'JEFFERSON'],
-        'NO2/BX1/OE1/SUF': ['RODRIGO', 'ROBERTO', 'JEFFERSON', 'MONICA', 'SUELLEN'],
-        'MTP/NO1/NOF': ['ROBERTO', 'JEFFERSON', 'MONICA', 'RODRIGO', 'SUELLEN'],
+        'NO2/BX1/OE1/SUF': ['ROBERTO', 'RODRIGO', 'JEFFERSON', 'MONICA', 'SUELLEN'],
+        'MTP/NO1/NOF': ['RODRIGO', 'JEFFERSON', 'MONICA', 'ROBERTO', 'SUELLEN'],
         'NO3/CZS/LGS': ['JEFFERSON', 'RODRIGO', 'ROBERTO', 'MONICA', 'SUELLEN']
       }
     },
     5: {
       areas: {
         'ES': ['SUELLEN', 'MONICA', 'ROBERTO', 'RODRIGO', 'JEFFERSON'],
-        'NO2/BX1/OE1/SUF': ['RODRIGO', 'ROBERTO', 'JEFFERSON', 'MONICA', 'SUELLEN'],
-        'MTP/NO1/NOF/SU2': ['ROBERTO', 'JEFFERSON', 'MONICA', 'RODRIGO', 'SUELLEN'],
+        'NO2/BX1/OE1/SUF': ['ROBERTO', 'RODRIGO', 'JEFFERSON', 'MONICA', 'SUELLEN'],
+        'MTP/NO1/NOF/SU2': ['RODRIGO', 'ROBERTO', 'MONICA', 'RODRIGO', 'SUELLEN'],
         'NO3/CZS/LGS/SEF': ['JEFFERSON', 'RODRIGO', 'ROBERTO', 'MONICA', 'SUELLEN']
       }
     }
