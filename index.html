@@ -4174,7 +4174,7 @@ function mostrarDetalhesDiaEmpresarial(subEscala, dia) {
   const subEscalaDados = calendarios.calendario2?.[subEscala];
   if (!subEscalaDados || !subEscalaDados.dadosOriginais) return;
 
-  const dadosDia = subEscalaDados.dadosOriginais[dia];
+  const dadosDia = (subEscalaDados.dadosProcessados || subEscalaDados.dadosOriginais)[dia];
   if (!dadosDia) return;
 
   const nomeSubEscala = subEscala === 'rio_es' ? 'Rio/Es' : 'Leste';
@@ -4285,6 +4285,29 @@ function mostrarDetalhesDiaEmpresarial(subEscala, dia) {
       </div>
     </div>
   `;
+
+  // Seção de trocas ativas com opção de cancelar (apenas admin)
+  if (trocasDia.length > 0 && isAdmin) {
+    html += `
+    <div class="status-section mt-2">
+      <div class="status-title">
+        <i class="bi bi-arrow-left-right"></i>
+        <span>Trocas ativas</span>
+      </div>
+      ${trocasDia.map(t => {
+        const descricao = t.dia_b
+          ? `${obterPrimeiroNome(t.pessoa_a)} (Dia ${t.dia_a}) ⇄ ${obterPrimeiroNome(t.pessoa_b)} (Dia ${t.dia_b})`
+          : `${obterPrimeiroNome(t.pessoa_b)} substitui ${obterPrimeiroNome(t.pessoa_a)} (Dia ${t.dia_a})`;
+        return `
+          <div class="d-flex justify-content-between align-items-center py-1 border-bottom">
+            <span class="small">${descricao}</span>
+            <button class="btn btn-outline-danger btn-sm py-0 px-1 ms-2" onclick="cancelarTrocaEmpresarial('${subEscala}', '${t.id}', ${dia})">
+              <i class="bi bi-x-circle"></i> Cancelar
+            </button>
+          </div>`;
+      }).join('')}
+    </div>`;
+  }
 
   modalContent.innerHTML = html;
   modal.show();
@@ -4784,6 +4807,13 @@ function resetarSelecaoTrocaEmpresarial(subEscala) {
     primeiro: { dia: null, pessoa: null },
     segundo: { dia: null, pessoa: null }
   };
+  // Restaurar status bar para o texto padrão
+  const statusId = subEscala === 'rio_es' ? 'swapStatusRioEs' : 'swapStatusLeste';
+  const statusTextId = subEscala === 'rio_es' ? 'swapStatusTextRioEs' : 'swapStatusTextLeste';
+  const statusEl = document.getElementById(statusId);
+  if (statusEl) {
+    statusEl.innerHTML = `<i class="bi bi-info-circle me-1"></i><span id="${statusTextId}">Selecione o primeiro dia...</span>`;
+  }
 }
 
 function handleDiaClickEmpresarial(subEscala, dia) {
@@ -4886,9 +4916,16 @@ function selecionarPessoaEmpresarial(subEscala, pessoa, dia, etapa) {
     const modalPessoa = bootstrap.Modal.getInstance(document.getElementById('selectPersonModal'));
     if (modalPessoa) modalPessoa.hide();
 
-    const statusText = document.getElementById(statusTextId);
-    if (statusText) {
-      statusText.textContent = `${pessoa} (Dia ${dia}). Selecione o segundo dia...`;
+    // Mostrar status com opção de selecionar segundo dia OU fazer substituição simples
+    const statusStatusId = subEscala === 'rio_es' ? 'swapStatusRioEs' : 'swapStatusLeste';
+    const statusEl = document.getElementById(statusStatusId);
+    if (statusEl) {
+      statusEl.innerHTML = `
+        <i class="bi bi-info-circle me-1"></i>
+        <span>${pessoa} (Dia ${dia}) selecionado. Selecione o segundo dia ou</span>
+        <button class="btn btn-sm btn-warning ms-2 py-0 px-2" style="font-size:0.75rem;" onclick="iniciarSubstituicaoSimples('${subEscala}')">
+          <i class="bi bi-person-fill-check"></i> Substituição simples
+        </button>`;
     }
 
     // Atualizar visual do calendário
@@ -4910,6 +4947,16 @@ function selecionarPessoaEmpresarial(subEscala, pessoa, dia, etapa) {
     }
 
     mostrarModalConfirmacaoTrocaEmpresarial(subEscala);
+
+  } else if (etapa === 'substituto') {
+    // Substituição simples: pessoa_b substitui pessoa_a no mesmo dia, sem segundo dia
+    selecaoTrocaEmpresarial[subEscala].segundo.pessoa = pessoa;
+    selecaoTrocaEmpresarial[subEscala].segundo.dia = null;
+
+    const modal = bootstrap.Modal.getInstance(document.getElementById('selectPersonModal'));
+    if (modal) modal.hide();
+
+    mostrarModalConfirmacaoTrocaEmpresarial(subEscala);
   }
 }
 
@@ -4921,48 +4968,64 @@ function mostrarModalConfirmacaoTrocaEmpresarial(subEscala) {
   const modal = new bootstrap.Modal(document.getElementById('swapModal'));
   const swapDetails = document.getElementById('swapDetails');
 
+  const isSubstituicao = !selecao.segundo.dia;
   const dadosDia1 = subEscalaDados.dadosOriginais[selecao.primeiro.dia];
-  const dadosDia2 = subEscalaDados.dadosOriginais[selecao.segundo.dia];
-
-  const area1 = dadosDia1.divisao ? Object.entries(dadosDia1.divisao).find(([area, p]) => p === selecao.primeiro.pessoa)?.[0] || 'Área' : 'Área';
-  const area2 = dadosDia2.divisao ? Object.entries(dadosDia2.divisao).find(([area, p]) => p === selecao.segundo.pessoa)?.[0] || 'Área' : 'Área';
 
   // Guardar sub-escala atual para o confirmar
   window.trocaEmpresarialAtual = subEscala;
 
   if (swapDetails) {
-    swapDetails.innerHTML = `
-      <p><strong>Troca proposta (${nomeSubEscala}):</strong></p>
-      <div class="row">
-        <div class="col-6">
-          <div class="card mb-2" style="border: 2px solid #388E3C;">
-            <div class="card-body p-2">
-              <h6 class="card-title mb-1">${selecao.primeiro.pessoa}</h6>
-              <p class="card-text small mb-1">
-                <strong>Dia ${selecao.primeiro.dia}:</strong> ${area1}<br>
-                <small>Vai para: Dia ${selecao.segundo.dia}</small>
-              </p>
+    if (isSubstituicao) {
+      const area1 = dadosDia1?.divisao ? Object.entries(dadosDia1.divisao).find(([, p]) => p === selecao.primeiro.pessoa)?.[0] || '' : '';
+      swapDetails.innerHTML = `
+        <p><strong>Substituição (${nomeSubEscala}):</strong></p>
+        <div class="alert alert-info py-2">
+          <i class="bi bi-person-fill-check me-1"></i>
+          <strong>${selecao.segundo.pessoa}</strong> substitui <strong>${selecao.primeiro.pessoa}</strong>
+          no Dia ${selecao.primeiro.dia}${area1 ? ` (${area1})` : ''}
+        </div>
+        <p class="small text-muted mt-1">
+          <i class="bi bi-info-circle me-1"></i>
+          ${selecao.primeiro.pessoa} não trabalhará e ${selecao.segundo.pessoa} assumirá sua posição.
+        </p>
+      `;
+    } else {
+      const dadosDia2 = subEscalaDados.dadosOriginais[selecao.segundo.dia];
+      const area1 = dadosDia1?.divisao ? Object.entries(dadosDia1.divisao).find(([, p]) => p === selecao.primeiro.pessoa)?.[0] || 'Área' : 'Área';
+      const area2 = dadosDia2?.divisao ? Object.entries(dadosDia2.divisao).find(([, p]) => p === selecao.segundo.pessoa)?.[0] || 'Área' : 'Área';
+      swapDetails.innerHTML = `
+        <p><strong>Troca proposta (${nomeSubEscala}):</strong></p>
+        <div class="row">
+          <div class="col-6">
+            <div class="card mb-2" style="border: 2px solid #388E3C;">
+              <div class="card-body p-2">
+                <h6 class="card-title mb-1">${selecao.primeiro.pessoa}</h6>
+                <p class="card-text small mb-1">
+                  <strong>Dia ${selecao.primeiro.dia}:</strong> ${area1}<br>
+                  <small>Vai para: Dia ${selecao.segundo.dia}</small>
+                </p>
+              </div>
+            </div>
+          </div>
+          <div class="col-6">
+            <div class="card mb-2" style="border: 2px solid #388E3C;">
+              <div class="card-body p-2">
+                <h6 class="card-title mb-1">${selecao.segundo.pessoa}</h6>
+                <p class="card-text small mb-1">
+                  <strong>Dia ${selecao.segundo.dia}:</strong> ${area2}<br>
+                  <small>Vai para: Dia ${selecao.primeiro.dia}</small>
+                </p>
+              </div>
             </div>
           </div>
         </div>
-        <div class="col-6">
-          <div class="card mb-2" style="border: 2px solid #388E3C;">
-            <div class="card-body p-2">
-              <h6 class="card-title mb-1">${selecao.segundo.pessoa}</h6>
-              <p class="card-text small mb-1">
-                <strong>Dia ${selecao.segundo.dia}:</strong> ${area2}<br>
-                <small>Vai para: Dia ${selecao.primeiro.dia}</small>
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
-      <p class="small text-muted mt-2">
-        <i class="bi bi-info-circle me-1"></i>
-        ${selecao.primeiro.pessoa} trabalhará no dia ${selecao.segundo.dia} e
-        ${selecao.segundo.pessoa} trabalhará no dia ${selecao.primeiro.dia}.
-      </p>
-    `;
+        <p class="small text-muted mt-2">
+          <i class="bi bi-info-circle me-1"></i>
+          ${selecao.primeiro.pessoa} trabalhará no dia ${selecao.segundo.dia} e
+          ${selecao.segundo.pessoa} trabalhará no dia ${selecao.primeiro.dia}.
+        </p>
+      `;
+    }
   }
 
   // Modificar botão de confirmação temporariamente para chamar o handler empresarial
@@ -5052,7 +5115,7 @@ function aplicarTrocasEmpresarial(subEscala) {
     const dadosDiaB = subEscalaDados.dadosProcessados[diaB];
 
     if (dadosDiaA && dadosDiaB) {
-      // Trocar nas listas de trabalhando
+      // Troca bilateral: trocar pessoaA e pessoaB entre os dois dias
       if (dadosDiaA.trabalhando) {
         const indexA = dadosDiaA.trabalhando.indexOf(pessoaA);
         if (indexA > -1) {
@@ -5081,8 +5144,59 @@ function aplicarTrocasEmpresarial(subEscala) {
           }
         });
       }
+    } else if (dadosDiaA && !troca.dia_b) {
+      // Substituição simples: pessoaB substitui pessoaA no dia_a
+      if (dadosDiaA.trabalhando) {
+        const idx = dadosDiaA.trabalhando.indexOf(pessoaA);
+        if (idx > -1) dadosDiaA.trabalhando[idx] = pessoaB;
+      }
+      if (dadosDiaA.divisao) {
+        Object.keys(dadosDiaA.divisao).forEach(area => {
+          if (dadosDiaA.divisao[area] === pessoaA) dadosDiaA.divisao[area] = pessoaB;
+        });
+      }
     }
   });
+}
+
+function cancelarTrocaEmpresarial(subEscala, trocaId, dia) {
+  if (!isAdmin) { showToast('❌ Apenas administradores podem cancelar trocas', 'danger'); return; }
+  const subEscalaDados = calendarios.calendario2?.[subEscala];
+  if (!subEscalaDados?.trocas) return;
+  const troca = subEscalaDados.trocas.find(t => t.id === trocaId);
+  if (!troca) return;
+  troca.status = 'cancelada';
+  salvarDadosNaNuvem().then(() => {
+    aplicarTrocasEmpresarial(subEscala);
+    carregarCalendarioEmpresarialGrid(subEscala);
+    const modal = bootstrap.Modal.getInstance(document.getElementById('dayModal'));
+    if (modal) modal.hide();
+    setTimeout(() => mostrarDetalhesDiaEmpresarial(subEscala, dia), 300);
+    showToast('✅ Troca cancelada!', 'success');
+  });
+}
+
+function iniciarSubstituicaoSimples(subEscala) {
+  const selecao = selecaoTrocaEmpresarial[subEscala];
+  const nomeSubEscala = subEscala === 'rio_es' ? 'Rio/Es' : 'Leste';
+  const configFunc = subEscala === 'leste' ? CONFIG?.FUNCIONARIOS_LESTE : CONFIG?.FUNCIONARIOS_RIO_ES;
+  const todosFunc = Object.keys(configFunc || {});
+  const personList = document.getElementById('personList');
+  const modalTitle = document.querySelector('#selectPersonModal .modal-title');
+  if (modalTitle) {
+    modalTitle.innerHTML = `<i class="bi bi-person-fill-check me-2"></i>[${nomeSubEscala}] Selecionar substituto para ${selecao.primeiro.pessoa}`;
+  }
+  if (personList) {
+    personList.innerHTML = todosFunc
+      .filter(p => p !== selecao.primeiro.pessoa)
+      .map(p => `
+        <button type="button" class="list-group-item list-group-item-action py-2"
+          onclick="selecionarPessoaEmpresarial('${subEscala}', '${p}', ${selecao.primeiro.dia}, 'substituto')">
+          <i class="bi bi-person me-2"></i>${p}
+        </button>`).join('');
+  }
+  const modal = new bootstrap.Modal(document.getElementById('selectPersonModal'));
+  modal.show();
 }
 
 // Processar planilha para gerar dados do calendário
