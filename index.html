@@ -9679,9 +9679,26 @@ function mapearCidadeParaCluster(cidade) {
  */
 function obterClusterIncidente(inc) {
   // Prioridade 1: campo grupo — campo canônico do portal de origem para área
-  if (inc.grupo && inc.grupo.trim()) return inc.grupo.trim();
+  if (inc.grupo && inc.grupo.trim()) {
+    const g = inc.grupo.trim();
+    const gLower = g.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    // Cluster misto "Rio / Espirito Santo": refinar pela cidade para separar corretamente
+    if (gLower.includes('rio') && gLower.includes('espirito santo')) {
+      const pelaCidade = mapearCidadeParaCluster(inc.nm_cidade);
+      if (pelaCidade) return pelaCidade;
+    }
+    return g;
+  }
   // Prioridade 2: campo cluster
-  if (inc.cluster && inc.cluster.trim()) return inc.cluster.trim();
+  if (inc.cluster && inc.cluster.trim()) {
+    const c = inc.cluster.trim();
+    const cLower = c.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    if (cLower.includes('rio') && cLower.includes('espirito santo')) {
+      const pelaCidade = mapearCidadeParaCluster(inc.nm_cidade);
+      if (pelaCidade) return pelaCidade;
+    }
+    return c;
+  }
   // Prioridade 3: mapear pela cidade
   const pelaCidade = mapearCidadeParaCluster(inc.nm_cidade);
   if (pelaCidade) return pelaCidade;
