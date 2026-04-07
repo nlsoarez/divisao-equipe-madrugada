@@ -136,41 +136,41 @@ const CONFIG = {
     PRIORIDADES_LESTE: {
     2: {
       areas: {
-        'CO/MG': ['IGOR', 'FERNANDA', 'SANDRO', 'GABRIELA', 'MAGNO', 'ALDENES'],
-        'NE/NO/BA': ['GABRIELA', 'MAGNO', 'ALDENES', 'FERNANDA', 'IGOR', 'SANDRO']
+        'NO/MG': ['IGOR', 'FERNANDA', 'SANDRO', 'GABRIELA', 'MAGNO', 'ALDENES'],
+        'NE/CO/BA': ['GABRIELA', 'MAGNO', 'ALDENES', 'SANDRO', 'FERNANDA', 'IGOR']
       }
     },
     3: {
       areas: {
-        'NE/NO': ['FERNANDA', 'SANDRO', 'GABRIELA', 'MAGNO', 'ALDENES', 'IGOR'],
+        'NE/BA': [ 'MAGNO', 'ALDENES','GABRIELA','FERNANDA', 'SANDRO', 'IGOR'],
         'MG/NO': ['IGOR', 'FERNANDA', 'SANDRO', 'GABRIELA', 'MAGNO', 'ALDENES'],
-        'CO/BA': ['GABRIELA', 'MAGNO', 'ALDENES', 'FERNANDA', 'IGOR', 'SANDRO']
+        'CO': ['GABRIELA', 'MAGNO', 'ALDENES', 'FERNANDA', 'IGOR', 'SANDRO']
       }
     },
     4: {
       areas: {
-        'CO/NO': ['GABRIELA', 'MAGNO', 'ALDENES', 'IGOR', 'FERNANDA', 'SANDRO'],
-        'CO/NE': ['GABRIELA', 'MAGNO', 'ALDENES', 'FERNANDA', 'IGOR', 'SANDRO'],
-        'MG/BA': ['IGOR', 'FERNANDA', 'SANDRO', 'GABRIELA', 'MAGNO', 'ALDENES'],
-        'NO/NE': ['IGOR', 'FERNANDA', 'SANDRO', 'GABRIELA', 'MAGNO', 'ALDENES']
+        'CO': ['GABRIELA', 'MAGNO', 'ALDENES', 'IGOR', 'FERNANDA', 'SANDRO'],
+        'BA/NE': ['MAGNO', 'ALDENES', 'GABRIELA', 'FERNANDA', 'IGOR', 'SANDRO'],
+        'NO': ['FERNANDA', 'SANDRO','IGOR','GABRIELA', 'MAGNO', 'ALDENES'],
+        'MG': ['IGOR', 'FERNANDA', 'SANDRO', 'GABRIELA', 'MAGNO', 'ALDENES']
       }
     },
     5: {
       areas: {
-        'CO/MG': ['GABRIELA', 'MAGNO', 'ALDENES', 'IGOR', 'FERNANDA', 'SANDRO'],
-        'CO/NE': ['GABRIELA', 'MAGNO', 'ALDENES', 'FERNANDA', 'IGOR', 'SANDRO'],
-        'CO/NO': ['GABRIELA', 'MAGNO', 'ALDENES', 'IGOR', 'FERNANDA', 'SANDRO'],
-        'NE/BA': ['GABRIELA', 'MAGNO', 'ALDENES', 'FERNANDA', 'IGOR', 'SANDRO'],
-        'MG/NO': ['IGOR', 'FERNANDA', 'SANDRO', 'GABRIELA', 'MAGNO', 'ALDENES']
+        'CO': ['GABRIELA', 'SANDRO', 'MAGNO', 'ALDENES', 'IGOR', 'FERNANDA'],
+        'NO': ['FERNANDA', 'SANDRO', 'GABRIELA', 'MAGNO', 'ALDENES', 'IGOR'],
+        'NE': ['MAGNO', 'ALDENES', 'GABRIELA', 'IGOR', 'FERNANDA', 'SANDRO'],
+        'MG': ['IGOR', 'SANDRO', 'GABRIELA', 'FERNANDA', 'MAGNO', 'ALDENES'],
+        'BA/CO/NE': ['ALDENES', 'SANDRO','IGOR','GABRIELA','FERNANDA','MAGNO']
       }
     },
     6: {
       areas: {
-        'CO/MG': ['GABRIELA', 'MAGNO', 'ALDENES', 'IGOR', 'FERNANDA', 'SANDRO'],
-        'CO/NE': ['GABRIELA', 'MAGNO', 'ALDENES', 'FERNANDA', 'IGOR', 'SANDRO'],
-        'CO/NO': ['GABRIELA', 'MAGNO', 'ALDENES', 'IGOR', 'FERNANDA', 'SANDRO'],
-        'NE/BA': ['GABRIELA', 'MAGNO', 'ALDENES', 'FERNANDA', 'IGOR', 'SANDRO'],
-        'MG/NO': ['IGOR', 'FERNANDA', 'SANDRO', 'GABRIELA', 'MAGNO', 'ALDENES'],
+        'CO': ['GABRIELA', 'SANDRO', 'MAGNO', 'ALDENES', 'IGOR', 'FERNANDA'],
+        'NE': ['FERNANDA', 'SANDRO', 'GABRIELA', 'MAGNO', 'ALDENES', 'IGOR'],
+        'NO': ['MAGNO', 'ALDENES', 'GABRIELA', 'IGOR', 'FERNANDA', 'SANDRO'],
+        'MG': ['IGOR', 'SANDRO', 'GABRIELA', 'FERNANDA', 'MAGNO', 'ALDENES'],
+        'BA/CO/NE': ['SANDRO', 'IGOR', 'FERNANDA', 'GABRIELA', 'MAGNO', 'ALDENES'],
         'APOIO SIR': ['ALDENES', 'MAGNO', 'GABRIELA', 'FERNANDA', 'IGOR', 'SANDRO']
       }
     }
