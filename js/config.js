@@ -151,8 +151,8 @@ const CONFIG = {
       areas: {
         'CO': ['GABRIELA', 'MAGNO', 'ALDENES', 'IGOR', 'FERNANDA', 'SANDRO'],
         'BA/NE': ['MAGNO', 'ALDENES', 'GABRIELA', 'FERNANDA', 'IGOR', 'SANDRO'],
-        'NO': ['FERNANDA', 'SANDRO','IGOR','GABRIELA', 'MAGNO', 'ALDENES'],
-        'MG': ['IGOR', 'FERNANDA', 'SANDRO', 'GABRIELA', 'MAGNO', 'ALDENES']
+        'NO': ['FERNANDA', 'IGOR', 'SANDRO', 'GABRIELA', 'MAGNO', 'ALDENES'],
+        'MG': ['IGOR', 'SANDRO', 'FERNANDA', 'GABRIELA', 'MAGNO', 'ALDENES']
       }
     },
     5: {
