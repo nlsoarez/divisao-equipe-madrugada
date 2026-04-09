@@ -4081,6 +4081,59 @@ function carregarCalendarioEmpresarialGrid(subEscala) {
   }
 }
 
+// Retorna o número da semana do mês (1-based, semana começa na segunda-feira)
+function getSemanaDoMes(dia, mes, ano) {
+  const primeiroDia = new Date(ano, mes, 1);
+  const offset = primeiroDia.getDay() === 0 ? 6 : primeiroDia.getDay() - 1;
+  return Math.ceil((dia + offset) / 7);
+}
+
+// Calcula deterministicamente quem ficou com o último slot do TOA/DP em um dado dia,
+// levando em conta a fairness dos dias anteriores da mesma semana (recursivo, máx. 7 níveis).
+function calcularUltimoSlotDia(analistasDoDia, dia, todosDados, mes, ano) {
+  const numAnalistas = analistasDoDia.length;
+  if (numAnalistas === 0) return null;
+
+  const embaralhados = embaralharComSeed(analistasDoDia, dia);
+  if (numAnalistas === 1) return embaralhados[0];
+
+  const lastIdx = Math.min(numAnalistas - 1, 5);
+  const semanaAtual = getSemanaDoMes(dia, mes, ano);
+
+  // Dias anteriores na mesma semana
+  const diasAnteriores = Object.keys(todosDados)
+    .map(Number)
+    .filter(d => d < dia && getSemanaDoMes(d, mes, ano) === semanaAtual);
+
+  // Contar quantas vezes cada analista do dia atual pegou o último slot esta semana
+  const contagem = {};
+  for (const analista of analistasDoDia) contagem[analista] = 0;
+
+  for (const diaAnterior of diasAnteriores) {
+    const dadosDiaAnterior = todosDados[diaAnterior];
+    if (!dadosDiaAnterior || !dadosDiaAnterior.trabalhando) continue;
+    const anlistasAnt = ordenarNomesAlfabeticamente(dadosDiaAnterior.trabalhando || []);
+    const ultimoAnt = calcularUltimoSlotDia(anlistasAnt, diaAnterior, todosDados, mes, ano);
+    if (ultimoAnt !== null && contagem.hasOwnProperty(ultimoAnt)) {
+      contagem[ultimoAnt]++;
+    }
+  }
+
+  // Verificar se o candidato natural precisa ser trocado
+  const candidatoAtual = embaralhados[lastIdx];
+  const contagemAtual = contagem[candidatoAtual];
+  const candidatosComMenos = analistasDoDia.filter(a => contagem[a] < contagemAtual);
+
+  if (candidatosComMenos.length === 0) return candidatoAtual;
+
+  // Escolha determinística entre os candidatos com menos ocorrências
+  const sortedCandidatos = ordenarNomesAlfabeticamente(candidatosComMenos);
+  let s = (dia + 1000) * 9301 + 49297;
+  s = s % 233280;
+  const escolhidoIdx = Math.floor((s / 233280) * sortedCandidatos.length);
+  return sortedCandidatos[escolhidoIdx];
+}
+
 // Função para embaralhar array com seed (para ser consistente por dia)
 function embaralharComSeed(array, seed) {
   const arr = [...array]; // Clonar para não modificar original
@@ -4099,15 +4152,59 @@ function embaralharComSeed(array, seed) {
 }
 
 // Gerar divisão de TOA/DP baseado no número de analistas
-// NOTA: A ordem dos analistas é ALEATÓRIA para cada dia (usando dia como seed)
-function gerarDivisaoTOADP(analistas, dia = null) {
+// NOTA: A ordem dos analistas usa fairness semanal — ninguém repete o último slot na mesma semana se possível
+function gerarDivisaoTOADP(analistas, dia = null, todosDados = null, mes = null, ano = null) {
   const numAnalistas = analistas.length;
 
   if (numAnalistas === 0) return [];
 
   // Embaralhar analistas usando o dia como seed (ou timestamp se não informado)
   const seed = dia || new Date().getDate();
-  const analistasEmbaralhados = embaralharComSeed(analistas, seed);
+  let analistasEmbaralhados = embaralharComSeed(analistas, seed);
+
+  // --- FAIRNESS SEMANAL: evitar que a mesma pessoa fique sempre no último slot ---
+  if (todosDados && mes !== null && ano !== null && dia !== null && numAnalistas > 1) {
+    const lastIdx = Math.min(numAnalistas - 1, 5);
+    const semanaAtual = getSemanaDoMes(dia, mes, ano);
+
+    // Dias anteriores na mesma semana
+    const diasAnteriores = Object.keys(todosDados)
+      .map(Number)
+      .filter(d => d < dia && getSemanaDoMes(d, mes, ano) === semanaAtual);
+
+    // Contar ocorrências do último slot por analista esta semana
+    const contagem = {};
+    for (const analista of analistas) contagem[analista] = 0;
+
+    for (const diaAnterior of diasAnteriores) {
+      const dadosDiaAnterior = todosDados[diaAnterior];
+      if (!dadosDiaAnterior || !dadosDiaAnterior.trabalhando) continue;
+      const anlistasAnt = ordenarNomesAlfabeticamente(dadosDiaAnterior.trabalhando || []);
+      const ultimoAnt = calcularUltimoSlotDia(anlistasAnt, diaAnterior, todosDados, mes, ano);
+      if (ultimoAnt !== null && contagem.hasOwnProperty(ultimoAnt)) {
+        contagem[ultimoAnt]++;
+      }
+    }
+
+    // Trocar se o candidato atual tem mais ocorrências que alguém com menos
+    const candidatoAtual = analistasEmbaralhados[lastIdx];
+    const contagemAtual = contagem[candidatoAtual];
+    const candidatosComMenos = analistas.filter(a => contagem[a] < contagemAtual);
+
+    if (candidatosComMenos.length > 0) {
+      const sortedCandidatos = ordenarNomesAlfabeticamente(candidatosComMenos);
+      let s = (seed + 1000) * 9301 + 49297;
+      s = s % 233280;
+      const escolhidoIdx = Math.floor((s / 233280) * sortedCandidatos.length);
+      const substituto = sortedCandidatos[escolhidoIdx];
+
+      const idxSubstituto = analistasEmbaralhados.indexOf(substituto);
+      analistasEmbaralhados = [...analistasEmbaralhados];
+      analistasEmbaralhados[lastIdx] = substituto;
+      analistasEmbaralhados[idxSubstituto] = candidatoAtual;
+    }
+  }
+  // --- FIM FAIRNESS SEMANAL ---
 
   if (numAnalistas === 1) {
     return [
@@ -4259,9 +4356,11 @@ function mostrarDetalhesDiaEmpresarial(subEscala, dia) {
             <tbody>
   `;
 
-  // Gerar divisão de TOA/DP (ordem aleatória baseada no dia)
+  // Gerar divisão de TOA/DP (com fairness semanal do último slot)
   const trabalhandoOrdenado = ordenarNomesAlfabeticamente(dadosDia.trabalhando || []);
-  const divisaoTOA = gerarDivisaoTOADP(trabalhandoOrdenado, dia);
+  const ano = subEscalaDados.ano;
+  const todosDados = subEscalaDados.dadosProcessados || subEscalaDados.dadosOriginais;
+  const divisaoTOA = gerarDivisaoTOADP(trabalhandoOrdenado, dia, todosDados, mes, ano);
 
   divisaoTOA.forEach(({horario, analista}) => {
     const primeiroNome = obterPrimeiroNome(analista);
