@@ -12187,12 +12187,9 @@ function uploadEscalonamento(inputElement) {
       workbook.SheetNames.forEach(function(sheetName) {
         const sheet = workbook.Sheets[sheetName];
         const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
-        const { sections, regiaoHeader } = parseEscalonamentoSheet(rows);
+        const sections = parseEscalonamentoSheet(rows);
         if (sections.length > 0) {
-          // Usa o cabeçalho de região do conteúdo (ex: "BAIXADA FLUMINENSE") se disponível,
-          // senão usa o nome da aba do Excel como fallback
-          const chave = regiaoHeader || sheetName;
-          escalonamentoDados[chave] = sections;
+          escalonamentoDados[sheetName] = sections;
         }
       });
 
@@ -12305,7 +12302,7 @@ function parseEscalonamentoSheet(rows) {
   }
 
   flushSection();
-  return { sections, regiaoHeader };
+  return sections;
 }
 
 function renderEscalonamentoTabs() {
