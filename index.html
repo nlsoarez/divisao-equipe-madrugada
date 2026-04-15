@@ -12222,7 +12222,7 @@ function parseEscalonamentoSheet(rows) {
   let currentSubtitulo = '';
   let currentHeaders = null;
   let currentDados = [];
-  let regiaoHeader = ''; // cabeçalho de região extraído do conteúdo (ex: "BAIXADA FLUMINENSE")
+  let currentArea = ''; // área atual (ex: "BAIXADA FLUMINENSE", "METROPOLITANA")
 
   const NIVEL_PATTERN = /\d+\s*[°oOºª]\s*n[íi]vel/i;
   const KNOWN_COLS = ['UF', 'REGIONAL', 'MERCADO', 'NOME', 'CARGO', 'E-MAIL', 'EMAIL', 'TELEFONE', 'FONE'];
@@ -12230,6 +12230,7 @@ function parseEscalonamentoSheet(rows) {
   function flushSection() {
     if (currentNivel && currentHeaders && currentDados.length > 0) {
       sections.push({
+        area: currentArea,
         nivel: currentNivel,
         subtitulo: currentSubtitulo,
         headers: currentHeaders,
@@ -12271,17 +12272,26 @@ function parseEscalonamentoSheet(rows) {
       continue;
     }
 
-    // Captura o cabeçalho de região: primeira linha significativa ANTES do primeiro nível
-    // Exemplo: "BAIXADA FLUMINENSE" em A1 antes de "1° NÍVEL DE ESCALONAMENTO"
-    if (!currentNivel && !regiaoHeader && nonEmpty.length <= 2) {
-      regiaoHeader = nonEmpty.join(' ').trim();
-      continue;
-    }
-
-    // Subtitle: single or dual non-empty cell before column headers
-    if (currentNivel && !currentHeaders && nonEmpty.length <= 2) {
-      currentSubtitulo = nonEmpty.join(' - ');
-      continue;
+    // Linhas com 1-2 células não-vazias que não são nível nem cabeçalhos de coluna
+    if (nonEmpty.length <= 2) {
+      if (!currentNivel) {
+        // Antes do primeiro nível → cabeçalho de área (ex: "BAIXADA FLUMINENSE" em A1)
+        currentArea = nonEmpty.join(' ').trim();
+        continue;
+      } else if (currentNivel && !currentHeaders) {
+        // Entre nível e colunas → subtítulo da seção
+        currentSubtitulo = nonEmpty.join(' - ');
+        continue;
+      } else if (currentNivel && currentHeaders && currentDados.length > 0) {
+        // Após linhas de dados → novo cabeçalho de área (próxima divisão)
+        flushSection();
+        currentArea = nonEmpty.join(' ').trim();
+        currentNivel = null;
+        currentSubtitulo = '';
+        currentHeaders = null;
+        currentDados = [];
+        continue;
+      }
     }
 
     // Data row
@@ -12344,6 +12354,62 @@ function renderEscalonamentoSheet(sheetName) {
     return;
   }
 
+  // Agrupar seções por área (campo 'area' adicionado pelo parser)
+  var areaGroups = [];
+  var areaMap = {};
+  sections.forEach(function(section) {
+    var areaKey = section.area || '';
+    if (!areaMap[areaKey]) {
+      areaMap[areaKey] = { area: areaKey, sections: [] };
+      areaGroups.push(areaMap[areaKey]);
+    }
+    areaMap[areaKey].sections.push(section);
+  });
+
+  var html = '';
+
+  if (areaGroups.length > 1) {
+    // Múltiplas áreas → mostrar sub-abas
+    html += '<div class="d-flex flex-wrap gap-1 mb-3" id="escalonamentoAreaTabs">';
+    areaGroups.forEach(function(group, idx) {
+      var label = group.area || ('Área ' + (idx + 1));
+      var ativo = idx === 0 ? 'btn-secondary' : 'btn-outline-secondary';
+      html += '<button class="btn btn-sm ' + ativo + ' escalonamento-area-btn" '
+        + 'data-area-idx="' + idx + '" '
+        + 'style="font-size:0.75rem;padding:0.2rem 0.6rem;">'
+        + escapeHtml(label) + '</button>';
+    });
+    html += '</div>';
+
+    areaGroups.forEach(function(group, idx) {
+      html += '<div class="escalonamento-area-panel" data-area-idx="' + idx + '" '
+        + (idx === 0 ? '' : 'style="display:none;"') + '>';
+      html += _renderEscalonamentoSections(group.sections);
+      html += '</div>';
+    });
+  } else {
+    // Área única → renderizar diretamente
+    html += _renderEscalonamentoSections(sections);
+  }
+
+  content.innerHTML = html;
+
+  // Vincular cliques das sub-abas de área
+  content.querySelectorAll('.escalonamento-area-btn').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      var idx = parseInt(btn.dataset.areaIdx);
+      content.querySelectorAll('.escalonamento-area-btn').forEach(function(b) {
+        b.className = b.className.replace('btn-secondary', 'btn-outline-secondary');
+      });
+      btn.className = btn.className.replace('btn-outline-secondary', 'btn-secondary');
+      content.querySelectorAll('.escalonamento-area-panel').forEach(function(panel) {
+        panel.style.display = parseInt(panel.dataset.areaIdx) === idx ? '' : 'none';
+      });
+    });
+  });
+}
+
+function _renderEscalonamentoSections(sections) {
   var NIVEL_COLORS = ['#1B5E20', '#2E7D32', '#388E3C', '#43A047', '#66BB6A'];
   var html = '';
 
@@ -12395,7 +12461,7 @@ function renderEscalonamentoSheet(sheetName) {
     html += '</tbody></table></div></div>';
   });
 
-  content.innerHTML = html;
+  return html;
 }
 
 function limparEscalonamento() {
