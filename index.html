@@ -12187,9 +12187,12 @@ function uploadEscalonamento(inputElement) {
       workbook.SheetNames.forEach(function(sheetName) {
         const sheet = workbook.Sheets[sheetName];
         const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
-        const sections = parseEscalonamentoSheet(rows);
+        const { sections, regiaoHeader } = parseEscalonamentoSheet(rows);
         if (sections.length > 0) {
-          escalonamentoDados[sheetName] = sections;
+          // Usa o cabeçalho de região do conteúdo (ex: "BAIXADA FLUMINENSE") se disponível,
+          // senão usa o nome da aba do Excel como fallback
+          const chave = regiaoHeader || sheetName;
+          escalonamentoDados[chave] = sections;
         }
       });
 
@@ -12219,6 +12222,7 @@ function parseEscalonamentoSheet(rows) {
   let currentSubtitulo = '';
   let currentHeaders = null;
   let currentDados = [];
+  let regiaoHeader = ''; // cabeçalho de região extraído do conteúdo (ex: "BAIXADA FLUMINENSE")
 
   const NIVEL_PATTERN = /\d+\s*[°oOºª]\s*n[íi]vel/i;
   const KNOWN_COLS = ['UF', 'REGIONAL', 'MERCADO', 'NOME', 'CARGO', 'E-MAIL', 'EMAIL', 'TELEFONE', 'FONE'];
@@ -12267,6 +12271,13 @@ function parseEscalonamentoSheet(rows) {
       continue;
     }
 
+    // Captura o cabeçalho de região: primeira linha significativa ANTES do primeiro nível
+    // Exemplo: "BAIXADA FLUMINENSE" em A1 antes de "1° NÍVEL DE ESCALONAMENTO"
+    if (!currentNivel && !regiaoHeader && nonEmpty.length <= 2) {
+      regiaoHeader = nonEmpty.join(' ').trim();
+      continue;
+    }
+
     // Subtitle: single or dual non-empty cell before column headers
     if (currentNivel && !currentHeaders && nonEmpty.length <= 2) {
       currentSubtitulo = nonEmpty.join(' - ');
@@ -12284,7 +12295,7 @@ function parseEscalonamentoSheet(rows) {
   }
 
   flushSection();
-  return sections;
+  return { sections, regiaoHeader };
 }
 
 function renderEscalonamentoTabs() {
