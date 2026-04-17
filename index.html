@@ -4385,6 +4385,35 @@ function mostrarDetalhesDiaEmpresarial(subEscala, dia) {
     </div>
   `;
 
+  // Seção de ausentes (com botão de remover ausências não esperadas)
+  const ausentesEmpresarial = Array.isArray(dadosDia.ausentes) ? dadosDia.ausentes : [];
+  if (ausentesEmpresarial.length > 0) {
+    html += `
+    <div class="status-section mt-2">
+      <div class="status-title">
+        <i class="bi bi-person-x"></i>
+        <span>Ausentes (${ausentesEmpresarial.length})</span>
+      </div>
+      ${[...ausentesEmpresarial].sort((a, b) => {
+        const nomeA = obterPrimeiroNome(a.nome).toLowerCase();
+        const nomeB = obterPrimeiroNome(b.nome).toLowerCase();
+        return nomeA.localeCompare(nomeB, 'pt-BR');
+      }).map(({nome, motivo, tipo}) => {
+        const primeiroNome = obterPrimeiroNome(nome);
+        const podeRemover = isAdmin && tipo === 'nao_esperada';
+        const nomeEsc = String(nome).replace(/'/g, "\\'");
+        const btnRemover = podeRemover
+          ? `<button class="btn btn-outline-success btn-sm py-0 px-1 ms-2" onclick="removerAusenciaNaoEsperadaEmpresarial('${subEscala}', ${dia}, '${nomeEsc}')" title="Remover ausência (colaborador retornou)"><i class="bi bi-arrow-counterclockwise"></i> Desfazer</button>`
+          : '';
+        return `
+          <div class="d-flex justify-content-between align-items-center py-1 border-bottom">
+            <span class="small"><span class="badge bg-warning text-dark me-2">${motivo}</span>${primeiroNome}</span>
+            ${btnRemover}
+          </div>`;
+      }).join('')}
+    </div>`;
+  }
+
   // Seção de trocas ativas com opção de cancelar (apenas admin)
   if (trocasDia.length > 0 && isAdmin) {
     html += `
@@ -4702,11 +4731,11 @@ function confirmarAusenciaNaoEsperadaEmpresarial(subEscala, dia) {
   // Remover da lista de trabalhando
   dadosDia.trabalhando = dadosDia.trabalhando.filter(f => f !== funcionarioAusente);
 
-  // Adicionar à lista de ausentes
+  // Adicionar à lista de ausentes (tipo 'nao_esperada' permite desfazer depois)
   if (!dadosDia.ausentes) {
     dadosDia.ausentes = [];
   }
-  dadosDia.ausentes.push({ nome: funcionarioAusente, motivo: motivo });
+  dadosDia.ausentes.push({ nome: funcionarioAusente, motivo: motivo, tipo: 'nao_esperada' });
 
   // Atualizar número de pessoas
   dadosDia.numPessoas = dadosDia.trabalhando.length;
@@ -4729,6 +4758,60 @@ function confirmarAusenciaNaoEsperadaEmpresarial(subEscala, dia) {
     const modal = bootstrap.Modal.getInstance(document.getElementById('dayModal'));
     if (modal) modal.hide();
 
+    setTimeout(() => mostrarDetalhesDiaEmpresarial(subEscala, dia), 300);
+  }).catch(error => {
+    console.error('Erro ao salvar:', error);
+    showToast('❌ Erro ao salvar alterações', 'danger');
+  });
+}
+
+// Remove uma ausência "não esperada" marcada via botão e restaura a divisão.
+// Só remove ausências com tipo: 'nao_esperada' (ausências vindas da planilha
+// original como FOLGA/FÉRIAS/ATESTADO permanecem intactas).
+function removerAusenciaNaoEsperadaEmpresarial(subEscala, dia, nomeFuncionario) {
+  if (!isAdmin) return;
+
+  const subEscalaDados = calendarios.calendario2?.[subEscala];
+  if (!subEscalaDados || !subEscalaDados.dadosOriginais) return;
+
+  const dadosDia = subEscalaDados.dadosOriginais[dia];
+  if (!dadosDia || !Array.isArray(dadosDia.ausentes)) return;
+
+  const idx = dadosDia.ausentes.findIndex(
+    a => a && a.nome === nomeFuncionario && a.tipo === 'nao_esperada'
+  );
+  if (idx === -1) {
+    showToast('⚠️ Ausência não encontrada ou não é do tipo removível', 'warning');
+    return;
+  }
+
+  // Remover da lista de ausentes
+  dadosDia.ausentes.splice(idx, 1);
+
+  // Devolver para trabalhando (evitando duplicar se já estiver lá)
+  if (!Array.isArray(dadosDia.trabalhando)) dadosDia.trabalhando = [];
+  if (!dadosDia.trabalhando.includes(nomeFuncionario)) {
+    dadosDia.trabalhando.push(nomeFuncionario);
+  }
+
+  // Atualizar número de pessoas
+  dadosDia.numPessoas = dadosDia.trabalhando.length;
+
+  // Recalcular divisão
+  const tipoConfig = subEscala === 'leste' ? 'leste' : 'rio_es';
+  const novaDivisao = calcularDivisaoPorNumero(
+    dadosDia.numPessoas,
+    dadosDia.trabalhando,
+    tipoConfig
+  );
+  dadosDia.divisao = novaDivisao;
+
+  salvarConfiguracaoCalendarios().then(() => {
+    showToast(`✅ Ausência de ${obterPrimeiroNome(nomeFuncionario)} removida. Divisão restaurada!`, 'success');
+    carregarCalendarioEmpresarialGrid(subEscala);
+
+    const modal = bootstrap.Modal.getInstance(document.getElementById('dayModal'));
+    if (modal) modal.hide();
     setTimeout(() => mostrarDetalhesDiaEmpresarial(subEscala, dia), 300);
   }).catch(error => {
     console.error('Erro ao salvar:', error);
@@ -8424,19 +8507,25 @@ function mostrarDetalhesDia(dia) {
       return nomeA.localeCompare(nomeB, 'pt-BR');
     });
 
-    ausentesOrdenados.forEach(({nome, motivo}) => {
+    ausentesOrdenados.forEach(({nome, motivo, tipo}) => {
       const primeiroNome = obterPrimeiroNome(nome);
+      const podeRemover = isAdmin && tipo === 'nao_esperada';
+      const nomeEsc = String(nome).replace(/'/g, "\\'");
+      const btnRemover = podeRemover
+        ? `<button class="btn btn-sm btn-outline-success ms-auto" onclick="removerAusenciaNaoEsperada(${dia}, '${nomeEsc}')" title="Remover ausência (colaborador retornou)"><i class="bi bi-arrow-counterclockwise"></i></button>`
+        : '';
       html += `
         <div class="status-item">
           <span class="status-badge badge-ausente">${motivo}</span>
           <span>${primeiroNome}</span>
+          ${btnRemover}
         </div>
       `;
     });
 
     html += `</div></div>`;
   }
-  
+
   // Adicionar informações das trocas se houver
   if (trocasDia.length > 0) {
     html += `
@@ -8801,11 +8890,11 @@ function confirmarAusenciaNaoEsperada(dia) {
     // Remover da lista de trabalhando
     dadosOriginais[dia].trabalhando = dadosOriginais[dia].trabalhando.filter(f => f !== funcionarioAusente);
 
-    // Adicionar à lista de ausentes
+    // Adicionar à lista de ausentes (tipo 'nao_esperada' permite desfazer depois)
     if (!dadosOriginais[dia].ausentes) {
       dadosOriginais[dia].ausentes = [];
     }
-    dadosOriginais[dia].ausentes.push({ nome: funcionarioAusente, motivo: motivo });
+    dadosOriginais[dia].ausentes.push({ nome: funcionarioAusente, motivo: motivo, tipo: 'nao_esperada' });
 
     // Atualizar número de pessoas
     dadosOriginais[dia].numPessoas = dadosOriginais[dia].trabalhando.length;
@@ -8835,6 +8924,61 @@ function confirmarAusenciaNaoEsperada(dia) {
     const modal = bootstrap.Modal.getInstance(document.getElementById('dayModal'));
     if (modal) modal.hide();
 
+    setTimeout(() => mostrarDetalhesDia(dia), 300);
+  }).catch(error => {
+    console.error('Erro ao salvar:', error);
+    showToast('❌ Erro ao salvar alterações', 'danger');
+  });
+}
+
+// Remove uma ausência "não esperada" marcada via botão e restaura a divisão.
+// Só remove ausências com tipo: 'nao_esperada' (ausências vindas da planilha
+// original como FOLGA/FÉRIAS/ATESTADO permanecem intactas).
+function removerAusenciaNaoEsperada(dia, nomeFuncionario) {
+  if (!isAdmin) return;
+  if (!dadosOriginais[dia] || !Array.isArray(dadosOriginais[dia].ausentes)) return;
+
+  const idx = dadosOriginais[dia].ausentes.findIndex(
+    a => a && a.nome === nomeFuncionario && a.tipo === 'nao_esperada'
+  );
+  if (idx === -1) {
+    showToast('⚠️ Ausência não encontrada ou não é do tipo removível', 'warning');
+    return;
+  }
+
+  // Remover da lista de ausentes
+  dadosOriginais[dia].ausentes.splice(idx, 1);
+
+  // Devolver para trabalhando (evitando duplicar)
+  if (!Array.isArray(dadosOriginais[dia].trabalhando)) dadosOriginais[dia].trabalhando = [];
+  if (!dadosOriginais[dia].trabalhando.includes(nomeFuncionario)) {
+    dadosOriginais[dia].trabalhando.push(nomeFuncionario);
+  }
+
+  // Atualizar número de pessoas
+  dadosOriginais[dia].numPessoas = dadosOriginais[dia].trabalhando.length;
+
+  // Recalcular divisão
+  const novaDivisao = calcularDivisaoPorNumero(
+    dadosOriginais[dia].numPessoas,
+    dadosOriginais[dia].trabalhando
+  );
+  dadosOriginais[dia].divisao = novaDivisao;
+
+  // Espelhar no dadosProcessados
+  if (dadosProcessados[dia]) {
+    dadosProcessados[dia].trabalhando = [...dadosOriginais[dia].trabalhando];
+    dadosProcessados[dia].ausentes = [...dadosOriginais[dia].ausentes];
+    dadosProcessados[dia].numPessoas = dadosOriginais[dia].numPessoas;
+    dadosProcessados[dia].divisao = {...dadosOriginais[dia].divisao};
+  }
+
+  salvarDadosNaNuvem().then(() => {
+    showToast(`✅ Ausência de ${obterPrimeiroNome(nomeFuncionario)} removida. Divisão restaurada!`, 'success');
+    atualizarCalendario();
+
+    const modal = bootstrap.Modal.getInstance(document.getElementById('dayModal'));
+    if (modal) modal.hide();
     setTimeout(() => mostrarDetalhesDia(dia), 300);
   }).catch(error => {
     console.error('Erro ao salvar:', error);
