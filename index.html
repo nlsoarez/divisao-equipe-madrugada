@@ -3,6 +3,9 @@
 <head>
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta http-equiv="Content-Security-Policy"
+    content="default-src 'self' https://api.jsonbin.io https://cdn.jsdelivr.net https://fonts.googleapis.com https://fonts.gstatic.com; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://api.jsonbin.io; frame-ancestors 'none';">
+  <meta http-equiv="X-Content-Type-Options" content="nosniff">
   <title>Portal de divisão de tarefas</title>
 
   <!-- CSS & Libs -->
@@ -3469,6 +3472,21 @@
 <script src="js/api.js"></script>
 <script>
 // ============================================
+// UTILITÁRIOS DE SEGURANÇA
+// ============================================
+
+// Escapa caracteres HTML especiais para evitar XSS ao inserir texto via innerHTML.
+function escapeHtml(str) {
+  if (str == null) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#x27;');
+}
+
+// ============================================
 // VARIÁVEIS GLOBAIS E ALIASES
 // ============================================
 
@@ -3618,6 +3636,15 @@ function extrairMesAnoDoNomeArquivo(nomeArquivo) {
 function uploadCalendario(numCalendario, inputElement) {
   const file = inputElement.files?.[0];
   if (!file) return;
+
+  if (!/\.(xlsx|xls)$/i.test(file.name)) {
+    showToast('❌ Apenas arquivos Excel (.xlsx / .xls) são suportados.', 'danger');
+    return;
+  }
+  if (file.size > 10 * 1024 * 1024) {
+    showToast('❌ Arquivo maior que 10MB não é permitido.', 'danger');
+    return;
+  }
 
   console.log(`📤 Upload para Calendário ${numCalendario}:`, file.name);
   showLoading();
@@ -3779,6 +3806,15 @@ function uploadCalendario(numCalendario, inputElement) {
 function uploadCalendarioEmpresarial(subEscala, inputElement) {
   const file = inputElement.files?.[0];
   if (!file) return;
+
+  if (!/\.(xlsx|xls)$/i.test(file.name)) {
+    showToast('❌ Apenas arquivos Excel (.xlsx / .xls) são suportados.', 'danger');
+    return;
+  }
+  if (file.size > 10 * 1024 * 1024) {
+    showToast('❌ Arquivo maior que 10MB não é permitido.', 'danger');
+    return;
+  }
 
   console.log(`📤 Upload para Sub-escala Empresarial ${subEscala}:`, file.name);
   showLoading();
@@ -4291,7 +4327,7 @@ function mostrarDetalhesDiaEmpresarial(subEscala, dia) {
     tituloExtra = ` <span class="badge bg-purple">${trocasDia.length} troca(s)</span>`;
   }
 
-  modalTitle.innerHTML = `Dia ${dia} (${dadosDia.diaSemana}) - ${nomeSubEscala} - ${dadosDia.numPessoas} pessoa(s)${tituloExtra}`;
+  modalTitle.innerHTML = `Dia ${escapeHtml(String(dia))} (${escapeHtml(dadosDia.diaSemana)}) - ${escapeHtml(nomeSubEscala)} - ${escapeHtml(String(dadosDia.numPessoas))} pessoa(s)${tituloExtra}`;
 
   let html = `
     <div class="day-content">
@@ -4994,11 +5030,15 @@ function mostrarModalSelecaoPessoaEmpresarial(subEscala, dia, etapa) {
   }
 
   if (personList) {
-    personList.innerHTML = pessoasDisponiveis.map(pessoa => `
-      <button type="button" class="list-group-item list-group-item-action py-2" onclick="selecionarPessoaEmpresarial('${subEscala}', '${pessoa}', ${dia}, '${etapa}')">
-        <i class="bi bi-person me-2"></i>${pessoa}
-      </button>
-    `).join('');
+    personList.replaceChildren();
+    pessoasDisponiveis.forEach(pessoa => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'list-group-item list-group-item-action py-2';
+      btn.innerHTML = `<i class="bi bi-person me-2"></i>${escapeHtml(pessoa)}`;
+      btn.addEventListener('click', () => selecionarPessoaEmpresarial(subEscala, pessoa, dia, etapa));
+      personList.appendChild(btn);
+    });
   }
 
   modal.show();
@@ -5283,7 +5323,7 @@ function iniciarSubstituicaoSimples(subEscala) {
   const personList = document.getElementById('personList');
   const modalTitle = document.querySelector('#selectPersonModal .modal-title');
   if (modalTitle) {
-    modalTitle.innerHTML = `<i class="bi bi-person-fill-check me-2"></i>[${nomeSubEscala}] Selecionar substituto para ${selecao.primeiro.pessoa}`;
+    modalTitle.innerHTML = `<i class="bi bi-person-fill-check me-2"></i>[${escapeHtml(nomeSubEscala)}] Selecionar substituto para ${escapeHtml(selecao.primeiro.pessoa)}`;
   }
   if (personList) {
     personList.innerHTML = todosFunc
@@ -6663,8 +6703,6 @@ async function testarConexaoNuvem() {
 
   console.log('🔍 TESTANDO CONEXÃO COM A NUVEM...');
   console.log('📌 BIN ID:', binId || 'Nenhum configurado');
-  console.log('🔑 Master Key:', JSONBIN_CONFIG.MASTER_KEY.substring(0, 20) + '...');
-  console.log('🔑 Access Key:', JSONBIN_CONFIG.ACCESS_KEY.substring(0, 20) + '...');
 
   if (!binId) {
     alert('⚠️ Nenhum armazenamento configurado!\n\nFaça upload de uma planilha para criar o armazenamento automaticamente.');
@@ -6977,7 +7015,16 @@ function processarArquivo(file) {
     showToast('❌ Apenas administradores podem fazer upload', 'danger');
     return;
   }
-  
+
+  if (!/\.(xlsx|xls)$/i.test(file.name)) {
+    showToast('❌ Apenas arquivos Excel (.xlsx / .xls) são suportados.', 'danger');
+    return;
+  }
+  if (file.size > 10 * 1024 * 1024) {
+    showToast('❌ Arquivo maior que 10MB não é permitido.', 'danger');
+    return;
+  }
+
   showLoading();
   const reader = new FileReader();
   
@@ -7614,17 +7661,18 @@ function mostrarModalSelecaoPessoa(dia, etapa) {
         </div>
       `;
     } else {
-      personList.innerHTML = pessoasDisponiveis.map(pessoa => `
-        <button type="button" 
-                class="list-group-item list-group-item-action d-flex justify-content-between align-items-center"
-                onclick="selecionarPessoa('${pessoa.replace(/'/g, "\\'")}', ${dia}, '${etapa}')">
-          <span>${pessoa}</span>
-          <i class="bi bi-check-circle text-primary"></i>
-        </button>
-      `).join('');
+      personList.replaceChildren();
+      pessoasDisponiveis.forEach(pessoa => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'list-group-item list-group-item-action d-flex justify-content-between align-items-center';
+        btn.innerHTML = `<span>${escapeHtml(pessoa)}</span><i class="bi bi-check-circle text-primary"></i>`;
+        btn.addEventListener('click', () => selecionarPessoa(pessoa, dia, etapa));
+        personList.appendChild(btn);
+      });
     }
   }
-  
+
   modal.show();
 }
 
@@ -7765,7 +7813,7 @@ function mostrarModalOperacao(pessoa, dia) {
   const operacaoInfo = document.getElementById('operacaoInfo');
 
   if (operacaoInfo) {
-    operacaoInfo.innerHTML = `<strong>${pessoa}</strong> está escalado(a) no dia <strong>${dia}</strong>.<br>O que deseja fazer?`;
+    operacaoInfo.innerHTML = `<strong>${escapeHtml(pessoa)}</strong> está escalado(a) no dia <strong>${escapeHtml(String(dia))}</strong>.<br>O que deseja fazer?`;
   }
 
   modal.show();
@@ -7806,7 +7854,7 @@ function mostrarModalMoverDia() {
   const diaOrigem = selecaoTroca.primeiro.dia;
 
   if (moverDiaInfo) {
-    moverDiaInfo.innerHTML = `Mover <strong>${pessoa}</strong> do dia <strong>${diaOrigem}</strong> para:`;
+    moverDiaInfo.innerHTML = `Mover <strong>${escapeHtml(pessoa)}</strong> do dia <strong>${escapeHtml(String(diaOrigem))}</strong> para:`;
   }
 
   // Listar todos os dias disponíveis (exceto o dia atual)
@@ -12231,6 +12279,16 @@ function toggleHubEmbed(bodyId, chevronId, headerId) {
 function uploadEscalonamento(inputElement) {
   const file = inputElement.files?.[0];
   if (!file) return;
+
+  if (!/\.(xlsx|xls)$/i.test(file.name)) {
+    showToast('❌ Apenas arquivos Excel (.xlsx / .xls) são suportados.', 'danger');
+    return;
+  }
+  if (file.size > 10 * 1024 * 1024) {
+    showToast('❌ Arquivo maior que 10MB não é permitido.', 'danger');
+    return;
+  }
+
   showLoading();
 
   const reader = new FileReader();
