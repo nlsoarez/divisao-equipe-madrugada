@@ -8,7 +8,7 @@ require('dotenv').config();
 // Configurações da Evolution API (WhatsApp) - ÚNICA FONTE DE DADOS
 const EVOLUTION_CONFIG = {
   API_URL: process.env.EVOLUTION_API_URL || 'https://evolution-api-production-b976.up.railway.app',
-  API_KEY: process.env.EVOLUTION_API_KEY || 'B1E0A9BC4BFF-4586-B06F-42011477C6B5',
+  API_KEY: process.env.EVOLUTION_API_KEY,
   INSTANCE_NAME: process.env.EVOLUTION_INSTANCE_NAME || 'Cop Rede',
   // Número do grupo ou contato de onde vêm as mensagens (formato: 5511999999999@g.us para grupos)
   SOURCE_CHAT_ID: process.env.EVOLUTION_SOURCE_CHAT_ID || null
@@ -31,15 +31,15 @@ const ALOCACAO_HUB_CONFIG = {
   // Para configurar manualmente, defina a variável ALOCACAO_HUB_BIN_ID
   BIN_ID: process.env.ALOCACAO_HUB_BIN_ID || null,
   // Credenciais exclusivas para o HUB (conta separada do JSONBin)
-  MASTER_KEY: process.env.ALOCACAO_HUB_MASTER_KEY || '$2a$10$PiBMNNOp1IyF1Fp5Od6xdObHbiKLvZfKRz9riFR4vUwc.mzS7pgU.',
-  ACCESS_KEY: process.env.ALOCACAO_HUB_ACCESS_KEY || '$2a$10$chuVdUSu4tC83GVFpIxxyOTtIOlt9P/tey3dcYNPh83UqwL4UDljy'
+  MASTER_KEY: process.env.ALOCACAO_HUB_MASTER_KEY,
+  ACCESS_KEY: process.env.ALOCACAO_HUB_ACCESS_KEY
 };
 
 // Configurações do JSONBin.io (mesmas do projeto principal)
 const JSONBIN_CONFIG = {
   API_URL: 'https://api.jsonbin.io/v3/b',
-  MASTER_KEY: process.env.JSONBIN_MASTER_KEY || '$2a$10$tGExKDQ1CS6U/A7JPWOlRerdm4XUs6sQcChusEUmlqiVdkugQ/MZW',
-  ACCESS_KEY: process.env.JSONBIN_ACCESS_KEY || '$2a$10$2dbmigUDE0MQ/2jxympm8eyPQzRdC/Ts4FIksSn/F9Pb4Qu8Mg0wm',
+  MASTER_KEY: process.env.JSONBIN_MASTER_KEY,
+  ACCESS_KEY: process.env.JSONBIN_ACCESS_KEY,
   // Bin específico para mensagens do WhatsApp (SEPARADO do bin da escala!)
   // Este bin armazena apenas: COP REDE INFORMA e Alertas
   // O bin da escala (697531c843b1c97be9474ae9) armazena os calendários de trabalho
@@ -165,6 +165,21 @@ const SERVER_CONFIG = {
   PORT: process.env.PORT || 3001,
   CORS_ORIGIN: process.env.CORS_ORIGIN || '*'
 };
+
+// Avisar sobre variáveis de ambiente críticas ausentes
+[
+  'JSONBIN_MASTER_KEY',
+  'JSONBIN_ACCESS_KEY',
+  'EVOLUTION_API_KEY',
+  'ALOCACAO_HUB_MASTER_KEY',
+  'ALOCACAO_HUB_ACCESS_KEY',
+  'SUPABASE_ANON_KEY',
+  'ADMIN_DIAG_TOKEN'
+].forEach(k => {
+  if (!process.env[k]) {
+    console.warn(`[Config] ⚠️  Variável de ambiente ausente: ${k}`);
+  }
+});
 
 module.exports = {
   EVOLUTION_CONFIG,
