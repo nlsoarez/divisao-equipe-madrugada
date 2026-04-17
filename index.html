@@ -6411,23 +6411,36 @@ function mostrarModalLogin() {
   }, 500);
 }
 
+// Contador de tentativas em memória (não persiste — bloquear só pela sessão atual).
+const _pinThrottle = { tentativas: 0, bloqueadoAte: 0 };
+
 function verificarPin() {
   const pinInput = document.getElementById('pinInput');
   const pinError = document.getElementById('pinError');
   const pin = pinInput.value.trim();
-  
+
+  // Verificar bloqueio por excesso de tentativas
+  if (_pinThrottle.bloqueadoAte > Date.now()) {
+    const restante = Math.ceil((_pinThrottle.bloqueadoAte - Date.now()) / 1000);
+    pinError.textContent = `Muitas tentativas. Aguarde ${restante}s.`;
+    pinError.style.display = 'block';
+    pinInput.value = '';
+    return;
+  }
+
   if (pin === ADMIN_PIN) {
+    _pinThrottle.tentativas = 0;
     pinError.style.display = 'none';
-    
+
     // Salvar autenticação por 24 horas
     const expiryTime = new Date().getTime() + (24 * 60 * 60 * 1000);
     localStorage.setItem('escala_auth', 'admin');
     localStorage.setItem('escala_auth_expiry', expiryTime.toString());
-    
+
     // Fechar modal
     const loginModal = bootstrap.Modal.getInstance(document.getElementById('loginModal'));
     if (loginModal) loginModal.hide();
-    
+
     // Iniciar como admin
     iniciarComoAdmin();
     carregarDadosDaNuvem();
@@ -6440,10 +6453,18 @@ function verificarPin() {
 
     showToast('✅ Acesso administrativo concedido!', 'success');
   } else {
+    _pinThrottle.tentativas++;
+    if (_pinThrottle.tentativas >= 5) {
+      _pinThrottle.bloqueadoAte = Date.now() + 30000; // bloquear 30s
+      _pinThrottle.tentativas = 0;
+      pinError.textContent = 'Muitas tentativas incorretas. Aguarde 30 segundos.';
+    } else {
+      pinError.textContent = 'PIN incorreto. Tente novamente.';
+    }
     pinError.style.display = 'block';
     pinInput.value = '';
     pinInput.focus();
-    
+
     // Efeito de shake
     pinInput.classList.add('shake');
     setTimeout(() => {
