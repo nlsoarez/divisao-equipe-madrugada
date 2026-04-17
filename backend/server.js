@@ -12,19 +12,86 @@ const storage = require('./storage');
 const storageHub = require('./storageHub');
 const whatsapp = require('./whatsapp');
 
+// Converte valor para inteiro dentro de [min, max]; retorna def se inválido.
+function intRange(v, def, min, max) {
+  const n = parseInt(v, 10);
+  if (!Number.isFinite(n)) return def;
+  return Math.min(Math.max(n, min), max);
+}
+
 const app = express();
 
-// Middlewares
+// ─── Security headers ────────────────────────────────────────────────────────
+app.use((req, res, next) => {
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('Referrer-Policy', 'no-referrer');
+  res.setHeader('Permissions-Policy', 'geolocation=(), microphone=(), camera=()');
+  next();
+});
+
+// ─── CORS ────────────────────────────────────────────────────────────────────
+// Accepts a comma-separated allowlist via CORS_ORIGIN env var.
+// In development, '*' is accepted only when NODE_ENV !== 'production'.
+const _corsAllowed = (SERVER_CONFIG.CORS_ORIGIN || '')
+  .split(',')
+  .map(s => s.trim())
+  .filter(Boolean);
+
 app.use(cors({
-  origin: SERVER_CONFIG.CORS_ORIGIN,
+  origin: (origin, cb) => {
+    // Same-origin (server-to-server) or allowed origins
+    if (!origin || _corsAllowed.includes('*') || _corsAllowed.includes(origin)) {
+      return cb(null, true);
+    }
+    cb(new Error(`CORS bloqueado para origem: ${origin}`));
+  },
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Admin-Token']
 }));
+
+// ─── Rate limiting (in-memory, per IP) ───────────────────────────────────────
+const _rateStore = new Map();
+function rateLimiter(windowMs, max) {
+  return (req, res, next) => {
+    const key = req.ip || req.connection.remoteAddress || 'unknown';
+    const now = Date.now();
+    let entry = _rateStore.get(key);
+    if (!entry || now > entry.resetAt) {
+      entry = { count: 0, resetAt: now + windowMs };
+      _rateStore.set(key, entry);
+    }
+    entry.count++;
+    if (entry.count > max) {
+      return res.status(429).json({ erro: 'Muitas requisições. Tente novamente em instantes.' });
+    }
+    next();
+  };
+}
+// 100 requisições por minuto por IP em todos os endpoints de API
+app.use('/api/', rateLimiter(60_000, 100));
+
 app.use(express.json());
 
-// Logging middleware
+// ─── Logging middleware ───────────────────────────────────────────────────────
 app.use((req, res, next) => {
   console.log(`[API] ${req.method} ${req.path}`);
+  next();
+});
+
+// ─── Proteção de endpoints de diagnóstico ────────────────────────────────────
+// Todos os endpoints /api/diagnostico/* e /api/alocacao-hub/diagnostico
+// exigem X-Admin-Token correspondente a ADMIN_DIAG_TOKEN (env var).
+// Se ADMIN_DIAG_TOKEN não estiver configurado, retorna 503 (desabilitado).
+app.use(['/api/diagnostico', '/api/alocacao-hub/diagnostico'], (req, res, next) => {
+  const token = process.env.ADMIN_DIAG_TOKEN;
+  if (!token) {
+    return res.status(503).json({ erro: 'Diagnóstico desabilitado (ADMIN_DIAG_TOKEN não configurado).' });
+  }
+  const provided = req.headers['x-admin-token'];
+  if (!provided || provided !== token) {
+    return res.status(401).json({ erro: 'Token de admin inválido ou ausente.' });
+  }
   next();
 });
 
@@ -109,7 +176,7 @@ app.post('/api/diagnostico/reprocessar', async (req, res) => {
  */
 app.post('/api/diagnostico/reprocessar-completo', async (req, res) => {
   try {
-    const limite = parseInt(req.body?.limite || 500);
+    const limite = intRange(req.body?.limite, 500, 1, 2000);
     console.log(`[Diagnóstico] Reprocessamento completo com limite ${limite}...`);
     const resultado = await whatsapp.buscarHistorico(limite);
     res.json({
@@ -160,7 +227,7 @@ app.get('/api/diagnostico/polling-status', async (req, res) => {
  */
 app.post('/api/diagnostico/resetar-polling', async (req, res) => {
   try {
-    const diasAtras = parseInt(req.body?.diasAtras || 30);
+    const diasAtras = intRange(req.body?.diasAtras, 30, 1, 365);
     console.log(`[Diagnóstico] Resetando polling timestamp para ${diasAtras} dias atrás...`);
 
     const resultado = whatsapp.resetarPollingTimestamp(diasAtras);
@@ -315,7 +382,7 @@ app.get('/api/whatsapp/chats', async (req, res) => {
  */
 app.post('/api/whatsapp/sincronizar', async (req, res) => {
   try {
-    const limite = req.body.limite || 100;
+    const limite = intRange(req.body?.limite, 100, 1, 1000);
     const resultado = await whatsapp.buscarHistorico(limite);
     res.json({
       sucesso: !resultado.erro,
@@ -609,7 +676,7 @@ app.get('/api/cop-rede-empresarial', async (req, res) => {
  */
 app.post('/api/cop-rede-empresarial/sincronizar', async (req, res) => {
   try {
-    const limite = req.body.limite || 100;
+    const limite = intRange(req.body?.limite, 100, 1, 1000);
     const resultado = await whatsapp.buscarHistoricoEmpresarial(limite);
     res.json({ sucesso: !resultado.erro, ...resultado });
   } catch (error) {
@@ -908,7 +975,7 @@ app.get('/api/alocacao-hub', async (req, res) => {
  */
 app.post('/api/alocacao-hub/sincronizar', async (req, res) => {
   try {
-    const limite = req.body.limite || 50;
+    const limite = intRange(req.body?.limite, 50, 1, 500);
     const resultado = await whatsapp.buscarHistoricoHub(limite);
     res.json({
       sucesso: !resultado.erro,
@@ -981,7 +1048,7 @@ app.get('/api/alocacao-hub/diagnostico', async (req, res) => {
  */
 app.get('/api/alocacao-hub/mensagens-bruto', async (req, res) => {
   try {
-    const limite = parseInt(req.query.limite || '10');
+    const limite = intRange(req.query.limite, 10, 1, 200);
     const mensagens = await whatsapp.buscarMensagensBrutas(limite);
     res.json({ sucesso: true, total: mensagens.length, mensagens });
   } catch (error) {
@@ -1069,8 +1136,8 @@ app.post('/api/cache/limpar', async (req, res) => {
 // ROTA MATRIZ DE OFENSORES (Coprede / Supabase)
 // ============================================
 
-const SUPABASE_URL = 'https://wthzxrgifjtenaujhdbb.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind0aHp4cmdpZmp0ZW5hdWpoZGJiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjkwMjYwODIsImV4cCI6MjA4NDYwMjA4Mn0.MGhDMxfbbKGc69Mut8M7ESmULS8d10VgeIu_vXcorpc';
+const SUPABASE_URL = process.env.SUPABASE_URL || 'https://wthzxrgifjtenaujhdbb.supabase.co';
+const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY;
 
 /**
  * Mapeamento de cidades brasileiras para cluster CopRede (backend).
@@ -1157,8 +1224,11 @@ function calcularHoras(dhInicio) {
  * Retorna top 100 incidentes mais antigos, agrupados por área
  */
 app.get('/api/matriz-ofensores', async (req, res) => {
+  if (!SUPABASE_ANON_KEY) {
+    return res.status(503).json({ erro: 'SUPABASE_ANON_KEY não configurada no servidor.' });
+  }
   try {
-    const limit = parseInt(req.query.limit) || 200;
+    const limit = intRange(req.query.limit, 200, 1, 2000);
     // Busca todos os campos de mapeamento geográfico: grupo e cluster são os campos
     // canônicos do portal de origem para identificar área (não usar só regional/cidade)
     // Filtrar fora apenas status tratada/treated (igual ao portal de origem que exclui encerrados)
