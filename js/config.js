@@ -40,7 +40,7 @@ const CONFIG = {
    * PIN de administrador
    * Usado para acessar funcionalidades de upload e gerenciamento
    */
-  ADMIN_PIN: 'Coprede2026',
+  ADMIN_PIN: 'home.2025',
 
   /**
    * Duração da sessão em horas
