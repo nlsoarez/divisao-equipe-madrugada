@@ -2,12 +2,10 @@
 node_modules/
 */node_modules/
 
-# Environment — NUNCA commite arquivos com credenciais reais
+# Environment
 .env
 .env.local
 .env.*.local
-backend/.env
-backend/.env.local
 
 # Logs
 *.log
