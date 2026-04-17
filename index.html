@@ -5614,12 +5614,49 @@ function atualizarStatusCalendarios() {
   }
 }
 
+// Helper: salva backup em localStorage capturando QuotaExceededError e outros erros.
+// Retorna true se gravou com sucesso, false caso contrário.
+function salvarBackupLocalSeguro(dados) {
+  try {
+    localStorage.setItem('escala_backup', JSON.stringify(dados));
+    localStorage.setItem('escala_ultimo_salvamento', new Date().toISOString());
+    return true;
+  } catch (err) {
+    const quotaError = err && (err.name === 'QuotaExceededError'
+      || err.code === 22 || err.code === 1014);
+    if (quotaError) {
+      console.error('❌ localStorage cheio (QuotaExceededError). Backup local não salvo.', err);
+      try { showToast('⚠️ Armazenamento local cheio — backup não salvo. Limpe dados do navegador.', 'warning'); } catch (_) {}
+    } else {
+      console.error('❌ Falha ao salvar backup local:', err);
+    }
+    return false;
+  }
+}
+
 // Salvar configuração dos calendários na nuvem
 async function salvarConfiguracaoCalendarios(tentativa = 1) {
   console.log('💾 Salvando configuração dos calendários...');
   console.log('📅 Calendário ativo:', calendarioAtivo);
   console.log('📦 Calendário 1:', calendarios.calendario1 ? 'Preenchido' : 'Vazio');
   console.log('📦 Calendário 2:', calendarios.calendario2 ? 'Preenchido' : 'Vazio');
+
+  // GUARDA DE SEGURANÇA: não sobrescrever dados existentes na nuvem com estado vazio.
+  // Se ambos calendários estão vazios (sem dadosOriginais) E já existe um BIN configurado,
+  // cancelar o salvamento — isto evita que fluxos de inicialização ou race conditions
+  // apaguem escalas previamente publicadas.
+  const cal1Vazio = !calendarios.calendario1
+    || !calendarios.calendario1.dadosOriginais
+    || Object.keys(calendarios.calendario1.dadosOriginais).length === 0;
+  const cal2Vazio = !calendarios.calendario2
+    || !calendarios.calendario2.dadosOriginais
+    || Object.keys(calendarios.calendario2.dadosOriginais).length === 0;
+  if (cal1Vazio && cal2Vazio && obterBinId()) {
+    console.warn('⛔ Save cancelado: ambos calendários vazios e bin já existe. Protegendo dados remotos.');
+    showToast('⚠️ Nenhum dado para salvar. Operação cancelada para proteger as escalas existentes.', 'warning');
+    hideLoading();
+    return;
+  }
 
   showLoading();
 
@@ -5653,8 +5690,7 @@ async function salvarConfiguracaoCalendarios(tentativa = 1) {
           exibirInstrucoesBinId(novoBin.binId);
 
           // Salvar backup local
-          localStorage.setItem('escala_backup', JSON.stringify(dadosParaSalvar));
-          localStorage.setItem('escala_ultimo_salvamento', new Date().toISOString());
+          salvarBackupLocalSeguro(dadosParaSalvar);
           localStorage.removeItem('escala_pendente_publicacao');
 
           hideLoading();
@@ -5690,8 +5726,7 @@ async function salvarConfiguracaoCalendarios(tentativa = 1) {
       showToast('✅ Escalas salvas e publicadas para todos!', 'success');
 
       // Salvar backup local também
-      localStorage.setItem('escala_backup', JSON.stringify(dadosParaSalvar));
-      localStorage.setItem('escala_ultimo_salvamento', new Date().toISOString());
+      salvarBackupLocalSeguro(dadosParaSalvar);
       localStorage.removeItem('escala_pendente_publicacao'); // Limpar flag de pendente
     } else if (response.status === 429 && tentativa <= 3) {
       // Rate limiting - aguardar e tentar novamente
@@ -5726,25 +5761,20 @@ async function salvarConfiguracaoCalendarios(tentativa = 1) {
     console.error('❌ Erro ao salvar calendários:', error);
 
     // Salvar localmente como backup de emergência
-    try {
-      const dadosBackup = {
-        escala_id: 'backup_local',
-        versao: '3.0',
-        calendarioAtivo: calendarioAtivo,
-        calendario1: calendarios.calendario1,
-        calendario2: calendarios.calendario2,
-        ultima_atualizacao: new Date().toISOString()
-      };
-      localStorage.setItem('escala_backup', JSON.stringify(dadosBackup));
+    const dadosBackup = {
+      escala_id: 'backup_local',
+      versao: '3.0',
+      calendarioAtivo: calendarioAtivo,
+      calendario1: calendarios.calendario1,
+      calendario2: calendarios.calendario2,
+      ultima_atualizacao: new Date().toISOString()
+    };
+    const backupOk = salvarBackupLocalSeguro(dadosBackup);
+    if (backupOk) {
       localStorage.setItem('escala_pendente_publicacao', 'true'); // Marcar como pendente
-
-      // Mostrar alerta mais claro para o admin
       showToast('⚠️ ATENÇÃO: Dados salvos APENAS localmente! Outros usuários NÃO verão as alterações. Tente "Republicar" mais tarde.', 'danger');
-
-      // Mostrar botão de republicar se não existir
       mostrarBotaoRepublicar();
-    } catch (backupError) {
-      console.error('❌ Falha ao salvar backup local:', backupError);
+    } else {
       showToast('❌ Erro crítico: não foi possível salvar nem localmente', 'danger');
     }
   } finally {
@@ -5947,7 +5977,7 @@ async function carregarDadosDaNuvem() {
   try {
     // Fazer requisição com timeout para o BIN
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 segundos timeout
+    const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 segundos timeout
 
     console.log('🔄 Carregando do Bin:', binId);
 
@@ -6047,7 +6077,7 @@ async function carregarDadosDaNuvem() {
 
   } catch (error) {
     if (error.name === 'AbortError') {
-      console.error('❌ Timeout ao carregar da nuvem (10s)');
+      console.error('❌ Timeout ao carregar da nuvem (30s)');
       showToast('⚠️ Timeout ao conectar com a nuvem', 'warning');
     } else {
       console.error('❌ Erro ao carregar da nuvem:', error);
@@ -6066,11 +6096,16 @@ function carregarDoBackupLocal() {
     if (dadosSalvos) {
       const dados = JSON.parse(dadosSalvos);
 
-      // Verificar se há dados válidos (formato v2 OU v3.0)
-      const formatoV2 = dados && (dados.dadosOriginais || dados.dadosPlanilha);
-      const formatoV3 = dados && (dados.versao === '3.0' || dados.calendario1 || dados.calendario2);
+      // Verificar se o backup tem CONTEÚDO REAL — não apenas metadados vazios.
+      // Isso evita que um backup vazio sobrescreva o estado em memória e dispare
+      // um novo save com calendários null para a nuvem.
+      const temConteudo = (dados.calendario1 && dados.calendario1.dadosOriginais
+                            && Object.keys(dados.calendario1.dadosOriginais).length > 0)
+                        || (dados.calendario2 && dados.calendario2.dadosOriginais
+                            && Object.keys(dados.calendario2.dadosOriginais).length > 0)
+                        || (dados.dadosOriginais && Object.keys(dados.dadosOriginais).length > 0);
 
-      if (formatoV2 || formatoV3) {
+      if (temConteudo) {
         processarDadosCarregados(dados);
 
         let mensagem = '📁 Backup local carregado';
@@ -6082,8 +6117,8 @@ function carregarDoBackupLocal() {
         showToast(mensagem, 'info');
         return true;
       } else {
-        console.warn('⚠️ Backup local sem dados válidos');
-        showToast('📭 Backup local vazio', 'warning');
+        console.warn('⚠️ Backup local existente mas sem conteúdo real — ignorando para não sobrescrever dados remotos.');
+        showToast('📭 Nenhuma escala salva ainda. Faça upload de uma planilha para começar.', 'warning');
         return false;
       }
     } else {
