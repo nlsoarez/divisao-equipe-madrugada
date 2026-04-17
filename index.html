@@ -5614,12 +5614,53 @@ function atualizarStatusCalendarios() {
   }
 }
 
+// Salvar backup local com tratamento de QuotaExceededError
+// Retorna true se salvou, false se falhou (sem abortar o fluxo principal).
+function salvarBackupLocalSeguro(dados, marcarPendente = false) {
+  try {
+    localStorage.setItem('escala_backup', JSON.stringify(dados));
+    localStorage.setItem('escala_ultimo_salvamento', new Date().toISOString());
+    if (marcarPendente) {
+      localStorage.setItem('escala_pendente_publicacao', 'true');
+    } else {
+      localStorage.removeItem('escala_pendente_publicacao');
+    }
+    return true;
+  } catch (err) {
+    const isQuota = err && (err.name === 'QuotaExceededError'
+      || err.code === 22 || err.code === 1014);
+    if (isQuota) {
+      console.warn('⚠️ localStorage cheio - backup local não foi salvo.', err);
+      showToast('⚠️ Armazenamento local cheio. Dados na nuvem OK, mas sem backup offline.', 'warning');
+    } else {
+      console.error('❌ Falha ao salvar backup local:', err);
+    }
+    return false;
+  }
+}
+
 // Salvar configuração dos calendários na nuvem
 async function salvarConfiguracaoCalendarios(tentativa = 1) {
   console.log('💾 Salvando configuração dos calendários...');
   console.log('📅 Calendário ativo:', calendarioAtivo);
   console.log('📦 Calendário 1:', calendarios.calendario1 ? 'Preenchido' : 'Vazio');
   console.log('📦 Calendário 2:', calendarios.calendario2 ? 'Preenchido' : 'Vazio');
+
+  // GUARDA DE SEGURANÇA: não sobrescrever dados existentes na nuvem com estado vazio.
+  // Se ambos calendários estão vazios E já existe um BIN configurado, aborta o save
+  // para evitar que fluxos de inicialização ou race conditions apaguem as escalas.
+  const cal1Vazio = !calendarios.calendario1
+    || !calendarios.calendario1.dadosOriginais
+    || Object.keys(calendarios.calendario1.dadosOriginais).length === 0;
+  const cal2Vazio = !calendarios.calendario2
+    || !calendarios.calendario2.dadosOriginais
+    || Object.keys(calendarios.calendario2.dadosOriginais).length === 0;
+  if (cal1Vazio && cal2Vazio && obterBinId()) {
+    console.warn('⛔ Save cancelado: ambos calendários vazios e bin já existe. Protegendo dados remotos.');
+    showToast('⚠️ Nenhum dado para salvar. Operação cancelada para proteger as escalas existentes.', 'warning');
+    hideLoading();
+    return;
+  }
 
   showLoading();
 
@@ -5653,9 +5694,7 @@ async function salvarConfiguracaoCalendarios(tentativa = 1) {
           exibirInstrucoesBinId(novoBin.binId);
 
           // Salvar backup local
-          localStorage.setItem('escala_backup', JSON.stringify(dadosParaSalvar));
-          localStorage.setItem('escala_ultimo_salvamento', new Date().toISOString());
-          localStorage.removeItem('escala_pendente_publicacao');
+          salvarBackupLocalSeguro(dadosParaSalvar, false);
 
           hideLoading();
           return;
@@ -5690,9 +5729,7 @@ async function salvarConfiguracaoCalendarios(tentativa = 1) {
       showToast('✅ Escalas salvas e publicadas para todos!', 'success');
 
       // Salvar backup local também
-      localStorage.setItem('escala_backup', JSON.stringify(dadosParaSalvar));
-      localStorage.setItem('escala_ultimo_salvamento', new Date().toISOString());
-      localStorage.removeItem('escala_pendente_publicacao'); // Limpar flag de pendente
+      salvarBackupLocalSeguro(dadosParaSalvar, false);
     } else if (response.status === 429 && tentativa <= 3) {
       // Rate limiting - aguardar e tentar novamente
       const tempoEspera = tentativa * 2000;
@@ -5735,16 +5772,18 @@ async function salvarConfiguracaoCalendarios(tentativa = 1) {
         calendario2: calendarios.calendario2,
         ultima_atualizacao: new Date().toISOString()
       };
-      localStorage.setItem('escala_backup', JSON.stringify(dadosBackup));
-      localStorage.setItem('escala_pendente_publicacao', 'true'); // Marcar como pendente
+      const backupOk = salvarBackupLocalSeguro(dadosBackup, true);
 
-      // Mostrar alerta mais claro para o admin
-      showToast('⚠️ ATENÇÃO: Dados salvos APENAS localmente! Outros usuários NÃO verão as alterações. Tente "Republicar" mais tarde.', 'danger');
-
-      // Mostrar botão de republicar se não existir
-      mostrarBotaoRepublicar();
+      if (backupOk) {
+        // Mostrar alerta mais claro para o admin
+        showToast('⚠️ ATENÇÃO: Dados salvos APENAS localmente! Outros usuários NÃO verão as alterações. Tente "Republicar" mais tarde.', 'danger');
+        // Mostrar botão de republicar se não existir
+        mostrarBotaoRepublicar();
+      } else {
+        showToast('❌ Erro crítico: não foi possível salvar nem localmente', 'danger');
+      }
     } catch (backupError) {
-      console.error('❌ Falha ao salvar backup local:', backupError);
+      console.error('❌ Falha inesperada no backup local:', backupError);
       showToast('❌ Erro crítico: não foi possível salvar nem localmente', 'danger');
     }
   } finally {
@@ -5947,7 +5986,7 @@ async function carregarDadosDaNuvem() {
   try {
     // Fazer requisição com timeout para o BIN
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 segundos timeout
+    const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 segundos timeout (conexões móveis lentas)
 
     console.log('🔄 Carregando do Bin:', binId);
 
@@ -6070,7 +6109,18 @@ function carregarDoBackupLocal() {
       const formatoV2 = dados && (dados.dadosOriginais || dados.dadosPlanilha);
       const formatoV3 = dados && (dados.versao === '3.0' || dados.calendario1 || dados.calendario2);
 
-      if (formatoV2 || formatoV3) {
+      // Verificar se há CONTEÚDO real (não apenas estrutura vazia).
+      // Evita que um backup "esqueleto" (ex: { versao: '3.0', calendario1: null })
+      // seja aceito e sobrescreva a nuvem com vazio no próximo save.
+      const cal1TemConteudo = dados && dados.calendario1 && dados.calendario1.dadosOriginais
+        && Object.keys(dados.calendario1.dadosOriginais).length > 0;
+      const cal2TemConteudo = dados && dados.calendario2 && dados.calendario2.dadosOriginais
+        && Object.keys(dados.calendario2.dadosOriginais).length > 0;
+      const v2TemConteudo = dados && dados.dadosOriginais
+        && Object.keys(dados.dadosOriginais).length > 0;
+      const temConteudo = cal1TemConteudo || cal2TemConteudo || v2TemConteudo;
+
+      if ((formatoV2 || formatoV3) && temConteudo) {
         processarDadosCarregados(dados);
 
         let mensagem = '📁 Backup local carregado';
@@ -6082,8 +6132,8 @@ function carregarDoBackupLocal() {
         showToast(mensagem, 'info');
         return true;
       } else {
-        console.warn('⚠️ Backup local sem dados válidos');
-        showToast('📭 Backup local vazio', 'warning');
+        console.warn('⚠️ Backup local sem conteúdo real - ignorando para não sobrescrever nuvem');
+        showToast('📭 Nenhuma escala salva ainda.', 'warning');
         return false;
       }
     } else {
@@ -6376,12 +6426,27 @@ function mostrarModalLogin() {
   }, 500);
 }
 
+// Throttle em memória (não persistente) para limitar brute-force no cliente.
+// Após 5 tentativas erradas, bloqueia por 30s.
+const _pinThrottle = { fails: 0, lockUntil: 0 };
+
 function verificarPin() {
   const pinInput = document.getElementById('pinInput');
   const pinError = document.getElementById('pinError');
   const pin = pinInput.value.trim();
-  
+
+  const agora = Date.now();
+  if (_pinThrottle.lockUntil > agora) {
+    const segRestantes = Math.ceil((_pinThrottle.lockUntil - agora) / 1000);
+    pinError.textContent = `Muitas tentativas. Aguarde ${segRestantes}s.`;
+    pinError.style.display = 'block';
+    pinInput.value = '';
+    return;
+  }
+
   if (pin === ADMIN_PIN) {
+    _pinThrottle.fails = 0;
+    _pinThrottle.lockUntil = 0;
     pinError.style.display = 'none';
     
     // Salvar autenticação por 24 horas
@@ -6405,10 +6470,18 @@ function verificarPin() {
 
     showToast('✅ Acesso administrativo concedido!', 'success');
   } else {
+    _pinThrottle.fails++;
+    if (_pinThrottle.fails >= 5) {
+      _pinThrottle.lockUntil = Date.now() + 30000;
+      _pinThrottle.fails = 0;
+      pinError.textContent = 'Muitas tentativas. Aguarde 30s.';
+    } else {
+      pinError.textContent = `PIN incorreto. Tentativas restantes: ${5 - _pinThrottle.fails}`;
+    }
     pinError.style.display = 'block';
     pinInput.value = '';
     pinInput.focus();
-    
+
     // Efeito de shake
     pinInput.classList.add('shake');
     setTimeout(() => {
