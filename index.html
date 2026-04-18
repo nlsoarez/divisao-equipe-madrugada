@@ -2432,6 +2432,20 @@
       color: #128C7E;
     }
 
+    /* Sub-navegação Empresarial */
+    .empresarial-subnav.show {
+      display: flex !important;
+    }
+    .empresarial-subtab:hover {
+      background: #e9ecef !important;
+      color: var(--text-dark) !important;
+    }
+    .empresarial-subtab.active {
+      background: linear-gradient(135deg, #388E3C 0%, #2E7D32 100%) !important;
+      color: white !important;
+      box-shadow: 0 2px 8px rgba(56, 142, 60, 0.28);
+    }
+
     .admin-nav-tab.telegram-tab-nav:hover {
       background: #BEF0CC;
     }
@@ -2570,21 +2584,29 @@
       <i class="bi bi-house"></i>
       Residencial
     </button>
-    <button class="admin-nav-tab" data-admin-tab="rio_es" onclick="trocarAbaAdmin('rio_es')">
+    <button class="admin-nav-tab" data-admin-tab="empresarial" onclick="trocarAbaAdmin('empresarial')">
       <i class="bi bi-building"></i>
-      Rio/ES
-    </button>
-    <button class="admin-nav-tab" data-admin-tab="leste" onclick="trocarAbaAdmin('leste')">
-      <i class="bi bi-building"></i>
-      Leste
+      Empresarial
     </button>
     <button class="admin-nav-tab telegram-tab-nav" data-admin-tab="telegram" onclick="trocarAbaAdmin('telegram')">
       <i class="bi bi-whatsapp"></i>
-      COP Rede Informa
+      Volumetria
     </button>
     <button class="admin-nav-tab hub-tab-nav" data-admin-tab="alocacao_hub" onclick="trocarAbaAdmin('alocacao_hub')">
       <i class="bi bi-geo-alt-fill"></i>
       Alocacao HUB
+    </button>
+  </div>
+
+  <!-- Sub-navegação interna do Empresarial (Rio/ES e Leste) -->
+  <div class="empresarial-subnav" id="empresarialSubnav" style="display: none; background: white; border-radius: 10px; margin-bottom: 1rem; padding: 0.5rem; box-shadow: 0 2px 8px rgba(0,0,0,0.08); border: 1px solid var(--border-color); gap: 0.5rem;">
+    <button class="empresarial-subtab active" data-emp-subtab="rio_es" onclick="trocarSubAbaEmpresarial('rio_es')" style="flex: 1; padding: 0.6rem 1rem; border: none; background: #f8f9fa; color: var(--text-muted); font-size: 0.85rem; font-weight: 500; cursor: pointer; border-radius: 8px; transition: all 0.3s; display: flex; align-items: center; justify-content: center; gap: 0.5rem;">
+      <i class="bi bi-geo-alt"></i>
+      Rio/ES
+    </button>
+    <button class="empresarial-subtab" data-emp-subtab="leste" onclick="trocarSubAbaEmpresarial('leste')" style="flex: 1; padding: 0.6rem 1rem; border: none; background: #f8f9fa; color: var(--text-muted); font-size: 0.85rem; font-weight: 500; cursor: pointer; border-radius: 8px; transition: all 0.3s; display: flex; align-items: center; justify-content: center; gap: 0.5rem;">
+      <i class="bi bi-geo-alt"></i>
+      Leste
     </button>
   </div>
 
@@ -9551,10 +9573,45 @@ if ('Notification' in window && Notification.permission === 'default') {
 // NAVEGAÇÃO DE ABAS ADMIN
 // ============================================
 
+// Sub-aba Empresarial ativa (rio_es ou leste). Persistida no localStorage.
+let subAbaEmpresarialAtiva = localStorage.getItem('escala_empresarial_subaba') || 'rio_es';
+
+// Alterna entre Rio/ES e Leste dentro da aba Empresarial.
+function trocarSubAbaEmpresarial(sub) {
+  if (sub !== 'rio_es' && sub !== 'leste') return;
+  subAbaEmpresarialAtiva = sub;
+  localStorage.setItem('escala_empresarial_subaba', sub);
+  // Reutiliza trocarAbaAdmin para aplicar o estado de conteúdo
+  trocarAbaAdmin(sub);
+}
+
 function trocarAbaAdmin(abaId) {
   // Remover active de todas as tabs e conteúdos
   document.querySelectorAll('.admin-nav-tab').forEach(tab => tab.classList.remove('active'));
   document.querySelectorAll('.admin-tab-content').forEach(content => content.classList.remove('active'));
+
+  // Se o usuário clicou em "Empresarial" genericamente, delegar para a sub-aba ativa
+  if (abaId === 'empresarial') {
+    abaId = subAbaEmpresarialAtiva || 'rio_es';
+  }
+
+  // Quando a aba for rio_es/leste, marcar também o botão principal "Empresarial"
+  // como ativo e exibir a sub-navegação (Rio/ES | Leste).
+  const empresarialSubnav = document.getElementById('empresarialSubnav');
+  if (abaId === 'rio_es' || abaId === 'leste') {
+    const btnEmp = document.querySelector('[data-admin-tab="empresarial"]');
+    if (btnEmp) btnEmp.classList.add('active');
+    if (empresarialSubnav) empresarialSubnav.classList.add('show');
+    // Atualizar active nos sub-botões
+    document.querySelectorAll('.empresarial-subtab').forEach(b => b.classList.remove('active'));
+    const subBtn = document.querySelector(`[data-emp-subtab="${abaId}"]`);
+    if (subBtn) subBtn.classList.add('active');
+    // Guardar a sub-aba para a próxima vez que o usuário clicar em "Empresarial"
+    subAbaEmpresarialAtiva = abaId;
+    localStorage.setItem('escala_empresarial_subaba', abaId);
+  } else {
+    if (empresarialSubnav) empresarialSubnav.classList.remove('show');
+  }
 
   // Ativar tab selecionada
   const tabBtn = document.querySelector(`[data-admin-tab="${abaId}"]`);
