@@ -2668,24 +2668,8 @@
     </div>
   </div>
 
-  <!-- Escalonamento: Seção de visualização (visível para todos) -->
-  <div id="escalonamentoSection" class="mt-3" style="display: none;">
-    <div id="escalonamentoHeader" onclick="toggleEscalonamento()" style="background: linear-gradient(135deg, #388E3C 0%, #2E7D32 100%); color: white; padding: 0.75rem 1rem; border-radius: 8px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; user-select: none;">
-      <span><i class="bi bi-telephone-fill me-2"></i>Escalonamento - Rede Externa</span>
-      <i class="bi bi-chevron-down" id="escalonamentoChevron" style="transition: transform 0.2s;"></i>
-    </div>
-    <div id="escalonamentoBody" style="display: none;">
-      <div style="background: #E8F5E9; padding: 0.5rem 0.75rem; border-left: 1px solid #A5D6A7; border-right: 1px solid #A5D6A7; overflow-x: auto;">
-        <div id="escalonamentoTabs" style="display: flex; gap: 0.25rem; flex-wrap: wrap;"></div>
-      </div>
-      <div id="escalonamentoContent" style="padding: 1rem; background: white; border-radius: 0 0 8px 8px; border: 1px solid #A5D6A7; border-top: none; max-height: 70vh; overflow-y: auto;">
-        <div class="text-center text-muted py-4">
-          <i class="bi bi-hand-index" style="font-size: 2rem;"></i>
-          <p class="mt-2">Selecione uma região acima</p>
-        </div>
-      </div>
-    </div>
-  </div>
+  <!-- Escalonamento foi movido para fora de tabResidencial para aparecer
+       tambem em Empresarial (Rio/ES e Leste). Ver bloco apos tabLeste. -->
 
   </div><!-- Fim tabResidencial -->
 
@@ -2857,6 +2841,26 @@
   </div>
 
   </div><!-- Fim tabLeste -->
+
+  <!-- Escalonamento: visivel em Residencial, Empresarial Rio/ES e Empresarial Leste.
+       JS controla a exibicao via trocarAbaAdmin(). -->
+  <div id="escalonamentoSection" class="mt-3" style="display: none;">
+    <div id="escalonamentoHeader" onclick="toggleEscalonamento()" style="background: linear-gradient(135deg, #388E3C 0%, #2E7D32 100%); color: white; padding: 0.75rem 1rem; border-radius: 8px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; user-select: none;">
+      <span><i class="bi bi-telephone-fill me-2"></i>Escalonamento - Rede Externa</span>
+      <i class="bi bi-chevron-down" id="escalonamentoChevron" style="transition: transform 0.2s;"></i>
+    </div>
+    <div id="escalonamentoBody" style="display: none;">
+      <div style="background: #E8F5E9; padding: 0.5rem 0.75rem; border-left: 1px solid #A5D6A7; border-right: 1px solid #A5D6A7; overflow-x: auto;">
+        <div id="escalonamentoTabs" style="display: flex; gap: 0.25rem; flex-wrap: wrap;"></div>
+      </div>
+      <div id="escalonamentoContent" style="padding: 1rem; background: white; border-radius: 0 0 8px 8px; border: 1px solid #A5D6A7; border-top: none; max-height: 70vh; overflow-y: auto;">
+        <div class="text-center text-muted py-4">
+          <i class="bi bi-hand-index" style="font-size: 2rem;"></i>
+          <p class="mt-2">Selecione uma região acima</p>
+        </div>
+      </div>
+    </div>
+  </div>
 
   <!-- Conteúdo da Aba WhatsApp -->
   <div class="admin-tab-content" id="tabTelegram">
@@ -9617,6 +9621,13 @@ function trocarAbaAdmin(abaId) {
   const tabBtn = document.querySelector(`[data-admin-tab="${abaId}"]`);
   if (tabBtn) tabBtn.classList.add('active');
 
+  // Registrar a aba ativa para que componentes externos (ex: secao Escalonamento)
+  // possam decidir sua visibilidade.
+  localStorage.setItem('escala_aba_ativa', abaId);
+  if (typeof atualizarVisibilidadeEscalonamento === 'function') {
+    atualizarVisibilidadeEscalonamento();
+  }
+
   // Obter elementos das abas
   const tabResidencial = document.getElementById('tabResidencial');
   const tabRioEs = document.getElementById('tabRioEs');
@@ -12579,18 +12590,29 @@ function parseEscalonamentoSheet(rows) {
   return sections;
 }
 
+// Decide se a seção Escalonamento deve ser exibida no momento.
+// Regras: precisa ter dados carregados E a aba ativa precisa ser
+// uma das abas de calendário (residencial, rio_es, leste).
+function atualizarVisibilidadeEscalonamento() {
+  var section = document.getElementById('escalonamentoSection');
+  if (!section) return;
+  var temDados = escalonamentoDados && Object.keys(escalonamentoDados).length > 0;
+  var ativa = localStorage.getItem('escala_aba_ativa') || 'residencial';
+  var abaPermitida = (ativa === 'residencial' || ativa === 'rio_es' || ativa === 'leste');
+  section.style.display = (temDados && abaPermitida) ? 'block' : 'none';
+}
+
 function renderEscalonamentoTabs() {
   var tabsEl = document.getElementById('escalonamentoTabs');
-  var section = document.getElementById('escalonamentoSection');
   if (!tabsEl) return;
 
   var regioes = Object.keys(escalonamentoDados);
   if (regioes.length === 0) {
-    if (section) section.style.display = 'none';
+    atualizarVisibilidadeEscalonamento();
     return;
   }
 
-  if (section) section.style.display = 'block';
+  atualizarVisibilidadeEscalonamento();
   tabsEl.innerHTML = '';
 
   regioes.forEach(function(sheetName) {
@@ -12739,7 +12761,7 @@ function limparEscalonamento() {
   if (!confirm('Remover os dados de escalonamento?')) return;
   escalonamentoDados = {};
   escalonamentoAbaAtiva = '';
-  document.getElementById('escalonamentoSection').style.display = 'none';
+  atualizarVisibilidadeEscalonamento();
   document.getElementById('escalonamentoTabs').innerHTML = '';
   document.getElementById('escalonamentoContent').innerHTML = '';
   var infoEl = document.getElementById('escalonamentoInfo');
