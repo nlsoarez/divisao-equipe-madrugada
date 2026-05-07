@@ -1,9 +1,9 @@
 /**
  * ═══════════════════════════════════════════════════════════════════════════
- * DESIGN SYSTEM — VERDE MODERNO PROFISSIONAL
+ * DESIGN SYSTEM — VERMELHO CORPORATIVO PROFISSIONAL
  * ═══════════════════════════════════════════════════════════════════════════
  *
- * Paleta: Verde floresta refinado (#388E3C), Branco, Cinza limpo
+ * Paleta: Vermelho corporativo refinado (#d32f2f), Branco, Cinza limpo
  * Ausentes: Âmbar suave (#F59E0B) — distinguível sem ser agressivo
  *
  * <link rel="stylesheet" href="design-system.css">
@@ -15,17 +15,17 @@
    1. VARIÁVEIS CSS
    ═══════════════════════════════════════════════════════════════════════════ */
 :root {
-    /* Verde floresta profissional */
-    --ds-primary-50:  #E8F5E9;
-    --ds-primary-100: #C8E6C9;
-    --ds-primary-200: #A5D6A7;
-    --ds-primary-300: #81C784;
-    --ds-primary-400: #66BB6A;
-    --ds-primary-500: #4CAF50;
-    --ds-primary-600: #43A047;
-    --ds-primary-700: #388E3C;   /* tom principal — mais premium */
-    --ds-primary-800: #2E7D32;
-    --ds-primary-900: #1B5E20;
+    /* Vermelho corporativo profissional */
+    --ds-primary-50:  #ffebee;
+    --ds-primary-100: #ffebee;
+    --ds-primary-200: #ffebee;
+    --ds-primary-300: #ef9a9a;
+    --ds-primary-400: #c62828;
+    --ds-primary-500: #d32f2f;
+    --ds-primary-600: #d32f2f;
+    --ds-primary-700: #d32f2f;   /* tom principal — mais premium */
+    --ds-primary-800: #b71c1c;
+    --ds-primary-900: #b71c1c;
 
     /* Âmbar — ausentes (quente, não agressivo) */
     --ds-amber-50:  #FFFBEB;
@@ -43,32 +43,32 @@
 
     /* Neutras */
     --ds-gray-50:  #FAFAFA;
-    --ds-gray-100: #F4F4F5;
-    --ds-gray-200: #E4E4E7;
-    --ds-gray-300: #D4D4D8;
+    --ds-gray-100: #f5f5f5;
+    --ds-gray-200: #e0e0e0;
+    --ds-gray-300: #d1d5db;
     --ds-gray-400: #A1A1AA;
-    --ds-gray-500: #71717A;
-    --ds-gray-600: #52525B;
-    --ds-gray-700: #3F3F46;
-    --ds-gray-800: #27272A;
-    --ds-gray-900: #18181B;
+    --ds-gray-500: #7f8c8d;
+    --ds-gray-600: #7f8c8d;
+    --ds-gray-700: #2c3e50;
+    --ds-gray-800: #2c3e50;
+    --ds-gray-900: #2c3e50;
 
     /* Texto */
-    --ds-text-primary:   #18181B;
-    --ds-text-secondary: #52525B;
-    --ds-text-muted:     #71717A;
+    --ds-text-primary:   #2c3e50;
+    --ds-text-secondary: #7f8c8d;
+    --ds-text-muted:     #7f8c8d;
     --ds-text-white:     #FFFFFF;
 
     /* Fundos */
-    --ds-bg-gradient:          linear-gradient(150deg, #FAFAFA 0%, #F4F4F5 60%, #ECFDF5 100%);
-    --ds-bg-header:            linear-gradient(135deg, #1B5E20 0%, #2E7D32 40%, #388E3C 100%);
-    --ds-bg-button:            linear-gradient(135deg, #388E3C 0%, #2E7D32 100%);
-    --ds-bg-button-hover:      linear-gradient(135deg, #2E7D32 0%, #1B5E20 100%);
-    --ds-bg-button-secondary:  linear-gradient(135deg, #66BB6A 0%, #43A047 100%);
+    --ds-bg-gradient:          linear-gradient(150deg, #FAFAFA 0%, #f5f5f5 60%, #d1d5db 100%);
+    --ds-bg-header:            linear-gradient(135deg, #b71c1c 0%, #b71c1c 40%, #d32f2f 100%);
+    --ds-bg-button:            linear-gradient(135deg, #d32f2f 0%, #b71c1c 100%);
+    --ds-bg-button-hover:      linear-gradient(135deg, #b71c1c 0%, #b71c1c 100%);
+    --ds-bg-button-secondary:  linear-gradient(135deg, #c62828 0%, #d32f2f 100%);
     --ds-bg-danger:            linear-gradient(135deg, #EF4444 0%, #DC2626 100%);
 
-    /* Tipografia — Inter */
-    --ds-font-family: 'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif;
+    /* Tipografia */
+    --ds-font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, 'Roboto', sans-serif;
     --ds-font-mono:   'Courier New', 'Consolas', monospace;
     --ds-font-size-xs:   10px;
     --ds-font-size-sm:   11px;
@@ -101,7 +101,7 @@
     --ds-shadow-sm:      0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04);
     --ds-shadow-md:      0 4px 12px rgba(0,0,0,0.08), 0 1px 4px rgba(0,0,0,0.05);
     --ds-shadow-lg:      0 8px 28px rgba(0,0,0,0.12), 0 3px 8px rgba(0,0,0,0.06);
-    --ds-shadow-primary: 0 3px 8px rgba(56,142,60,0.30), 0 1px 3px rgba(0,0,0,0.08);
+    --ds-shadow-primary: 0 3px 8px rgba(211,47,47,0.30), 0 1px 3px rgba(0,0,0,0.08);
     --ds-shadow-danger:  0 2px 6px rgba(239,68,68,0.30);
 
     /* Transições */
@@ -144,8 +144,8 @@
     position: fixed;
     top: 0; left: 0; right: 0; bottom: 0;
     background:
-        radial-gradient(circle at 15% 40%, rgba(76,175,80,0.06) 0%, transparent 50%),
-        radial-gradient(circle at 85% 75%, rgba(56,142,60,0.05) 0%, transparent 50%);
+        radial-gradient(circle at 15% 40%, rgba(211,47,47,0.06) 0%, transparent 50%),
+        radial-gradient(circle at 85% 75%, rgba(211,47,47,0.05) 0%, transparent 50%);
     pointer-events: none;
     z-index: 0;
 }
@@ -294,7 +294,7 @@
     outline: none;
     border-color: var(--ds-primary-600);
     background: white;
-    box-shadow: 0 0 0 3px rgba(67,160,71,0.12);
+    box-shadow: 0 0 0 3px rgba(211,47,47,0.12);
 }
 
 .ds-input-hint {
@@ -353,7 +353,7 @@
 .ds-btn:hover {
     background: var(--ds-bg-button-hover);
     transform: translateY(-2px);
-    box-shadow: 0 6px 18px rgba(56,142,60,0.38), 0 2px 6px rgba(0,0,0,0.1);
+    box-shadow: 0 6px 18px rgba(211,47,47,0.38), 0 2px 6px rgba(0,0,0,0.1);
 }
 
 .ds-btn:active { transform: translateY(0); }
@@ -362,13 +362,13 @@
 
 /* Variantes */
 .ds-btn-secondary {
-    background: linear-gradient(135deg, #F4F4F5 0%, #E4E4E7 100%);
+    background: linear-gradient(135deg, #f5f5f5 0%, #e0e0e0 100%);
     color: var(--ds-gray-700);
     box-shadow: 0 1px 4px rgba(0,0,0,0.1);
 }
 
 .ds-btn-secondary:hover {
-    background: linear-gradient(135deg, #E4E4E7 0%, #D4D4D8 100%);
+    background: linear-gradient(135deg, #e0e0e0 0%, #d1d5db 100%);
     box-shadow: 0 3px 8px rgba(0,0,0,0.12);
     color: var(--ds-gray-900);
 }
@@ -391,7 +391,7 @@
 .ds-btn-icon {
     padding: var(--ds-spacing-md) var(--ds-spacing-lg);
     background: linear-gradient(135deg, var(--ds-primary-600) 0%, var(--ds-primary-500) 100%);
-    box-shadow: 0 2px 6px rgba(67,160,71,0.28);
+    box-shadow: 0 2px 6px rgba(211,47,47,0.28);
     margin-top: 0;
 }
 
@@ -541,7 +541,7 @@
     transition: background var(--ds-transition-normal);
 }
 
-.ds-accordion-header:hover { background: rgba(67,160,71,0.04); }
+.ds-accordion-header:hover { background: rgba(211,47,47,0.04); }
 
 .ds-accordion-header .ds-card-title {
     margin-bottom: 0;
@@ -568,7 +568,7 @@
    11. OUTPUT/CODE
    ═══════════════════════════════════════════════════════════════════════════ */
 .ds-output {
-    background: linear-gradient(135deg, #F0FDF4 0%, var(--ds-primary-50) 100%);
+    background: linear-gradient(135deg, #ffebee 0%, var(--ds-primary-50) 100%);
     padding: var(--ds-spacing-2xl);
     border-radius: var(--ds-border-radius-lg);
     border: 1px solid var(--ds-primary-100);
@@ -763,4 +763,388 @@
 .ds-list::-webkit-scrollbar-thumb:hover,
 .ds-output::-webkit-scrollbar-thumb:hover {
     background: linear-gradient(135deg, var(--ds-primary-600), var(--ds-primary-900));
+}
+
+/* ==========================================================================
+   18. PADRAO CORPORATIVO FINAL
+   ========================================================================== */
+:root {
+    --corp-primary: #d32f2f;
+    --corp-primary-dark: #b71c1c;
+    --corp-primary-hover: #c62828;
+    --corp-page-bg: #d1d5db;
+    --corp-card-bg: #ffffff;
+    --corp-text: #2c3e50;
+    --corp-muted: #7f8c8d;
+    --corp-border: #e0e0e0;
+    --corp-soft: #ffebee;
+    --corp-field-bg: #fafafa;
+    --corp-radius: 14px;
+    --corp-shadow: 0 8px 24px rgba(44, 62, 80, 0.12), 0 2px 8px rgba(44, 62, 80, 0.08);
+    --corp-shadow-soft: 0 4px 14px rgba(44, 62, 80, 0.10);
+    --corp-focus: 0 0 0 3px rgba(211, 47, 47, 0.16);
+}
+
+html {
+    background: var(--corp-page-bg);
+}
+
+body.ds-bg-gradient,
+.ds-bg-gradient {
+    background: var(--corp-page-bg);
+    color: var(--corp-text);
+    font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, 'Roboto', sans-serif;
+    letter-spacing: 0;
+}
+
+.ds-bg-gradient::before {
+    display: none;
+}
+
+.main-container,
+.admin-controls,
+.user-controls {
+    max-width: 960px;
+}
+
+.app-header {
+    background: linear-gradient(135deg, var(--corp-primary-dark) 0%, var(--corp-primary) 100%);
+    box-shadow: var(--corp-shadow);
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    border-radius: 16px;
+}
+
+.app-header h1,
+.ds-header-title {
+    font-size: clamp(20px, 2vw, 24px);
+    font-weight: 700;
+    letter-spacing: 0;
+}
+
+.calendar-container,
+.config-accordion,
+.admin-controls,
+.user-controls,
+.ds-card,
+.card,
+.telegram-card,
+.telegram-section,
+.modal-content,
+#loginModal .modal-content {
+    background: var(--corp-card-bg);
+    border: 1px solid var(--corp-border);
+    border-radius: var(--corp-radius);
+    box-shadow: var(--corp-shadow-soft);
+}
+
+.calendar-container,
+.ds-card {
+    border-left: 4px solid var(--corp-primary);
+}
+
+.calendar-container:hover,
+.ds-card:hover,
+.card:hover {
+    transform: translateY(-1px);
+    box-shadow: var(--corp-shadow);
+}
+
+.calendar-title,
+.ds-card-title,
+.config-header,
+.modal-title,
+.telegram-section-title,
+.telegram-card-title {
+    color: var(--corp-text);
+    letter-spacing: 0;
+}
+
+.calendar-title i,
+.ds-card-title i,
+.text-primary,
+.ds-text-primary {
+    color: var(--corp-primary) !important;
+}
+
+.btn,
+.ds-btn,
+.refresh-btn,
+.telegram-btn,
+.calendar-nav-btn,
+.btn-agendar-trocas,
+.btn-primary-compact {
+    border-radius: 10px;
+    font-size: 13px;
+    font-weight: 600;
+    transition: transform 0.3s ease, box-shadow 0.3s ease, background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease;
+}
+
+.btn:hover,
+.ds-btn:hover,
+.refresh-btn:hover,
+.telegram-btn:hover,
+.calendar-nav-btn:hover,
+.btn-agendar-trocas:hover,
+.btn-primary-compact:hover {
+    transform: translateY(-1px);
+}
+
+.btn-primary,
+.btn-success,
+.btn-outline-primary:hover,
+.btn-outline-success:hover,
+.ds-btn,
+.refresh-btn,
+.calendar-nav-btn,
+.telegram-btn-primary,
+.telegram-btn-success,
+.btn-primary-compact {
+    background: var(--corp-primary) !important;
+    border-color: var(--corp-primary) !important;
+    color: #fff !important;
+    box-shadow: 0 3px 10px rgba(211, 47, 47, 0.24);
+}
+
+.btn-primary:hover,
+.btn-success:hover,
+.btn-outline-primary:hover,
+.btn-outline-success:hover,
+.ds-btn:hover,
+.refresh-btn:hover,
+.calendar-nav-btn:hover,
+.telegram-btn-primary:hover,
+.telegram-btn-success:hover,
+.btn-primary-compact:hover {
+    background: var(--corp-primary-hover) !important;
+    border-color: var(--corp-primary-hover) !important;
+    color: #fff !important;
+    box-shadow: 0 7px 18px rgba(211, 47, 47, 0.28);
+}
+
+.btn-outline-primary,
+.btn-outline-success {
+    color: var(--corp-primary) !important;
+    border-color: var(--corp-primary) !important;
+    background: #fff !important;
+}
+
+.btn-secondary,
+.btn-outline-secondary,
+.ds-btn-secondary {
+    background: #f5f5f5 !important;
+    border-color: var(--corp-border) !important;
+    color: var(--corp-text) !important;
+    box-shadow: none;
+}
+
+.btn-secondary:hover,
+.btn-outline-secondary:hover,
+.ds-btn-secondary:hover {
+    background: #e9ecef !important;
+    border-color: #d1d5db !important;
+    color: var(--corp-text) !important;
+}
+
+input,
+select,
+textarea,
+.form-control,
+.form-select,
+.ds-input,
+.ds-select,
+.ds-textarea {
+    background: var(--corp-field-bg) !important;
+    border: 1px solid var(--corp-border) !important;
+    border-radius: 10px !important;
+    color: var(--corp-text) !important;
+    font-size: 13px;
+    transition: border-color 0.3s ease, box-shadow 0.3s ease, background-color 0.3s ease;
+}
+
+input:focus,
+select:focus,
+textarea:focus,
+.form-control:focus,
+.form-select:focus,
+.ds-input:focus,
+.ds-select:focus,
+.ds-textarea:focus {
+    background: #fff !important;
+    border-color: var(--corp-primary) !important;
+    box-shadow: var(--corp-focus) !important;
+    outline: none;
+}
+
+label,
+.form-label,
+.ds-label,
+.config-group label {
+    color: var(--corp-text);
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.table-responsive {
+    overflow-x: auto;
+}
+
+.table {
+    color: var(--corp-text);
+    border-color: var(--corp-border);
+    vertical-align: middle;
+}
+
+.table thead th,
+.table thead td,
+.calendar-weekday {
+    background: var(--corp-primary) !important;
+    color: #fff !important;
+    border-color: var(--corp-primary) !important;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0;
+}
+
+.table tbody td,
+.table tbody th {
+    border-color: var(--corp-border);
+    padding: 10px 12px;
+}
+
+.table-hover tbody tr:hover {
+    background-color: var(--corp-soft);
+}
+
+.modal-backdrop.show {
+    opacity: 0.58;
+}
+
+.modal-content {
+    overflow: hidden;
+}
+
+.modal-header,
+.day-modal .modal-header,
+#loginModal .modal-header {
+    background: linear-gradient(135deg, var(--corp-primary-dark), var(--corp-primary)) !important;
+    color: #fff !important;
+    border-bottom: 0;
+}
+
+.modal-body {
+    color: var(--corp-text);
+}
+
+.modal-footer {
+    background: #fff;
+    border-top: 1px solid var(--corp-border);
+}
+
+.toast-container {
+    z-index: 1090;
+}
+
+.toast {
+    border-radius: 14px !important;
+    box-shadow: var(--corp-shadow);
+    overflow: hidden;
+}
+
+.toast.bg-success,
+.toast.bg-primary {
+    background: var(--corp-primary) !important;
+}
+
+.toast.bg-danger {
+    background: var(--corp-primary-dark) !important;
+}
+
+.toast.bg-info {
+    background: #2c3e50 !important;
+}
+
+.toast.bg-warning {
+    background: #f59e0b !important;
+    color: #2c3e50 !important;
+}
+
+.calendar-day:hover {
+    background: var(--corp-soft) !important;
+}
+
+.calendar-day.today,
+.calendar-day.has-data,
+.swap-controls,
+.config-header,
+.ds-output {
+    background: var(--corp-soft) !important;
+    border-color: var(--corp-border) !important;
+}
+
+.badge.bg-primary,
+.badge.bg-success {
+    background-color: var(--corp-primary) !important;
+}
+
+.spinner-border.text-primary {
+    color: var(--corp-primary) !important;
+}
+
+@media (max-width: 768px) {
+    body.ds-bg-gradient,
+    .ds-bg-gradient {
+        padding: 10px;
+    }
+
+    .app-header,
+    .admin-controls,
+    .user-controls,
+    .main-container {
+        width: 100%;
+        max-width: 100%;
+        margin-left: auto;
+        margin-right: auto;
+    }
+
+    .admin-controls,
+    .user-controls,
+    .config-row,
+    .swap-controls {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 10px;
+    }
+
+    .admin-controls .buttons-group,
+    .user-controls .buttons-group {
+        position: static;
+        width: 100%;
+        justify-content: center;
+        flex-wrap: wrap;
+    }
+
+    .btn,
+    .ds-btn,
+    .telegram-btn {
+        width: 100%;
+        justify-content: center;
+    }
+
+    .refresh-btn,
+    .calendar-nav-btn {
+        width: 42px;
+        min-width: 42px;
+    }
+
+    .calendar-container {
+        overflow-x: auto;
+    }
+
+    .calendar-grid {
+        min-width: 700px;
+    }
+
+    .modal-dialog {
+        margin: 10px;
+    }
 }

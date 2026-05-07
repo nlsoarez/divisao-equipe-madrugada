@@ -8,34 +8,32 @@
   <!-- CSS & Libs -->
   <link rel="preconnect" href="https://fonts.googleapis.com"/>
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"/>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet"/>
-  <link rel="stylesheet" href="design-system.css"/>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/pdfmake@0.2.10/build/pdfmake.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/pdfmake@0.2.10/build/vfs_fonts.js"></script>
 
   <style>
     :root {
-      /* Verde moderno profissional */
-      --primary:         #388E3C;
-      --primary-dark:    #2E7D32;
-      --primary-darker:  #1B5E20;
-      --primary-light:   #66BB6A;
-      --accent:          #A5D6A7;
-      --light-bg:        #F4F4F5;
+      /* Vermelho corporativo profissional */
+      --primary:         #d32f2f;
+      --primary-dark:    #b71c1c;
+      --primary-darker:  #b71c1c;
+      --primary-light:   #c62828;
+      --accent:          #ffebee;
+      --light-bg:        #d1d5db;
       --card-bg:         #ffffff;
-      --text-dark:       #18181B;
-      --text-muted:      #71717A;
-      --border-color:    #E4E4E7;
-      --success:         #43A047;
+      --text-dark:       #2c3e50;
+      --text-muted:      #7f8c8d;
+      --border-color:    #e0e0e0;
+      --success:         #d32f2f;
       --danger:          #EF4444;
       --info:            #3B82F6;
       --warning:         #F59E0B;
       --calendar-bg:     #ffffff;
-      --calendar-header: #F4F4F5;
-      --calendar-today:  #E8F5E9;
+      --calendar-header: #f5f5f5;
+      --calendar-today:  #ffebee;
     }
     
     * {
@@ -44,7 +42,7 @@
     
     body {
       /* Background now handled by ds-bg-gradient class */
-      font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
+      font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, 'Roboto', sans-serif;
       color: var(--text-dark);
       line-height: 1.5;
       min-height: 100vh;
@@ -52,13 +50,13 @@
     }
     
     .app-header {
-      background: linear-gradient(135deg, #1B5E20 0%, #2E7D32 40%, #388E3C 100%);
+      background: linear-gradient(135deg, #b71c1c 0%, #b71c1c 40%, #d32f2f 100%);
       color: #fff;
       padding: 1.25rem 0;
       margin: 15px 15px 0 15px;
       position: relative;
       z-index: 100;
-      box-shadow: 0 4px 16px rgba(27,94,32,0.35), 0 2px 6px rgba(0,0,0,0.1);
+      box-shadow: 0 4px 16px rgba(183,28,28,0.30), 0 2px 6px rgba(0,0,0,0.1);
       border-radius: var(--ds-border-radius-xl, 12px);
     }
 
@@ -121,7 +119,7 @@
       justify-content: center;
       gap: 0.75rem;
       align-items: center;
-      border-left: 4px solid #388E3C;
+      border-left: 4px solid #d32f2f;
       position: relative;
     }
 
@@ -133,7 +131,7 @@
     }
     
     .refresh-btn {
-      background: #388E3C;
+      background: #d32f2f;
       color: white;
       border: none;
       border-radius: 8px;
@@ -143,14 +141,14 @@
       align-items: center;
       justify-content: center;
       cursor: pointer;
-      box-shadow: 0 2px 6px rgba(56,142,60,0.22);
+      box-shadow: 0 2px 6px rgba(211,47,47,0.22);
       transition: all 0.25s;
     }
 
     .refresh-btn:hover {
-      background: #2E7D32;
+      background: #b71c1c;
       transform: translateY(-2px);
-      box-shadow: 0 4px 10px rgba(56,142,60,0.32);
+      box-shadow: 0 4px 10px rgba(211,47,47,0.32);
     }
     
     /* Botão Upload - Amarelo suave */
@@ -174,14 +172,14 @@
       background: linear-gradient(135deg, #ff5722 0%, #f4511e 100%);
     }
 
-    /* Botão Refresh admin - Verde médio */
+    /* Botão Refresh admin - Vermelho corporativo */
     .admin-controls .refresh-btn:not(.upload-admin):not(.delete-admin):not(.logout-admin) {
-      background: linear-gradient(135deg, #43A047 0%, #388E3C 100%);
+      background: linear-gradient(135deg, #d32f2f 0%, #d32f2f 100%);
       color: white;
     }
 
     .admin-controls .refresh-btn:not(.upload-admin):not(.delete-admin):not(.logout-admin):hover {
-      background: linear-gradient(135deg, #388E3C 0%, #2E7D32 100%);
+      background: linear-gradient(135deg, #d32f2f 0%, #b71c1c 100%);
     }
 
     /* Botão Logout - Vermelho suave */
@@ -223,9 +221,9 @@
     }
     
     .mode-indicator.viewer {
-      background: rgba(56, 142, 60, 0.1);
-      color: #2E7D32;
-      border-left: 4px solid #388E3C;
+      background: rgba(211, 47, 47, 0.1);
+      color: #b71c1c;
+      border-left: 4px solid #d32f2f;
     }
 
     /* Botão Agendar trocas - estilo similar ao mode-indicator */
@@ -297,7 +295,7 @@
     
     .config-header {
       padding: 0.75rem 1rem;
-      background: #F0FDF4;
+      background: #ffebee;
       border-bottom: 1px solid var(--border-color);
       cursor: pointer;
       display: flex;
@@ -305,7 +303,7 @@
       justify-content: space-between;
       font-size: 0.9rem;
       font-weight: 500;
-      color: #388E3C;
+      color: #d32f2f;
     }
     
     .config-header i {
@@ -348,33 +346,33 @@
       background: white;
     }
     
-    /* ─── Bootstrap primary → verde moderno ─── */
+    /* ─── Bootstrap primary → vermelho corporativo ─── */
     :root {
-      --bs-primary: #388E3C;
-      --bs-primary-rgb: 56, 142, 60;
-      --bs-link-color: #388E3C;
-      --bs-link-hover-color: #2E7D32;
+      --bs-primary: #d32f2f;
+      --bs-primary-rgb: 211, 47, 47;
+      --bs-link-color: #d32f2f;
+      --bs-link-hover-color: #b71c1c;
     }
 
     /* ─── Refinamento Bootstrap btn-success ─── */
     .btn-success,
     .btn-success:focus {
-      background-color: #388E3C;
-      border-color: #2E7D32;
+      background-color: #d32f2f;
+      border-color: #b71c1c;
       color: white;
     }
     .btn-success:hover,
     .btn-success:active {
-      background-color: #2E7D32 !important;
-      border-color: #1B5E20 !important;
+      background-color: #b71c1c !important;
+      border-color: #b71c1c !important;
     }
     .btn-outline-success {
-      color: #388E3C;
-      border-color: #388E3C;
+      color: #d32f2f;
+      border-color: #d32f2f;
     }
     .btn-outline-success:hover {
-      background-color: #388E3C;
-      border-color: #388E3C;
+      background-color: #d32f2f;
+      border-color: #d32f2f;
       color: white;
     }
 
@@ -385,8 +383,8 @@
       padding: var(--ds-spacing-5xl, 20px);
       margin-bottom: var(--ds-spacing-3xl, 16px);
       box-shadow: var(--ds-shadow-md, 0 3px 12px rgba(0, 0, 0, 0.08));
-      border: 1px solid var(--ds-gray-200, #E4E4E7);
-      border-left: 4px solid var(--ds-primary-700, #388E3C);
+      border: 1px solid var(--ds-gray-200, #e0e0e0);
+      border-left: 4px solid var(--ds-primary-700, #d32f2f);
       transition: var(--ds-transition-smooth, 0.3s cubic-bezier(0.4, 0, 0.2, 1));
       position: relative;
       overflow: hidden;
@@ -399,7 +397,7 @@
       left: 0;
       width: 4px;
       height: 0;
-      background: linear-gradient(180deg, var(--ds-primary-700, #388E3C), var(--ds-primary-400, #66BB6A));
+      background: linear-gradient(180deg, var(--ds-primary-700, #d32f2f), var(--ds-primary-400, #c62828));
       transition: height 0.3s ease;
     }
 
@@ -418,13 +416,13 @@
       align-items: center;
       margin-bottom: var(--ds-spacing-4xl, 18px);
       padding-bottom: var(--ds-spacing-lg, 10px);
-      border-bottom: 2px solid var(--ds-primary-200, #A5D6A7);
+      border-bottom: 2px solid var(--ds-primary-200, #ffebee);
     }
 
     .calendar-title {
       font-size: var(--ds-font-size-lg, 16px);
       font-weight: 700;
-      color: var(--ds-primary-800, #2E7D32);
+      color: var(--ds-primary-800, #b71c1c);
       margin: 0;
       display: flex;
       align-items: center;
@@ -432,7 +430,7 @@
     }
 
     .calendar-title i {
-      color: var(--ds-primary-700, #388E3C);
+      color: var(--ds-primary-700, #d32f2f);
       font-size: var(--ds-font-size-xl, 18px);
     }
 
@@ -456,12 +454,12 @@
     }
 
     .escala-tipo-badge.residencial {
-      background: linear-gradient(135deg, #388E3C 0%, #2E7D32 100%);
+      background: linear-gradient(135deg, #d32f2f 0%, #b71c1c 100%);
       color: white;
     }
 
     .escala-tipo-badge.empresarial {
-      background: linear-gradient(135deg, #388E3C 0%, #2E7D32 100%);
+      background: linear-gradient(135deg, #d32f2f 0%, #b71c1c 100%);
       color: white;
     }
 
@@ -471,7 +469,7 @@
     }
 
     .calendar-nav-btn {
-      background: linear-gradient(135deg, #388E3C 0%, #2E7D32 100%);
+      background: linear-gradient(135deg, #d32f2f 0%, #b71c1c 100%);
       border: none;
       border-radius: var(--ds-border-radius-md, 6px);
       width: 36px;
@@ -482,7 +480,7 @@
       cursor: pointer;
       font-size: 0.85rem;
       color: white;
-      box-shadow: 0 2px 6px rgba(56, 142, 60, 0.28);
+      box-shadow: 0 2px 6px rgba(211, 47, 47, 0.28);
       transition: var(--ds-transition-smooth, 0.25s ease);
       position: relative;
       overflow: hidden;
@@ -507,9 +505,9 @@
     }
 
     .calendar-nav-btn:hover {
-      background: linear-gradient(135deg, #2E7D32 0%, #1B5E20 100%);
+      background: linear-gradient(135deg, #b71c1c 0%, #b71c1c 100%);
       transform: translateY(-2px);
-      box-shadow: 0 4px 12px rgba(56, 142, 60, 0.38);
+      box-shadow: 0 4px 12px rgba(211, 47, 47, 0.38);
     }
 
     .calendar-nav-btn:active {
@@ -520,9 +518,9 @@
     .swap-controls {
       margin-bottom: 1rem;
       padding: 0.75rem;
-      background: #F0FDF4;
+      background: #ffebee;
       border-radius: 8px;
-      border: 1px solid #A5D6A7;
+      border: 1px solid #ffebee;
       display: flex;
       align-items: center;
       gap: 1rem;
@@ -544,7 +542,7 @@
     .swap-toggle label {
       font-size: 0.85rem;
       font-weight: 500;
-      color: #388E3C;
+      color: #d32f2f;
       cursor: pointer;
       margin: 0;
     }
@@ -561,13 +559,13 @@
       font-weight: 500;
     }
     
-    /* Grid do Calendário — Verde Moderno */
+    /* Grid do Calendário — Vermelho Corporativo */
     .calendar-grid {
       display: grid;
       grid-template-columns: repeat(7, 1fr);
       gap: 2px;
-      background: var(--ds-gray-200, #E4E4E7);
-      border: 1px solid var(--ds-gray-300, #D4D4D8);
+      background: var(--ds-gray-200, #e0e0e0);
+      border: 1px solid var(--ds-gray-300, #d1d5db);
       border-radius: var(--ds-border-radius-lg, 8px);
       overflow: hidden;
       box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.04);
@@ -575,7 +573,7 @@
 
     /* Cabeçalho dos dias da semana */
     .calendar-weekday {
-      background: linear-gradient(135deg, #1B5E20 0%, #2E7D32 50%, #388E3C 100%);
+      background: linear-gradient(135deg, #b71c1c 0%, #b71c1c 50%, #d32f2f 100%);
       padding: 0.85rem 0.5rem;
       text-align: center;
       font-size: 0.78rem;
@@ -605,7 +603,7 @@
       left: 50%;
       width: 0;
       height: 3px;
-      background: linear-gradient(90deg, #66BB6A, #388E3C);
+      background: linear-gradient(90deg, #c62828, #d32f2f);
       transform: translateX(-50%);
       transition: width 0.25s ease;
       border-radius: 3px 3px 0 0;
@@ -616,10 +614,10 @@
     }
 
     .calendar-day:hover {
-      background: linear-gradient(135deg, #E8F5E9 0%, white 100%);
+      background: linear-gradient(135deg, #ffebee 0%, white 100%);
       transform: scale(1.02);
       z-index: 2;
-      box-shadow: 0 4px 12px rgba(56, 142, 60, 0.15);
+      box-shadow: 0 4px 12px rgba(211, 47, 47, 0.15);
     }
 
     .calendar-day.empty {
@@ -638,8 +636,8 @@
     }
 
     .calendar-day.today {
-      background: linear-gradient(135deg, #C8E6C9 0%, #E8F5E9 100%);
-      border-left: 4px solid #388E3C;
+      background: linear-gradient(135deg, #ffebee 0%, #ffebee 100%);
+      border-left: 4px solid #d32f2f;
     }
 
     .calendar-day.today::before {
@@ -650,17 +648,17 @@
       font-size: 0.6rem;
       font-weight: 700;
       color: white;
-      background: linear-gradient(135deg, #388E3C 0%, #2E7D32 100%);
+      background: linear-gradient(135deg, #d32f2f 0%, #b71c1c 100%);
       padding: 2px 6px;
       border-radius: 10px;
       text-transform: uppercase;
       letter-spacing: 0.5px;
-      box-shadow: 0 2px 4px rgba(56, 142, 60, 0.3);
+      box-shadow: 0 2px 4px rgba(211, 47, 47, 0.3);
     }
 
     .calendar-day.has-data {
-      border-left: 4px solid #66BB6A;
-      background: linear-gradient(90deg, rgba(102,187,106,0.1) 0%, white 12%);
+      border-left: 4px solid #c62828;
+      background: linear-gradient(90deg, rgba(211,47,47,0.1) 0%, white 12%);
     }
 
     /* Estilo para dias selecionados para troca */
@@ -687,31 +685,31 @@
     .calendar-day-number {
       font-size: 1rem;
       font-weight: 700;
-      color: #18181B;
+      color: #2c3e50;
       margin-bottom: 0.3rem;
     }
 
     .calendar-day-week {
       font-size: 0.7rem;
-      color: #71717A;
+      color: #7f8c8d;
       text-transform: uppercase;
       margin-bottom: 0.3rem;
       font-weight: 500;
       letter-spacing: 0.4px;
     }
 
-    /* Verde escuro = trabalhando (legível, profissional) */
+    /* Vermelho escuro = trabalhando (legível, profissional) */
     .calendar-day-stats {
       font-size: 0.7rem;
-      color: #1B5E20;
-      background: linear-gradient(135deg, #C8E6C9 0%, #E8F5E9 100%);
+      color: #b71c1c;
+      background: linear-gradient(135deg, #ffebee 0%, #ffebee 100%);
       padding: 0.2rem 0.5rem;
       border-radius: 12px;
       display: inline-block;
       font-weight: 700;
       margin-top: auto;
-      border: 1px solid #A5D6A7;
-      box-shadow: 0 1px 3px rgba(56,142,60,0.12);
+      border: 1px solid #ffebee;
+      box-shadow: 0 1px 3px rgba(211,47,47,0.12);
     }
 
     /* Âmbar suave = ausentes (quente, não agressivo) */
@@ -875,7 +873,7 @@
     /* Modal para Detalhes do Dia */
     .day-modal .modal-content {
       border-radius: var(--ds-border-radius-2xl, 14px);
-      border: 1px solid #A5D6A7;
+      border: 1px solid #ffebee;
       box-shadow: 0 20px 48px rgba(0, 0, 0, 0.15), 0 6px 12px rgba(0, 0, 0, 0.08);
       animation: ds-slideIn 0.35s cubic-bezier(0.68, -0.55, 0.265, 1.55);
       overflow: hidden;
@@ -893,7 +891,7 @@
     }
 
     .day-modal .modal-header {
-      background: linear-gradient(135deg, #1B5E20 0%, #2E7D32 40%, #388E3C 100%);
+      background: linear-gradient(135deg, #b71c1c 0%, #b71c1c 40%, #d32f2f 100%);
       color: white;
       border-radius: 0;
       padding: 1.25rem 1.5rem;
@@ -932,9 +930,9 @@
     }
 
     .day-modal .modal-footer {
-      border-top: 2px solid #C8E6C9;
+      border-top: 2px solid #ffebee;
       padding: 1rem 1.5rem;
-      background: #F4F4F5;
+      background: #f5f5f5;
     }
 
     .day-modal .btn-close {
@@ -1093,12 +1091,12 @@
       }
 
       .calendar-container::-webkit-scrollbar-track {
-        background: #E8F5E9;
+        background: #ffebee;
         border-radius: 3px;
       }
 
       .calendar-container::-webkit-scrollbar-thumb {
-        background: #81C784;
+        background: #ef9a9a;
         border-radius: 3px;
       }
 
@@ -1136,31 +1134,31 @@
       background: white;
       border-radius: var(--ds-border-radius-lg, 8px);
       padding: 1.25rem;
-      border: 1px solid #E4E4E7;
-      border-left: 4px solid #388E3C;
+      border: 1px solid #e0e0e0;
+      border-left: 4px solid #d32f2f;
       box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
       transition: var(--ds-transition-smooth, 0.25s ease);
     }
 
     .area-section:hover {
       transform: translateY(-2px);
-      box-shadow: 0 6px 16px rgba(56, 142, 60, 0.12);
+      box-shadow: 0 6px 16px rgba(211, 47, 47, 0.12);
     }
 
     .area-title {
       font-size: 0.95rem;
       font-weight: 700;
-      color: #1B5E20;
+      color: #b71c1c;
       margin-bottom: 1rem;
       padding-bottom: 0.6rem;
-      border-bottom: 2px solid #C8E6C9;
+      border-bottom: 2px solid #ffebee;
       display: flex;
       align-items: center;
       gap: 0.5rem;
     }
 
     .area-title i {
-      color: #388E3C;
+      color: #d32f2f;
     }
 
     .area-grid {
@@ -1169,33 +1167,33 @@
     }
 
     .edit-divisao-form .area-edit-item {
-      background: linear-gradient(135deg, #F0FDF4 0%, white 100%);
+      background: linear-gradient(135deg, #ffebee 0%, white 100%);
       padding: 0.85rem;
       border-radius: var(--ds-border-radius-md, 6px);
-      border: 1px solid #C8E6C9;
+      border: 1px solid #ffebee;
       transition: var(--ds-transition-fast, 0.15s ease);
     }
 
     .edit-divisao-form .area-edit-item:hover {
-      border-color: #81C784;
+      border-color: #ef9a9a;
     }
 
     .edit-divisao-form .form-label {
       margin-bottom: 0.35rem;
-      color: #1B5E20;
+      color: #b71c1c;
       font-size: 0.85rem;
       font-weight: 600;
     }
 
     .edit-divisao-form .form-select {
-      border-color: #81C784;
+      border-color: #ef9a9a;
       border-radius: var(--ds-border-radius-md, 6px);
       transition: var(--ds-transition-smooth, 0.25s ease);
     }
 
     .edit-divisao-form .form-select:focus {
-      border-color: #388E3C;
-      box-shadow: 0 0 0 3px rgba(67,160,71,0.12);
+      border-color: #d32f2f;
+      box-shadow: 0 0 0 3px rgba(211,47,47,0.12);
     }
 
     .area-item {
@@ -1222,22 +1220,22 @@
     .funcionario-name {
       font-size: 0.9rem;
       padding: 0.6rem 0.85rem;
-      background: linear-gradient(135deg, #E8F5E9 0%, white 100%);
+      background: linear-gradient(135deg, #ffebee 0%, white 100%);
       border-radius: var(--ds-border-radius-md, 6px);
-      border-left: 4px solid #66BB6A;
+      border-left: 4px solid #c62828;
       flex-grow: 1;
       min-width: 0;
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
       font-weight: 500;
-      color: #18181B;
+      color: #2c3e50;
       transition: var(--ds-transition-fast, 0.15s ease);
     }
 
     .area-item:hover .funcionario-name {
-      background: linear-gradient(135deg, #C8E6C9 0%, #E8F5E9 100%);
-      border-left-color: #388E3C;
+      background: linear-gradient(135deg, #ffebee 0%, #ffebee 100%);
+      border-left-color: #d32f2f;
     }
 
     .status-section {
@@ -1258,17 +1256,17 @@
     .status-title {
       font-size: 0.95rem;
       font-weight: 700;
-      color: #52525B;
+      color: #7f8c8d;
       margin-bottom: 1rem;
       padding-bottom: 0.6rem;
-      border-bottom: 2px solid #E4E4E7;
+      border-bottom: 2px solid #e0e0e0;
       display: flex;
       align-items: center;
       gap: 0.5rem;
     }
 
     .status-title i {
-      color: #388E3C;
+      color: #d32f2f;
     }
     
     .status-group {
@@ -1313,11 +1311,11 @@
       letter-spacing: 0.3px;
     }
 
-    /* Verde moderno = presente/trabalhando */
+    /* Vermelho corporativo = presente/trabalhando */
     .badge-presente {
-      background: linear-gradient(135deg, #388E3C 0%, #2E7D32 100%);
+      background: linear-gradient(135deg, #d32f2f 0%, #b71c1c 100%);
       color: white;
-      box-shadow: 0 2px 6px rgba(56,142,60,0.28);
+      box-shadow: 0 2px 6px rgba(211,47,47,0.28);
     }
 
     /* Âmbar suave = ausente (não agressivo) */
@@ -1378,15 +1376,15 @@
     }
 
     .btn-primary-compact {
-      background: linear-gradient(135deg, #388E3C 0%, #2E7D32 100%);
+      background: linear-gradient(135deg, #d32f2f 0%, #b71c1c 100%);
       color: white;
-      box-shadow: 0 3px 8px rgba(56,142,60,0.28), 0 1px 3px rgba(0,0,0,0.08);
+      box-shadow: 0 3px 8px rgba(211,47,47,0.28), 0 1px 3px rgba(0,0,0,0.08);
     }
 
     .btn-primary-compact:hover {
-      background: linear-gradient(135deg, #2E7D32 0%, #1B5E20 100%);
+      background: linear-gradient(135deg, #b71c1c 0%, #b71c1c 100%);
       transform: translateY(-2px);
-      box-shadow: 0 6px 18px rgba(56,142,60,0.38);
+      box-shadow: 0 6px 18px rgba(211,47,47,0.38);
     }
 
     .btn-danger-compact {
@@ -1555,11 +1553,11 @@
     #loginModal .modal-content {
       border-radius: 12px;
       border: none;
-      box-shadow: 0 10px 30px rgba(0,0,0,0.12), 0 4px 12px rgba(56,142,60,0.12);
+      box-shadow: 0 10px 30px rgba(0,0,0,0.12), 0 4px 12px rgba(211,47,47,0.12);
     }
     
     #loginModal .modal-header {
-      background: linear-gradient(135deg, #1B5E20 0%, #2E7D32 40%, #388E3C 100%);
+      background: linear-gradient(135deg, #b71c1c 0%, #b71c1c 40%, #d32f2f 100%);
       color: white;
       border-radius: 12px 12px 0 0;
       padding: 1.5rem;
@@ -1605,7 +1603,7 @@
     }
     
     .pin-section {
-      background: #F4F4F5;
+      background: #f5f5f5;
       padding: 1.5rem;
       border-radius: 8px;
       border: 1px solid var(--border-color);
@@ -1823,8 +1821,8 @@
     }
 
     .alerta-status.resolvido {
-      background: #E8F5E9;
-      color: #2E7D32;
+      background: #ffebee;
+      color: #b71c1c;
     }
 
     .alerta-status.arquivado {
@@ -2002,7 +2000,7 @@
     }
 
     /* Cores de alarme visual para volumetria */
-    /* 0-19: verde (OK) */
+    /* 0-19: vermelho suave (OK) */
     .area-summary-item.volume-ok,
     .area-volume-item.volume-ok {
       border-left: 4px solid #28a745;
@@ -2081,7 +2079,7 @@
       font-size: 0.75rem;
     }
     .inc-vol-cop {
-      color: #388E3C;
+      color: #d32f2f;
     }
     .inc-total {
       font-weight: 700;
@@ -2422,9 +2420,9 @@
     }
 
     .admin-nav-tab.active {
-      background: linear-gradient(135deg, #388E3C 0%, #2E7D32 100%);
+      background: linear-gradient(135deg, #d32f2f 0%, #b71c1c 100%);
       color: white;
-      box-shadow: 0 2px 8px rgba(56, 142, 60, 0.28);
+      box-shadow: 0 2px 8px rgba(211, 47, 47, 0.28);
     }
 
     .admin-nav-tab.telegram-tab-nav {
@@ -2441,9 +2439,9 @@
       color: var(--text-dark) !important;
     }
     .empresarial-subtab.active {
-      background: linear-gradient(135deg, #388E3C 0%, #2E7D32 100%) !important;
+      background: linear-gradient(135deg, #d32f2f 0%, #b71c1c 100%) !important;
       color: white !important;
-      box-shadow: 0 2px 8px rgba(56, 142, 60, 0.28);
+      box-shadow: 0 2px 8px rgba(211, 47, 47, 0.28);
     }
 
     .admin-nav-tab.telegram-tab-nav:hover {
@@ -2521,6 +2519,7 @@
       }
     }
   </style>
+  <link rel="stylesheet" href="design-system.css"/>
 </head>
 <body class="ds-base ds-bg-gradient">
 <header class="app-header">
@@ -2621,7 +2620,7 @@
     </div>
     <div id="calendarioPanelBodyResidencial" class="collapse">
       <div class="config-body">
-        <div class="calendario-item mb-3 p-3" style="background: #f8f9fa; border-radius: 8px; border-left: 4px solid #388E3C;">
+        <div class="calendario-item mb-3 p-3" style="background: #f8f9fa; border-radius: 8px; border-left: 4px solid #d32f2f;">
           <div class="d-flex justify-content-between align-items-center mb-2">
             <strong><i class="bi bi-house me-2"></i>Escala residencial</strong>
             <span class="badge bg-secondary" id="cal1Status">Vazio</span>
@@ -2685,7 +2684,7 @@
     <div id="calendarioPanelBodyRioEs" class="collapse">
       <div class="config-body">
         <!-- Sub-escala Rio/Es -->
-        <div class="calendario-item mb-3 p-3" style="background: #f8f9fa; border-radius: 8px; border-left: 4px solid #388E3C;">
+        <div class="calendario-item mb-3 p-3" style="background: #f8f9fa; border-radius: 8px; border-left: 4px solid #d32f2f;">
           <div class="d-flex justify-content-between align-items-center mb-2">
             <strong><i class="bi bi-geo-alt me-2"></i>Rio/ES</strong>
             <span class="badge bg-secondary" id="calRioEsStatus">Vazio</span>
@@ -2771,7 +2770,7 @@
     <div id="calendarioPanelBodyLeste" class="collapse">
       <div class="config-body">
         <!-- Sub-escala Leste -->
-        <div class="calendario-item mb-3 p-3" style="background: #f8f9fa; border-radius: 8px; border-left: 4px solid #388E3C;">
+        <div class="calendario-item mb-3 p-3" style="background: #f8f9fa; border-radius: 8px; border-left: 4px solid #d32f2f;">
           <div class="d-flex justify-content-between align-items-center mb-2">
             <strong><i class="bi bi-geo-alt me-2"></i>Leste</strong>
             <span class="badge bg-secondary" id="calLesteStatus">Vazio</span>
@@ -2845,15 +2844,15 @@
   <!-- Escalonamento: visivel em Residencial, Empresarial Rio/ES e Empresarial Leste.
        JS controla a exibicao via trocarAbaAdmin(). -->
   <div id="escalonamentoSection" class="mt-3" style="display: none;">
-    <div id="escalonamentoHeader" onclick="toggleEscalonamento()" style="background: linear-gradient(135deg, #388E3C 0%, #2E7D32 100%); color: white; padding: 0.75rem 1rem; border-radius: 8px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; user-select: none;">
+    <div id="escalonamentoHeader" onclick="toggleEscalonamento()" style="background: linear-gradient(135deg, #d32f2f 0%, #b71c1c 100%); color: white; padding: 0.75rem 1rem; border-radius: 8px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; user-select: none;">
       <span><i class="bi bi-telephone-fill me-2"></i>Escalonamento - Rede Externa</span>
       <i class="bi bi-chevron-down" id="escalonamentoChevron" style="transition: transform 0.2s;"></i>
     </div>
     <div id="escalonamentoBody" style="display: none;">
-      <div style="background: #E8F5E9; padding: 0.5rem 0.75rem; border-left: 1px solid #A5D6A7; border-right: 1px solid #A5D6A7; overflow-x: auto;">
+      <div style="background: #ffebee; padding: 0.5rem 0.75rem; border-left: 1px solid #ffebee; border-right: 1px solid #ffebee; overflow-x: auto;">
         <div id="escalonamentoTabs" style="display: flex; gap: 0.25rem; flex-wrap: wrap;"></div>
       </div>
-      <div id="escalonamentoContent" style="padding: 1rem; background: white; border-radius: 0 0 8px 8px; border: 1px solid #A5D6A7; border-top: none; max-height: 70vh; overflow-y: auto;">
+      <div id="escalonamentoContent" style="padding: 1rem; background: white; border-radius: 0 0 8px 8px; border: 1px solid #ffebee; border-top: none; max-height: 70vh; overflow-y: auto;">
         <div class="text-center text-muted py-4">
           <i class="bi bi-hand-index" style="font-size: 2rem;"></i>
           <p class="mt-2">Selecione uma região acima</p>
@@ -2980,7 +2979,7 @@
       </div>
       <!-- Rio/ES -->
       <div style="margin-bottom: 1rem; border-bottom: 1px solid #e9ecef; padding-bottom: 1rem;">
-        <h6 style="color: #388E3C; font-size: 0.85rem; font-weight: 600; margin-bottom: 0.5rem;">
+        <h6 style="color: #d32f2f; font-size: 0.85rem; font-weight: 600; margin-bottom: 0.5rem;">
           <i class="bi bi-geo-alt-fill me-1"></i>Rio/ES
         </h6>
         <div id="copEmpresarialRioEs">
@@ -2989,7 +2988,7 @@
       </div>
       <!-- Leste -->
       <div>
-        <h6 style="color: #388E3C; font-size: 0.85rem; font-weight: 600; margin-bottom: 0.5rem;">
+        <h6 style="color: #d32f2f; font-size: 0.85rem; font-weight: 600; margin-bottom: 0.5rem;">
           <i class="bi bi-geo-alt-fill me-1"></i>Leste
         </h6>
         <div id="copEmpresarialLeste">
@@ -3049,7 +3048,7 @@
       <!-- Resumo por Área com Volume Cruzado -->
       <div id="matrizOfensoresResumo" style="margin-bottom:1rem;">
         <div class="d-flex justify-content-between align-items-center mb-2">
-          <h6 style="margin:0;color:#388E3C;font-size:0.85rem;font-weight:600;">
+          <h6 style="margin:0;color:#d32f2f;font-size:0.85rem;font-weight:600;">
             <i class="bi bi-exclamation-triangle-fill me-1 text-danger"></i>Ofensores por Área
           </h6>
           <button class="telegram-btn telegram-btn-primary" onclick="carregarMatrizOfensores(true)" title="Atualizar">
@@ -3178,7 +3177,7 @@
           </div>
 
           <!-- Responsavel (madrugada) -->
-          <div id="hubResponsavel" class="mt-3 p-2 rounded" style="background: #E8F5E9; display: none;">
+          <div id="hubResponsavel" class="mt-3 p-2 rounded" style="background: #ffebee; display: none;">
             <strong><i class="bi bi-person-badge me-1"></i>Responsavel:</strong>
             <span id="hubResponsavelNome"></span>
             <a id="hubResponsavelTel" href="#" class="ms-2"><i class="bi bi-telephone"></i></a>
@@ -3323,7 +3322,7 @@
 <div class="modal fade" id="swapModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog">
     <div class="modal-content">
-      <div class="modal-header text-white" style="background: linear-gradient(135deg, #388E3C 0%, #2E7D32 100%);">
+      <div class="modal-header text-white" style="background: linear-gradient(135deg, #d32f2f 0%, #b71c1c 100%);">
         <h5 class="modal-title">
           <i class="bi bi-arrow-left-right me-2"></i>Confirmar troca de dias
         </h5>
@@ -3338,7 +3337,7 @@
       </div>
       <div class="modal-footer">
         <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancelar</button>
-        <button type="button" id="btnConfirmarTroca" class="btn btn-sm" style="background: linear-gradient(135deg, #388E3C 0%, #2E7D32 100%); color: white; border: none;" onclick="confirmarTroca()">Confirmar troca</button>
+        <button type="button" id="btnConfirmarTroca" class="btn btn-sm" style="background: linear-gradient(135deg, #d32f2f 0%, #b71c1c 100%); color: white; border: none;" onclick="confirmarTroca()">Confirmar troca</button>
       </div>
     </div>
   </div>
@@ -3348,7 +3347,7 @@
 <div class="modal fade" id="selectPersonModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-sm">
     <div class="modal-content">
-      <div class="modal-header text-white" style="background: linear-gradient(135deg, #388E3C 0%, #2E7D32 100%);">
+      <div class="modal-header text-white" style="background: linear-gradient(135deg, #d32f2f 0%, #b71c1c 100%);">
         <h5 class="modal-title">
           <i class="bi bi-person-plus me-2"></i>Selecionar pessoa
         </h5>
@@ -3435,17 +3434,17 @@
       </div>
       <div class="modal-body">
         <div class="login-option text-center">
-          <i class="bi bi-eye mb-3" style="font-size: 3rem; color: #388E3C;"></i>
+          <i class="bi bi-eye mb-3" style="font-size: 3rem; color: #d32f2f;"></i>
           <h5 class="mb-3">Visualizar escala</h5>
           <p class="text-muted mb-4">Selecione qual escala deseja visualizar</p>
           <div class="d-flex gap-2 flex-column">
-            <button type="button" class="btn btn-lg flex-fill py-3" style="background: linear-gradient(135deg, #388E3C 0%, #1B5E20 100%); color: white; border: none;" onclick="entrarComoVisualizador('residencial')">
+            <button type="button" class="btn btn-lg flex-fill py-3" style="background: linear-gradient(135deg, #d32f2f 0%, #b71c1c 100%); color: white; border: none;" onclick="entrarComoVisualizador('residencial')">
               <i class="bi bi-house me-2"></i>Escala Residencial
             </button>
-            <button type="button" class="btn btn-lg flex-fill py-3" style="background: linear-gradient(135deg, #388E3C 0%, #1B5E20 100%); color: white; border: none;" onclick="entrarComoVisualizador('rio_es')">
+            <button type="button" class="btn btn-lg flex-fill py-3" style="background: linear-gradient(135deg, #d32f2f 0%, #b71c1c 100%); color: white; border: none;" onclick="entrarComoVisualizador('rio_es')">
               <i class="bi bi-building me-2"></i>Escala Rio/ES
             </button>
-            <button type="button" class="btn btn-lg flex-fill py-3" style="background: linear-gradient(135deg, #388E3C 0%, #1B5E20 100%); color: white; border: none;" onclick="entrarComoVisualizador('leste')">
+            <button type="button" class="btn btn-lg flex-fill py-3" style="background: linear-gradient(135deg, #d32f2f 0%, #b71c1c 100%); color: white; border: none;" onclick="entrarComoVisualizador('leste')">
               <i class="bi bi-building me-2"></i>Escala Leste
             </button>
           </div>
@@ -3473,7 +3472,7 @@
             <i class="bi bi-exclamation-triangle me-1"></i> PIN incorreto. Tente novamente.
           </div>
           
-          <button type="button" class="btn w-100 mt-2" style="border: 2px solid #388E3C; color: #388E3C; background: white; font-weight: 600;" onmouseover="this.style.background='#388E3C'; this.style.color='white';" onmouseout="this.style.background='white'; this.style.color='#388E3C';" onclick="verificarPin()">
+          <button type="button" class="btn w-100 mt-2" style="border: 2px solid #d32f2f; color: #d32f2f; background: white; font-weight: 600;" onmouseover="this.style.background='#d32f2f'; this.style.color='white';" onmouseout="this.style.background='white'; this.style.color='#d32f2f';" onclick="verificarPin()">
             <i class="bi bi-unlock me-2"></i>Acessar como administrador
           </button>
         </div>
@@ -4325,7 +4324,7 @@ function mostrarDetalhesDiaEmpresarial(subEscala, dia) {
         <div class="area-title">
           <i class="bi bi-diagram-3"></i>
           <span>Divisão de Áreas - ${nomeSubEscala}</span>
-          ${trocasDia.length > 0 ? '<span class="badge ms-2" style="background: linear-gradient(135deg, #388E3C 0%, #2E7D32 100%); color: white;">COM TROCAS</span>' : ''}
+          ${trocasDia.length > 0 ? '<span class="badge ms-2" style="background: linear-gradient(135deg, #d32f2f 0%, #b71c1c 100%); color: white;">COM TROCAS</span>' : ''}
           ${isAdmin ? `
             <div class="ms-auto d-flex gap-1">
               <button class="btn btn-sm btn-outline-danger" onclick="marcarAusenciaNaoEsperadaEmpresarial('${subEscala}', ${dia})" title="Marcar ausência não esperada"><i class="bi bi-person-dash"></i></button>
@@ -4374,7 +4373,7 @@ function mostrarDetalhesDiaEmpresarial(subEscala, dia) {
         <div class="toa-schedule">
           <table class="table table-sm table-striped mb-0">
             <thead>
-              <tr style="background: linear-gradient(135deg, #388E3C 0%, #1B5E20 100%); color: white;">
+              <tr style="background: linear-gradient(135deg, #d32f2f 0%, #b71c1c 100%); color: white;">
                 <th style="border: none; padding: 0.5rem;">Horário</th>
                 <th style="border: none; padding: 0.5rem;">Analista</th>
               </tr>
@@ -5205,7 +5204,7 @@ function mostrarModalConfirmacaoTrocaEmpresarial(subEscala) {
         <p><strong>Troca proposta (${nomeSubEscala}):</strong></p>
         <div class="row">
           <div class="col-6">
-            <div class="card mb-2" style="border: 2px solid #388E3C;">
+            <div class="card mb-2" style="border: 2px solid #d32f2f;">
               <div class="card-body p-2">
                 <h6 class="card-title mb-1">${selecao.primeiro.pessoa}</h6>
                 <p class="card-text small mb-1">
@@ -5216,7 +5215,7 @@ function mostrarModalConfirmacaoTrocaEmpresarial(subEscala) {
             </div>
           </div>
           <div class="col-6">
-            <div class="card mb-2" style="border: 2px solid #388E3C;">
+            <div class="card mb-2" style="border: 2px solid #d32f2f;">
               <div class="card-body p-2">
                 <h6 class="card-title mb-1">${selecao.segundo.pessoa}</h6>
                 <p class="card-text small mb-1">
@@ -7804,7 +7803,7 @@ function mostrarModalConfirmacaoTroca() {
       <p><strong>Troca proposta:</strong></p>
       <div class="row">
         <div class="col-6">
-          <div class="card mb-2" style="border: 2px solid #388E3C;">
+          <div class="card mb-2" style="border: 2px solid #d32f2f;">
             <div class="card-body p-2">
               <h6 class="card-title mb-1">${selecaoTroca.primeiro.pessoa}</h6>
               <p class="card-text small mb-1">
@@ -7815,7 +7814,7 @@ function mostrarModalConfirmacaoTroca() {
           </div>
         </div>
         <div class="col-6">
-          <div class="card mb-2" style="border: 2px solid #388E3C;">
+          <div class="card mb-2" style="border: 2px solid #d32f2f;">
             <div class="card-body p-2">
               <h6 class="card-title mb-1">${selecaoTroca.segundo.pessoa}</h6>
               <p class="card-text small mb-1">
@@ -8439,7 +8438,7 @@ function mostrarDetalhesDia(dia) {
         <div class="area-title">
           <i class="bi bi-diagram-3"></i>
           <span>Divisão de Áreas</span>
-          ${trocasDia.length > 0 ? '<span class="badge ms-2" style="background: linear-gradient(135deg, #388E3C 0%, #2E7D32 100%); color: white;">COM TROCAS</span>' : ''}
+          ${trocasDia.length > 0 ? '<span class="badge ms-2" style="background: linear-gradient(135deg, #d32f2f 0%, #b71c1c 100%); color: white;">COM TROCAS</span>' : ''}
           ${isAdmin ? `
             <div class="ms-auto d-flex gap-1">
               <button class="btn btn-sm btn-outline-danger" onclick="marcarAusenciaNaoEsperada(${dia})" title="Marcar ausência não esperada"><i class="bi bi-person-dash"></i></button>
@@ -9169,7 +9168,7 @@ function gerarPDF() {
         header: {
           fontSize: 18,
           bold: true,
-          color: '#388E3C'
+          color: '#d32f2f'
         },
         subheader: {
           fontSize: 10,
@@ -9178,7 +9177,7 @@ function gerarPDF() {
         diaHeader: {
           fontSize: 12,
           bold: true,
-          color: '#388E3C',
+          color: '#d32f2f',
           margin: [0, 10, 0, 8]
         },
         areaTitle: {
@@ -9263,7 +9262,7 @@ function gerarPDF() {
       docDefinition.content.push({
         text: `Dia ${dia} (${dadosDia.diaSemana}) - ${dadosDia.numPessoas} pessoas${temTroca ? ' [COM TROCA]' : ''}`,
         style: 'diaHeader',
-        color: temTroca ? '#9c27b0' : '#388E3C'
+        color: temTroca ? '#9c27b0' : '#d32f2f'
       });
       
       if (Object.keys(dadosDia.divisao).length > 0) {
@@ -10382,7 +10381,7 @@ function renderizarMatrizAreaGrid(ofensores) {
         <div style="display:flex;gap:8px;font-size:0.7rem;flex-wrap:wrap;align-items:center;">
           ${g.criticos > 0 ? `<span style="color:#ef4444;font-weight:600;"><i class="bi bi-exclamation-triangle-fill me-1"></i>${g.criticos} críticos (+24h)</span>` : ''}
           ${g.entre12e24h > 0 ? `<span style="color:#f59e0b;"><i class="bi bi-clock me-1"></i>${g.entre12e24h} entre 12-24h</span>` : ''}
-          ${volCop !== null ? `<span style="color:#388E3C;"><i class="bi bi-inbox me-1"></i>${volCop} msgs CopRede</span>` : ''}
+          ${volCop !== null ? `<span style="color:#d32f2f;"><i class="bi bi-inbox me-1"></i>${volCop} msgs CopRede</span>` : ''}
           ${responsavel && responsavel !== '-' ? `<span style="color:#555;"><i class="bi bi-person me-1"></i>${responsavel}</span>` : ''}
         </div>
       </div>`;
@@ -11350,7 +11349,7 @@ function atualizarTabelaCopRede(dados) {
   window.numPessoasEscala = numPessoasHoje;
 
   // Função para obter a classe de cor baseada na quantidade
-  // 0-19: verde (OK), 20-29: amarelo (atenção), 30+: vermelho (crítico)
+  // 0-19: vermelho suave (OK), 20-29: amarelo (atenção), 30+: vermelho (crítico)
   function getCorVolume(quantidade) {
     if (quantidade >= 30) return 'volume-critico';
     if (quantidade >= 20) return 'volume-atencao';
@@ -12194,9 +12193,9 @@ function renderHubEmbed(containerId, alocacao) {
   if (!container) return;
 
   const isMADRUGADA = alocacao.tipoAlocacao === 'MADRUGADA';
-  const corBadge = isMADRUGADA ? '#1B5E20' : '#2E7D32';
-  const bgBadge = isMADRUGADA ? '#C8E6C9' : '#E8F5E9';
-  const bordaEsq = isMADRUGADA ? '#2E7D32' : '#388E3C';
+  const corBadge = isMADRUGADA ? '#b71c1c' : '#b71c1c';
+  const bgBadge = isMADRUGADA ? '#ffebee' : '#ffebee';
+  const bordaEsq = isMADRUGADA ? '#b71c1c' : '#d32f2f';
 
   let linhasTabela = '';
   if (!isMADRUGADA && alocacao.regioes) {
@@ -12234,8 +12233,8 @@ function renderHubEmbed(containerId, alocacao) {
   const hubHeaderId = containerId + '_header';
 
   container.innerHTML = `
-    <div style="border:1px solid #A5D6A7; border-radius:8px; overflow:hidden;">
-      <div id="${hubHeaderId}" onclick="toggleHubEmbed('${hubBodyId}','${hubChevronId}','${hubHeaderId}')" style="background:linear-gradient(135deg,#388E3C,#2E7D32); color:#fff; padding:0.5rem 1rem; display:flex; align-items:center; gap:0.5rem; cursor:pointer; user-select:none;">
+    <div style="border:1px solid #ffebee; border-radius:8px; overflow:hidden;">
+      <div id="${hubHeaderId}" onclick="toggleHubEmbed('${hubBodyId}','${hubChevronId}','${hubHeaderId}')" style="background:linear-gradient(135deg,#d32f2f,#b71c1c); color:#fff; padding:0.5rem 1rem; display:flex; align-items:center; gap:0.5rem; cursor:pointer; user-select:none;">
         <i class="bi bi-geo-alt-fill"></i>
         <strong>Alocacao de HUB</strong>
         <span style="background:${bgBadge}; color:${corBadge}; border-radius:4px; padding:2px 8px; font-size:0.8rem; font-weight:700;">${alocacao.tipoAlocacao}</span>
@@ -12327,7 +12326,7 @@ function atualizarVolumePorArea() {
   });
 
   // Função para obter a classe de cor baseada na quantidade
-  // 0-19: verde (OK), 20-29: amarelo (atenção), 30+: vermelho (crítico)
+  // 0-19: vermelho suave (OK), 20-29: amarelo (atenção), 30+: vermelho (crítico)
   function getCorVolume(quantidade) {
     if (quantidade >= 30) return 'volume-critico';
     if (quantidade >= 20) return 'volume-atencao';
@@ -12703,7 +12702,7 @@ function renderEscalonamentoSheet(sheetName) {
 }
 
 function _renderEscalonamentoSections(sections) {
-  var NIVEL_COLORS = ['#1B5E20', '#2E7D32', '#388E3C', '#43A047', '#66BB6A'];
+  var NIVEL_COLORS = ['#b71c1c', '#b71c1c', '#d32f2f', '#d32f2f', '#c62828'];
   var html = '';
 
   sections.forEach(function(section, idx) {
@@ -12720,7 +12719,7 @@ function _renderEscalonamentoSections(sections) {
     }
 
     html += '<div class="table-responsive"><table class="table table-sm table-hover mb-0" style="font-size:0.78rem;">';
-    html += '<thead style="background:#E8F5E9;"><tr>';
+    html += '<thead style="background:#ffebee;"><tr>';
     displayHeaders.forEach(function(h) {
       html += '<th style="white-space:nowrap;">' + escapeHtml(h) + '</th>';
     });
