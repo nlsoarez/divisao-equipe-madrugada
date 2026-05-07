@@ -2225,12 +2225,12 @@ a,
    26. ESPAÇAMENTO UNIFORME NAS ABAS EMPRESARIAIS
    ========================================================================== */
 #empresarialSubnav {
-    margin-bottom: 4px !important;
+    margin-bottom: 14px !important;
 }
 
 #tabRioEs.active,
 #tabLeste.active {
-    gap: 10px !important;
+    gap: 14px !important;
 }
 
 #tabRioEs.active .config-accordion,
