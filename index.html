@@ -2552,7 +2552,7 @@
 
     <!-- Botão Logout Admin -->
     <button class="refresh-btn logout-admin" onclick="logoutAdmin()" title="Sair do modo admin">
-      <i class="bi bi-person-x"></i>
+      <i class="bi bi-x-lg"></i>
     </button>
   </div>
 </div>
@@ -2570,7 +2570,7 @@
 
     <!-- Botão Logout Viewer -->
     <button class="refresh-btn logout-viewer" onclick="logoutViewer()" title="Sair do modo visualização">
-      <i class="bi bi-box-arrow-right"></i>
+      <i class="bi bi-x-lg"></i>
     </button>
   </div>
 </div>
@@ -2593,7 +2593,7 @@
     </button>
     <button class="admin-nav-tab hub-tab-nav" data-admin-tab="alocacao_hub" onclick="trocarAbaAdmin('alocacao_hub')">
       <i class="bi bi-geo-alt-fill"></i>
-      Alocacao HUB
+      Alocação de Hub
     </button>
   </div>
 
@@ -3090,7 +3090,7 @@
   <div class="admin-tab-content" id="tabAlocacaoHub">
     <div class="telegram-panel" id="hubPanel">
       <div class="telegram-header" style="background: linear-gradient(135deg, #ff9800 0%, #f57c00 100%);">
-        <span><i class="bi bi-geo-alt-fill me-2"></i>Alocação de HUB</span>
+        <span><i class="bi bi-geo-alt-fill me-2"></i>Alocação de Hub</span>
         <div style="display: flex; align-items: center; gap: 1rem;">
           <button class="btn btn-sm btn-light" onclick="carregarAlocacaoHub()" title="Atualizar">
             <i class="bi bi-arrow-clockwise"></i>
@@ -3481,7 +3481,7 @@
 <!-- Assinatura -->
 <div class="main-container">
   <div class="assinatura">
-    <strong>Desenvolvido por:</strong> N6105010 & N5923221
+    Desenvolvido por: N6105010 & N5923221
   </div>
 </div>
 
@@ -9778,7 +9778,7 @@ function trocarAbaAdmin(abaId) {
   } else if (abaId === 'alocacao_hub') {
     // Alocacao de HUB é exclusivo do admin
     if (!isAdmin) {
-      showToast('Alocacao de HUB exclusivo do administrador', 'danger');
+      showToast('Alocação de Hub exclusiva do administrador', 'danger');
       return;
     }
 
@@ -12208,15 +12208,15 @@ function formatarAtividadeHub(atividade, observacao) {
   if (!texto) return '';
 
   const direto = texto.match(/vai\s+direto\s+para\s+(.+)$/i);
-  if (direto) return direto[1].trim();
+  if (direto) return normalizarTextoCapitalizado(direto[1].trim());
 
   const comCarro = texto.match(/pega\s+o\s+carro\s+em\s+(.+?)\s+e\s+vai\s+para\s+(.+)$/i);
-  if (comCarro) return `${comCarro[1].trim()} → ${comCarro[2].trim()}`;
+  if (comCarro) return `${normalizarTextoCapitalizado(comCarro[1].trim())} → ${normalizarTextoCapitalizado(comCarro[2].trim())}`;
 
-  return texto
+  return normalizarTextoCapitalizado(texto
     .replace(/^-\s*/, '')
     .replace(/\bvai\s+direto\s+para\s+/gi, '')
-    .trim();
+    .trim());
 }
 
 function normalizarTextoCapitalizado(valor) {
@@ -12236,6 +12236,57 @@ function normalizarTextoCapitalizado(valor) {
       return parte.charAt(0).toLocaleUpperCase('pt-BR') + parte.slice(1);
     })
     .join(' ');
+}
+
+function normalizarNumeraisRomanos(valor) {
+  return String(valor || '')
+    .replace(/\bIi\b/g, 'II')
+    .replace(/\bIii\b/g, 'III')
+    .replace(/\bIv\b/g, 'IV');
+}
+
+function formatarNomeCurto(valor) {
+  return normalizarTextoCapitalizado(valor)
+    .split(' ')
+    .filter(Boolean)
+    .slice(0, 2)
+    .join(' ');
+}
+
+function formatarCargoEscalonamento(valor) {
+  const texto = String(valor || '').trim();
+  if (!texto) return '';
+
+  if (/coord|coorden/i.test(texto)) {
+    return /\bII\b/i.test(texto) ? 'Coord. Técnico II' : 'Coord. Técnico';
+  }
+
+  return normalizarNumeraisRomanos(normalizarTextoCapitalizado(texto));
+}
+
+function formatarHorarioHub(valor) {
+  return String(valor || '')
+    .replace(/\s+às\s+/gi, ' - ')
+    .replace(/\s+as\s+/gi, ' - ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function ehColunaEmail(col) {
+  return ['E-MAIL', 'EMAIL', 'E MAIL'].includes(String(col || '').trim().toUpperCase());
+}
+
+function formatarValorEscalonamento(col, valor) {
+  const chave = String(col || '').trim().toUpperCase();
+  const texto = String(valor || '').trim();
+
+  if (!texto) return '';
+  if (chave === 'MERCADO') return texto.toUpperCase();
+  if (chave === 'NOME') return formatarNomeCurto(texto);
+  if (chave === 'CARGO') return formatarCargoEscalonamento(texto);
+  if (chave === 'UF' || chave === 'REGIONAL') return texto.toUpperCase();
+
+  return normalizarNumeraisRomanos(normalizarTextoCapitalizado(texto));
 }
 
 function formatarCabecalhoEscalonamento(valor) {
@@ -12284,24 +12335,22 @@ function renderHubEmbed(containerId, alocacao) {
   if (!container) return;
 
   const isMADRUGADA = alocacao.tipoAlocacao === 'MADRUGADA';
-  const corBadge = isMADRUGADA ? '#b71c1c' : '#b71c1c';
-  const bgBadge = isMADRUGADA ? '#ffebee' : '#ffebee';
-  const bordaEsq = isMADRUGADA ? '#b71c1c' : '#d32f2f';
+  const tipoTexto = normalizarTextoCapitalizado(alocacao.tipoAlocacao);
 
   let linhasTabela = '';
   if (!isMADRUGADA && alocacao.regioes) {
     for (const [regiao, tecnicos] of Object.entries(alocacao.regioes)) {
       tecnicos.forEach((t, i) => {
         linhasTabela += `<tr>`;
-        if (i === 0) linhasTabela += `<td rowspan="${tecnicos.length}" style="font-weight:600;background:${bgBadge};">${regiao}</td>`;
-        linhasTabela += `<td>${t.horario || '-'}</td><td>${t.tecnico || '-'}${t.sobreaviso ? ' <span class="badge bg-info">Sobreaviso</span>' : ''}</td><td><a href="${whatsappLink(t.telefone) || '#'}" target="_blank">${t.telefone || '-'}</a></td></tr>`;
+        if (i === 0) linhasTabela += `<td rowspan="${tecnicos.length}" class="hub-region-cell">${normalizarTextoCapitalizado(regiao)}</td>`;
+        linhasTabela += `<td>${formatarHorarioHub(t.horario) || '-'}</td><td>${formatarNomeCurto(t.tecnico) || '-'}${t.sobreaviso ? ' <span class="badge bg-info">Sobreaviso</span>' : ''}</td><td><a href="${whatsappLink(t.telefone) || '#'}" target="_blank">${t.telefone || '-'}</a></td></tr>`;
       });
     }
     linhasTabela = linhasTabela || `<tr><td colspan="4" class="text-center text-muted">Nenhum técnico</td></tr>`;
   } else if (isMADRUGADA && alocacao.tecnicos) {
     linhasTabela = alocacao.tecnicos.map(t => `<tr>
-      <td>${t.nome || '-'}</td>
-      <td>${t.local || '-'}</td>
+      <td>${formatarNomeCurto(t.nome) || '-'}</td>
+      <td>${normalizarTextoCapitalizado(t.local) || '-'}</td>
       <td>${formatarAtividadeHub(t.atividade, t.observacao)}</td>
       <td><a href="${whatsappLink(t.telefone) || '#'}" target="_blank">${t.telefone || '-'}</a></td>
     </tr>`).join('') || `<tr><td colspan="4" class="text-center text-muted">Nenhum técnico</td></tr>`;
@@ -12324,18 +12373,17 @@ function renderHubEmbed(containerId, alocacao) {
   const hubHeaderId = containerId + '_header';
 
   container.innerHTML = `
-    <div style="border:1px solid #ffebee; border-radius:8px; overflow:hidden;">
-      <div id="${hubHeaderId}" onclick="toggleHubEmbed('${hubBodyId}','${hubChevronId}','${hubHeaderId}')" style="background:linear-gradient(135deg,#d32f2f,#b71c1c); color:#fff; padding:0.5rem 1rem; display:flex; align-items:center; gap:0.5rem; cursor:pointer; user-select:none;">
+    <div class="hub-embed-card">
+      <div id="${hubHeaderId}" class="hub-embed-header" onclick="toggleHubEmbed('${hubBodyId}','${hubChevronId}','${hubHeaderId}')">
         <i class="bi bi-geo-alt-fill"></i>
-        <span>Alocação de HUB</span>
-        <span style="background:${bgBadge}; color:${corBadge}; border-radius:4px; padding:2px 8px; font-size:0.8rem; font-weight:400;">${normalizarTextoCapitalizado(alocacao.tipoAlocacao)}</span>
-        <span style="font-size:0.8rem; opacity:0.85;">${alocacao.data || ''}</span>
+        <span>Alocação de Hub - ${tipoTexto}</span>
+        <span class="hub-embed-date">${alocacao.data || ''}</span>
         <i class="bi bi-chevron-down" id="${hubChevronId}" style="margin-left:auto; transition:transform 0.2s; flex-shrink:0;"></i>
       </div>
-      <div id="${hubBodyId}" style="display:none; padding:0.5rem; background:#fff;">
+      <div id="${hubBodyId}" class="hub-embed-body" style="display:none;">
         <div class="table-responsive">
           <table class="table table-sm table-hover mb-0 hub-table">
-            <thead style="background:${bgBadge};"><tr>${theadCols}</tr></thead>
+            <thead><tr>${theadCols}</tr></thead>
             <tbody>${linhasTabela}</tbody>
           </table>
         </div>
@@ -12804,7 +12852,7 @@ function _renderEscalonamentoSections(sections) {
 
   sections.forEach(function(section, idx) {
     var color = NIVEL_COLORS[idx % NIVEL_COLORS.length];
-    var displayHeaders = section.headers.filter(function(h) { return h && h !== ''; });
+    var displayHeaders = section.headers.filter(function(h) { return h && h !== '' && !ehColunaEmail(h); });
 
     html += '<div class="mb-4">';
     html += '<div class="escalonamento-nivel-heading" style="background:' + color + ';color:#2c3e50;padding:0.5rem 0.75rem;border-radius:8px;font-weight:bold;font-size:0.82rem;margin-bottom:0.25rem;border-left:4px solid #d32f2f;">'
@@ -12834,14 +12882,8 @@ function _renderEscalonamentoSections(sections) {
           } else {
             html += '<td>' + escapeHtml(val) + '</td>';
           }
-        } else if (col === 'E-MAIL' || col === 'EMAIL') {
-          if (val) {
-            html += '<td style="font-size:0.72rem;"><a href="mailto:' + escapeHtml(val) + '">' + escapeHtml(val).toLowerCase() + '</a></td>';
-          } else {
-            html += '<td></td>';
-          }
         } else {
-          html += '<td>' + escapeHtml(normalizarTextoCapitalizado(val)) + '</td>';
+          html += '<td>' + escapeHtml(formatarValorEscalonamento(col, val)) + '</td>';
         }
       });
       html += '</tr>';

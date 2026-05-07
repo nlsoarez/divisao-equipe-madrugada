@@ -1857,3 +1857,155 @@ a,
     color: #2c3e50 !important;
     border-color: #eef0f3 !important;
 }
+
+/* ==========================================================================
+   23. REFINO VISUAL DE ACORDEONS, TABELAS E ASSINATURA
+   ========================================================================== */
+.assinatura {
+    margin-top: 18px !important;
+    padding: 0 0 14px !important;
+    background: transparent !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    color: #7f8c8d !important;
+    font-size: 11px !important;
+    font-weight: 400 !important;
+    text-align: center !important;
+}
+
+.config-accordion,
+#escalonamentoSection,
+.hub-embed-card {
+    border: 1px solid #e5e7eb !important;
+    border-radius: 18px !important;
+    background: #ffffff !important;
+    box-shadow: 0 14px 30px rgba(44, 62, 80, 0.12) !important;
+    overflow: hidden !important;
+}
+
+.config-header,
+#escalonamentoHeader,
+.hub-embed-header {
+    min-height: 50px !important;
+    padding: 0 18px !important;
+    border: 0 !important;
+    border-radius: 18px !important;
+    background: #ffffff !important;
+    color: #111827 !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 10px !important;
+    font-size: 14px !important;
+    font-weight: 400 !important;
+    line-height: 1.2 !important;
+}
+
+#escalonamentoBody,
+.hub-embed-body {
+    padding: 0 18px 18px !important;
+    background: #ffffff !important;
+}
+
+#escalonamentoBody > div:first-child {
+    margin: 0 -18px 14px !important;
+    padding: 12px 18px !important;
+    background: #ffffff !important;
+    border: 0 !important;
+    border-top: 1px solid #eef0f3 !important;
+}
+
+#escalonamentoContent {
+    padding: 14px 0 0 !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    max-height: 70vh !important;
+}
+
+.hub-embed-header .bi,
+#escalonamentoHeader .bi,
+.config-header .bi {
+    color: #111827 !important;
+}
+
+.hub-embed-date {
+    color: #111827 !important;
+    font-size: 13px !important;
+}
+
+.hub-table,
+#escalonamentoContent table,
+.telegram-table {
+    table-layout: fixed !important;
+    width: 100% !important;
+}
+
+.hub-table thead th,
+#escalonamentoContent thead th,
+.telegram-table thead th,
+.table thead th {
+    background: #f3f4f6 !important;
+    color: #c62828 !important;
+    font-size: 13px !important;
+    font-weight: 400 !important;
+    text-align: left !important;
+    vertical-align: middle !important;
+}
+
+.hub-table td,
+#escalonamentoContent td,
+.telegram-table td {
+    font-size: 13px !important;
+    font-weight: 400 !important;
+    color: #111827 !important;
+    vertical-align: middle !important;
+}
+
+.hub-table th:last-child,
+.hub-table td:last-child,
+#escalonamentoContent th:last-child,
+#escalonamentoContent td:last-child,
+.telegram-table th:last-child,
+.telegram-table td:last-child {
+    text-align: right !important;
+}
+
+.hub-region-cell {
+    background: #f8e3e6 !important;
+    color: #111827 !important;
+    font-weight: 400 !important;
+}
+
+#tabRioEs.active,
+#tabLeste.active {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 18px !important;
+}
+
+#tabRioEs.active #hubEmbedRioEs {
+    order: -1;
+}
+
+#tabRioEs.active #calendarSectionRioEs,
+#tabLeste.active #calendarSectionLeste {
+    order: 2;
+}
+
+.refresh-btn {
+    width: 42px !important;
+    height: 42px !important;
+}
+
+.refresh-btn i {
+    font-size: 18px !important;
+    line-height: 1 !important;
+}
+
+#btnUploadAdmin {
+    display: none !important;
+}
+
+.logout-admin i,
+.logout-viewer i {
+    font-size: 19px !important;
+}
