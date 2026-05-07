@@ -2902,8 +2902,8 @@
         </div>
         <!-- Botão Ver Detalhes -->
         <div class="text-center mt-3">
-          <button class="telegram-btn telegram-btn-primary" onclick="verDetalhesCopRedeResumo()">
-            <i class="bi bi-info-circle me-1"></i> Ver Detalhes
+          <button class="btn-detalhes-lupa" onclick="verDetalhesCopRedeResumo()" title="ver detalhe" aria-label="ver detalhe">
+            <i class="bi bi-search"></i>
           </button>
         </div>
       </div>
@@ -2915,7 +2915,7 @@
             <i class="bi bi-exclamation-triangle-fill me-1"></i>Incidentes Ativos por Analista
             <span class="badge bg-danger ms-1" id="badgeOfensores" style="display:none;font-size:0.7rem;"></span>
           </h6>
-          <button class="telegram-btn telegram-btn-primary" onclick="carregarMatrizOfensores(true)" title="Atualizar incidentes">
+          <button class="telegram-btn telegram-btn-primary btn-atualizar-ofensores" onclick="carregarMatrizOfensores(true)" title="Atualizar incidentes">
             <i class="bi bi-arrow-clockwise"></i>
           </button>
         </div>
@@ -12131,7 +12131,7 @@ function exibirAlocacaoHub(alocacao) {
         if (tecnicos.length > 0) {
           tecnicos.forEach((t, i) => {
             html += `<tr>`;
-            html += `<td class="hub-region-cell ${i > 0 ? 'hub-region-spacer' : ''}">${i === 0 ? normalizarTextoCapitalizado(regiao) : ''}</td>`;
+            html += `<td class="hub-region-cell ${i > 0 ? 'hub-region-spacer' : ''} ${i === tecnicos.length - 1 ? 'hub-region-end' : ''}">${i === 0 ? normalizarTextoCapitalizado(regiao) : ''}</td>`;
             html += `<td>${formatarHorarioHub(t.horario) || '-'}</td>`;
             html += `<td>${formatarNomeCurto(t.tecnico) || '-'}${t.sobreaviso ? ' <span class="badge bg-info">Sobreaviso</span>' : ''}</td>`;
             html += `<td class="hub-phone-cell"><a href="${whatsappLink(t.telefone) || '#'}" target="_blank">${t.telefone || '-'}</a></td>`;
@@ -12341,7 +12341,7 @@ function renderHubEmbed(containerId, alocacao) {
     for (const [regiao, tecnicos] of Object.entries(alocacao.regioes)) {
       tecnicos.forEach((t, i) => {
         linhasTabela += `<tr>`;
-        linhasTabela += `<td class="hub-region-cell ${i > 0 ? 'hub-region-spacer' : ''}">${i === 0 ? normalizarTextoCapitalizado(regiao) : ''}</td>`;
+        linhasTabela += `<td class="hub-region-cell ${i > 0 ? 'hub-region-spacer' : ''} ${i === tecnicos.length - 1 ? 'hub-region-end' : ''}">${i === 0 ? normalizarTextoCapitalizado(regiao) : ''}</td>`;
         linhasTabela += `<td>${formatarHorarioHub(t.horario) || '-'}</td><td>${formatarNomeCurto(t.tecnico) || '-'}${t.sobreaviso ? ' <span class="badge bg-info">Sobreaviso</span>' : ''}</td><td class="hub-phone-cell"><a href="${whatsappLink(t.telefone) || '#'}" target="_blank">${t.telefone || '-'}</a></td></tr>`;
       });
     }
