@@ -2019,6 +2019,8 @@ a,
     border-collapse: separate !important;
     border-spacing: 0 !important;
     overflow: hidden !important;
+    table-layout: fixed !important;
+    width: 100% !important;
 }
 
 #hubPanel .table-responsive {
@@ -2045,18 +2047,25 @@ a,
 
 #hubPanel .hub-table th:nth-child(2),
 #hubPanel .hub-table td:nth-child(2) {
-    width: 22% !important;
+    width: 24% !important;
 }
 
 #hubPanel .hub-table th:nth-child(3),
 #hubPanel .hub-table td:nth-child(3) {
-    width: 30% !important;
+    width: 28% !important;
 }
 
 #hubPanel .hub-table th:nth-child(4),
 #hubPanel .hub-table td:nth-child(4) {
     width: 26% !important;
     text-align: right !important;
+    padding-right: 12px !important;
+    padding-left: 12px !important;
+    white-space: nowrap !important;
+}
+
+#hubPanel .hub-table th:nth-child(4) {
+    padding-right: 12px !important;
 }
 
 #hubPanel .hub-region-cell,
@@ -2072,4 +2081,8 @@ a,
     background: #f3f4f6 !important;
     color: #b71c1c !important;
     border-color: #e0e0e0 !important;
+}
+
+#hubPanel .hub-sync-btn i {
+    font-size: 17px !important;
 }

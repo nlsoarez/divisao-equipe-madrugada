@@ -3092,10 +3092,7 @@
       <div class="telegram-header" style="background: linear-gradient(135deg, #ff9800 0%, #f57c00 100%);">
         <span><i class="bi bi-geo-alt-fill me-2"></i>Alocação de Hub</span>
         <div style="display: flex; align-items: center; gap: 1rem;">
-          <button class="btn btn-sm btn-light" onclick="carregarAlocacaoHub()" title="Atualizar">
-            <i class="bi bi-arrow-clockwise"></i>
-          </button>
-          <button class="btn btn-sm btn-light" onclick="sincronizarHub()" title="Sincronizar do WhatsApp">
+          <button class="btn btn-sm btn-light hub-sync-btn" onclick="sincronizarHub()" title="Sincronizar do WhatsApp">
             <i class="bi bi-cloud-download"></i>
           </button>
         </div>
@@ -3138,6 +3135,12 @@
           <div id="hubTabelaDiurno" style="display: none;">
             <div class="table-responsive">
               <table class="table table-sm table-hover hub-table">
+                <colgroup>
+                  <col style="width: 22%;">
+                  <col style="width: 24%;">
+                  <col style="width: 28%;">
+                  <col style="width: 26%;">
+                </colgroup>
                 <thead style="background: #fff8e1;">
                   <tr>
                     <th style="width: 120px;">Região</th>
@@ -3156,6 +3159,12 @@
           <div id="hubTabelaMadrugada" style="display: none;">
             <div class="table-responsive">
               <table class="table table-sm table-hover hub-table">
+                <colgroup>
+                  <col style="width: 24%;">
+                  <col style="width: 22%;">
+                  <col style="width: 28%;">
+                  <col style="width: 26%;">
+                </colgroup>
                 <thead style="background: #e3f2fd;">
                   <tr>
                     <th>Técnico</th>
@@ -12223,6 +12232,7 @@ function normalizarTextoCapitalizado(valor) {
   const texto = String(valor || '').trim();
   if (!texto) return '';
 
+  if (texto.toUpperCase() === 'SUL') return 'Sul';
   if (/^[A-Z]{2,3}$/.test(texto)) return texto;
   if (/@/.test(texto)) return texto.toLowerCase();
 
