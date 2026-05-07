@@ -2132,7 +2132,7 @@
       white-space: nowrap;
     }
     .inc-link:hover {
-      text-decoration: underline;
+      text-decoration: none;
       color: #1e40af;
     }
     .inc-city {
@@ -2524,7 +2524,7 @@
 <body class="ds-base ds-bg-gradient">
 <header class="app-header">
   <div class="main-container">
-    <h1 class="h5 m-0 fw-bold"><span class="brand-icon"><i class="bi bi-pencil-fill"></i></span>Portal de divisão de tarefas</h1>
+    <h1 class="h5 m-0"><span class="brand-icon"><i class="bi bi-pencil-square"></i></span>Portal de divisão de tarefas</h1>
   </div>
 </header>
 
@@ -3090,7 +3090,7 @@
   <div class="admin-tab-content" id="tabAlocacaoHub">
     <div class="telegram-panel" id="hubPanel">
       <div class="telegram-header" style="background: linear-gradient(135deg, #ff9800 0%, #f57c00 100%);">
-        <span><i class="bi bi-geo-alt-fill me-2"></i>Alocacao de HUB</span>
+        <span><i class="bi bi-geo-alt-fill me-2"></i>Alocação de HUB</span>
         <div style="display: flex; align-items: center; gap: 1rem;">
           <button class="btn btn-sm btn-light" onclick="carregarAlocacaoHub()" title="Atualizar">
             <i class="bi bi-arrow-clockwise"></i>
@@ -3160,7 +3160,7 @@
                   <tr>
                     <th>Técnico</th>
                     <th>Local</th>
-                    <th>Atividade</th>
+                    <th>Local de atividade</th>
                     <th style="width: 120px;">Telefone</th>
                   </tr>
                 </thead>
@@ -3172,13 +3172,13 @@
 
           <!-- Folgas -->
           <div id="hubFolgas" class="mt-3 p-2 rounded" style="background: #f5f5f5; display: none;">
-            <strong><i class="bi bi-moon-stars me-1"></i>Folgas:</strong>
+            <span><i class="bi bi-moon-stars me-1"></i>Folgas:</span>
             <span id="hubFolgasLista"></span>
           </div>
 
           <!-- Responsavel (madrugada) -->
           <div id="hubResponsavel" class="mt-3 p-2 rounded" style="background: #ffebee; display: none;">
-            <strong><i class="bi bi-person-badge me-1"></i>Responsavel:</strong>
+            <span><i class="bi bi-person-badge me-1"></i>Responsável:</span>
             <span id="hubResponsavelNome"></span>
             <a id="hubResponsavelTel" href="#" class="ms-2"><i class="bi bi-telephone"></i></a>
           </div>
@@ -3441,11 +3441,8 @@
             <button type="button" class="btn btn-lg flex-fill py-3" style="background: linear-gradient(135deg, #d32f2f 0%, #b71c1c 100%); color: white; border: none;" onclick="entrarComoVisualizador('residencial')">
               <i class="bi bi-house me-2"></i>Escala Residencial
             </button>
-            <button type="button" class="btn btn-lg flex-fill py-3" style="background: linear-gradient(135deg, #d32f2f 0%, #b71c1c 100%); color: white; border: none;" onclick="entrarComoVisualizador('rio_es')">
-              <i class="bi bi-building me-2"></i>Escala Rio/ES
-            </button>
-            <button type="button" class="btn btn-lg flex-fill py-3" style="background: linear-gradient(135deg, #d32f2f 0%, #b71c1c 100%); color: white; border: none;" onclick="entrarComoVisualizador('leste')">
-              <i class="bi bi-building me-2"></i>Escala Leste
+            <button type="button" class="btn btn-lg flex-fill py-3" style="background: linear-gradient(135deg, #d32f2f 0%, #b71c1c 100%); color: white; border: none;" onclick="entrarComoVisualizador('empresarial')">
+              <i class="bi bi-building me-2"></i>Escala Empresarial
             </button>
           </div>
         </div>
@@ -6606,9 +6603,11 @@ function entrarComoVisualizador(tipo = 'residencial') {
 
   // Definir calendário ativo baseado no tipo selecionado
   // residencial = calendario1, rio_es/leste = calendario2
-  const calKey = (tipo === 'rio_es' || tipo === 'leste') ? 'calendario2' : 'calendario1';
+  const tipoDestino = tipo === 'empresarial' ? 'empresarial' : tipo;
+  const tipoSelecionado = tipo === 'empresarial' ? (subAbaEmpresarialAtiva || 'rio_es') : tipo;
+  const calKey = tipo === 'residencial' ? 'calendario1' : 'calendario2';
   calendarioAtivo = calKey;
-  localStorage.setItem('escala_tipo_selecionado', tipo);
+  localStorage.setItem('escala_tipo_selecionado', tipoSelecionado);
 
   // Fechar modal
   const loginModal = bootstrap.Modal.getInstance(document.getElementById('loginModal'));
@@ -6620,7 +6619,7 @@ function entrarComoVisualizador(tipo = 'residencial') {
 
   // Ativar a aba correspondente após carregar
   setTimeout(() => {
-    trocarAbaAdmin(tipo);
+    trocarAbaAdmin(tipoDestino);
   }, 100);
 
   // Limpar cache e carregar dados do WhatsApp ao iniciar
@@ -6631,13 +6630,15 @@ function entrarComoVisualizador(tipo = 'residencial') {
   }, 1000);
 
   let nomeEscala = 'Residencial';
-  if (tipo === 'rio_es') nomeEscala = 'Rio/ES';
+  if (tipo === 'empresarial') nomeEscala = 'Empresarial';
+  else if (tipo === 'rio_es') nomeEscala = 'Rio/ES';
   else if (tipo === 'leste') nomeEscala = 'Leste';
   showToast(`🔍 Visualizando escala ${nomeEscala}`, 'info');
 }
 
 function iniciarComoAdmin() {
   isAdmin = true;
+  document.body.classList.add('app-logged-in');
 
   // Mostrar controles admin
   const adminControls = document.getElementById('adminControls');
@@ -6709,6 +6710,7 @@ function toggleModoTroca() {
 
 function iniciarComoVisualizador() {
   isAdmin = false;
+  document.body.classList.add('app-logged-in');
 
   // Mostrar controles usuário
   const adminControls = document.getElementById('adminControls');
@@ -9639,6 +9641,15 @@ function trocarAbaAdmin(abaId) {
   const calendarioPanelRioEs = document.getElementById('calendarioPanelRioEs');
   const calendarioPanelLeste = document.getElementById('calendarioPanelLeste');
   const telegramPanel = document.getElementById('telegramPanel');
+  const escalonamentoSection = document.getElementById('escalonamentoSection');
+
+  if (escalonamentoSection && abaId === 'rio_es' && tabRioEs && calendarSectionRioEs) {
+    tabRioEs.insertBefore(escalonamentoSection, calendarSectionRioEs);
+  } else if (escalonamentoSection && abaId === 'leste' && tabLeste && calendarSectionLeste) {
+    tabLeste.insertBefore(escalonamentoSection, calendarSectionLeste);
+  } else if (escalonamentoSection && abaId === 'residencial' && tabResidencial && calendarSection) {
+    tabResidencial.insertBefore(escalonamentoSection, calendarSection);
+  }
 
   // Parar auto-refresh quando sair da aba Telegram
   if (abaId !== 'telegram') {
@@ -12102,7 +12113,7 @@ function exibirAlocacaoHub(alocacao) {
 
   // Tipo e data
   if (tipoBadge) {
-    tipoBadge.textContent = alocacao.tipoAlocacao;
+    tipoBadge.textContent = normalizarTextoCapitalizado(alocacao.tipoAlocacao);
     tipoBadge.className = 'badge ' + (alocacao.tipoAlocacao === 'DIURNO' ? 'bg-warning text-dark' : 'bg-primary');
   }
   if (dataEl) dataEl.textContent = alocacao.data || '--/--';
@@ -12141,7 +12152,7 @@ function exibirAlocacaoHub(alocacao) {
     if (tbody && alocacao.tecnicos) {
       let html = alocacao.tecnicos.map(t => `
         <tr>
-          <td><strong>${t.nome || '-'}</strong></td>
+          <td>${t.nome || '-'}</td>
           <td>${t.local || '-'}</td>
           <td>${formatarAtividadeHub(t.atividade, t.observacao)}</td>
           <td><a href="${whatsappLink(t.telefone) || '#'}" target="_blank">${t.telefone || '-'}</a></td>
@@ -12189,10 +12200,85 @@ function whatsappLink(telefone) {
 }
 
 function formatarAtividadeHub(atividade, observacao) {
-  const partes = [atividade, observacao]
+  const texto = [atividade, observacao]
     .map(v => String(v || '').trim())
-    .filter(v => v && v !== '-');
-  return partes.length ? partes.join(' ') : '';
+    .filter(v => v && v !== '-')
+    .join(' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  if (!texto) return '';
+
+  const direto = texto.match(/vai\s+direto\s+para\s+(.+)$/i);
+  if (direto) return direto[1].trim();
+
+  const comCarro = texto.match(/pega\s+o\s+carro\s+em\s+(.+?)\s+e\s+vai\s+para\s+(.+)$/i);
+  if (comCarro) return `${comCarro[1].trim()} → ${comCarro[2].trim()}`;
+
+  return texto
+    .replace(/^-\s*/, '')
+    .replace(/\bvai\s+direto\s+para\s+/gi, '')
+    .trim();
+}
+
+function normalizarTextoCapitalizado(valor) {
+  const texto = String(valor || '').trim();
+  if (!texto) return '';
+
+  if (/^[A-Z]{2,3}$/.test(texto)) return texto;
+  if (/@/.test(texto)) return texto.toLowerCase();
+
+  const minusculas = ['da', 'de', 'do', 'das', 'dos', 'e', 'em', 'para'];
+  return texto
+    .toLocaleLowerCase('pt-BR')
+    .replace(/\s+/g, ' ')
+    .split(' ')
+    .map((parte, index) => {
+      if (index > 0 && minusculas.includes(parte)) return parte;
+      return parte.charAt(0).toLocaleUpperCase('pt-BR') + parte.slice(1);
+    })
+    .join(' ');
+}
+
+function formatarCabecalhoEscalonamento(valor) {
+  const mapa = {
+    'AREA': 'Área',
+    'ÁREA': 'Área',
+    'MERCADO': 'Mercado',
+    'NOME': 'Nome',
+    'CARGO': 'Cargo',
+    'E-MAIL': 'E-mail',
+    'EMAIL': 'E-mail',
+    'TELEFONE': 'Telefone',
+    'FONE': 'Telefone',
+    'UF': 'UF',
+    'REGIONAL': 'Regional'
+  };
+  return mapa[String(valor || '').trim().toUpperCase()] || normalizarTextoCapitalizado(valor);
+}
+
+function formatarTituloEscalonamento(valor) {
+  return normalizarTextoCapitalizado(valor)
+    .replace(/\bDe Escalonamento\b/g, 'de escalonamento')
+    .replace(/\bRede Externa\b/g, 'Rede externa');
+}
+
+function obterRotuloRegiaoEscalonamento(sheetName) {
+  const chave = String(sheetName || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim();
+  const mapa = {
+    'bahia e sergipe': 'BA',
+    'centro oeste': 'CO',
+    'espirito santo': 'ES',
+    'mg': 'MG',
+    'nordeste': 'NE',
+    'norte': 'NO',
+    'rj': 'RJ'
+  };
+  return mapa[chave] || normalizarTextoCapitalizado(sheetName);
 }
 
 function renderHubEmbed(containerId, alocacao) {
@@ -12216,7 +12302,7 @@ function renderHubEmbed(containerId, alocacao) {
     linhasTabela = linhasTabela || `<tr><td colspan="4" class="text-center text-muted">Nenhum técnico</td></tr>`;
   } else if (isMADRUGADA && alocacao.tecnicos) {
     linhasTabela = alocacao.tecnicos.map(t => `<tr>
-      <td><strong>${t.nome || '-'}</strong></td>
+      <td>${t.nome || '-'}</td>
       <td>${t.local || '-'}</td>
       <td>${formatarAtividadeHub(t.atividade, t.observacao)}</td>
       <td><a href="${whatsappLink(t.telefone) || '#'}" target="_blank">${t.telefone || '-'}</a></td>
@@ -12224,11 +12310,11 @@ function renderHubEmbed(containerId, alocacao) {
   }
 
   const theadCols = isMADRUGADA
-    ? '<th>Técnico</th><th>Local</th><th>Atividade</th><th>Telefone</th>'
+    ? '<th>Técnico</th><th>Local</th><th>Local de atividade</th><th>Telefone</th>'
     : '<th>Região</th><th>Horário</th><th>Técnico</th><th>Telefone</th>';
 
   const responsavelHtml = (isMADRUGADA && alocacao.responsavel)
-    ? `<div class="mt-2 small text-muted"><i class="bi bi-person-fill me-1"></i>Responsavel: <strong>${alocacao.responsavel.nome || '-'}</strong>${alocacao.responsavel.telefone ? ' &nbsp;<a href="' + (whatsappLink(alocacao.responsavel.telefone) || '#') + '" target="_blank"><i class="bi bi-whatsapp"></i> ' + alocacao.responsavel.telefone + '</a>' : ''}</div>`
+    ? `<div class="mt-2 small text-muted"><i class="bi bi-person-fill me-1"></i>Responsável: ${alocacao.responsavel.nome || '-'}${alocacao.responsavel.telefone ? ' &nbsp;<a href="' + (whatsappLink(alocacao.responsavel.telefone) || '#') + '" target="_blank"><i class="bi bi-whatsapp"></i> ' + alocacao.responsavel.telefone + '</a>' : ''}</div>`
     : '';
 
   const folgasHtml = (alocacao.folgas && alocacao.folgas.length > 0)
@@ -12243,8 +12329,8 @@ function renderHubEmbed(containerId, alocacao) {
     <div style="border:1px solid #ffebee; border-radius:8px; overflow:hidden;">
       <div id="${hubHeaderId}" onclick="toggleHubEmbed('${hubBodyId}','${hubChevronId}','${hubHeaderId}')" style="background:linear-gradient(135deg,#d32f2f,#b71c1c); color:#fff; padding:0.5rem 1rem; display:flex; align-items:center; gap:0.5rem; cursor:pointer; user-select:none;">
         <i class="bi bi-geo-alt-fill"></i>
-        <strong>Alocacao de HUB</strong>
-        <span style="background:${bgBadge}; color:${corBadge}; border-radius:4px; padding:2px 8px; font-size:0.8rem; font-weight:700;">${alocacao.tipoAlocacao}</span>
+        <span>Alocação de HUB</span>
+        <span style="background:${bgBadge}; color:${corBadge}; border-radius:4px; padding:2px 8px; font-size:0.8rem; font-weight:400;">${normalizarTextoCapitalizado(alocacao.tipoAlocacao)}</span>
         <span style="font-size:0.8rem; opacity:0.85;">${alocacao.data || ''}</span>
         <i class="bi bi-chevron-down" id="${hubChevronId}" style="margin-left:auto; transition:transform 0.2s; flex-shrink:0;"></i>
       </div>
@@ -12612,7 +12698,9 @@ function renderEscalonamentoTabs() {
   var tabsEl = document.getElementById('escalonamentoTabs');
   if (!tabsEl) return;
 
-  var regioes = Object.keys(escalonamentoDados);
+  var regioes = Object.keys(escalonamentoDados).sort(function(a, b) {
+    return obterRotuloRegiaoEscalonamento(a).localeCompare(obterRotuloRegiaoEscalonamento(b), 'pt-BR');
+  });
   if (regioes.length === 0) {
     atualizarVisibilidadeEscalonamento();
     return;
@@ -12625,7 +12713,7 @@ function renderEscalonamentoTabs() {
     var btn = document.createElement('button');
     btn.className = 'btn btn-sm btn-outline-primary escalonamento-tab-btn';
     btn.dataset.sheet = sheetName;
-    btn.textContent = sheetName;
+    btn.textContent = obterRotuloRegiaoEscalonamento(sheetName);
     btn.style.cssText = 'font-size: 0.8rem; padding: 0.2rem 0.6rem;';
     btn.onclick = function() { renderEscalonamentoSheet(sheetName); };
     tabsEl.appendChild(btn);
@@ -12695,6 +12783,10 @@ function renderEscalonamentoSheet(sheetName) {
 
   // Vincular cliques das sub-abas de área
   content.querySelectorAll('.escalonamento-area-btn').forEach(function(btn) {
+    btn.textContent = normalizarTextoCapitalizado(btn.textContent);
+  });
+
+  content.querySelectorAll('.escalonamento-area-btn').forEach(function(btn) {
     btn.addEventListener('click', function() {
       var idx = parseInt(btn.dataset.areaIdx);
       content.querySelectorAll('.escalonamento-area-btn').forEach(function(b) {
@@ -12718,17 +12810,17 @@ function _renderEscalonamentoSections(sections) {
 
     html += '<div class="mb-4">';
     html += '<div class="escalonamento-nivel-heading" style="background:' + color + ';color:#2c3e50;padding:0.5rem 0.75rem;border-radius:8px;font-weight:bold;font-size:0.82rem;margin-bottom:0.25rem;border-left:4px solid #d32f2f;">'
-      + escapeHtml(section.nivel || ('NÍVEL ' + (idx + 1))) + '</div>';
+      + escapeHtml(formatarTituloEscalonamento(section.nivel || ('Nível ' + (idx + 1)))) + '</div>';
 
     if (section.subtitulo) {
       html += '<div style="font-size:0.78rem;color:#555;margin-bottom:0.4rem;padding-left:0.25rem;">'
-        + escapeHtml(section.subtitulo) + '</div>';
+        + escapeHtml(formatarTituloEscalonamento(section.subtitulo)) + '</div>';
     }
 
     html += '<div class="table-responsive"><table class="table table-sm table-hover mb-0" style="font-size:0.78rem;">';
     html += '<thead style="background:#ffebee;"><tr>';
     displayHeaders.forEach(function(h) {
-      html += '<th style="white-space:nowrap;">' + escapeHtml(h) + '</th>';
+      html += '<th style="white-space:nowrap;">' + escapeHtml(formatarCabecalhoEscalonamento(h)) + '</th>';
     });
     html += '</tr></thead><tbody>';
 
@@ -12739,19 +12831,19 @@ function _renderEscalonamentoSections(sections) {
         if (col === 'TELEFONE' || col === 'FONE') {
           var wa = whatsappLink(val);
           if (wa && val) {
-            html += '<td style="white-space:nowrap;"><a href="' + wa + '" target="_blank" style="color:#25D366;">'
+            html += '<td style="white-space:nowrap;"><a href="' + wa + '" target="_blank">'
               + '<i class="bi bi-whatsapp"></i> ' + escapeHtml(val) + '</a></td>';
           } else {
             html += '<td>' + escapeHtml(val) + '</td>';
           }
         } else if (col === 'E-MAIL' || col === 'EMAIL') {
           if (val) {
-            html += '<td style="font-size:0.72rem;"><a href="mailto:' + escapeHtml(val) + '">' + escapeHtml(val) + '</a></td>';
+            html += '<td style="font-size:0.72rem;"><a href="mailto:' + escapeHtml(val) + '">' + escapeHtml(val).toLowerCase() + '</a></td>';
           } else {
             html += '<td></td>';
           }
         } else {
-          html += '<td>' + escapeHtml(val) + '</td>';
+          html += '<td>' + escapeHtml(normalizarTextoCapitalizado(val)) + '</td>';
         }
       });
       html += '</tr>';

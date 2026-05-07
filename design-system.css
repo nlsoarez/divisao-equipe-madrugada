@@ -1709,3 +1709,151 @@ body.ds-bg-gradient,
         padding: 16px !important;
     }
 }
+
+/* ==========================================================================
+   22. AJUSTES FINOS DE LOGIN, ESCALONAMENTO E HUB
+   ========================================================================== */
+body.app-logged-in {
+    zoom: 0.9;
+}
+
+.app-header h1 {
+    font-weight: 400 !important;
+}
+
+.brand-icon {
+    width: auto !important;
+    height: auto !important;
+    color: var(--corp-primary) !important;
+    background: transparent !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    font-size: 22px !important;
+}
+
+.config-header,
+#escalonamentoHeader,
+.telegram-header {
+    color: #111827 !important;
+    font-size: 14px !important;
+    font-weight: 400 !important;
+}
+
+.config-header span,
+#escalonamentoHeader span,
+.telegram-header span,
+.config-header i,
+#escalonamentoHeader i,
+.telegram-header i {
+    color: #111827 !important;
+    font-size: 14px !important;
+    font-weight: 400 !important;
+}
+
+a,
+.table a,
+.telegram-table a,
+.hub-table a,
+#escalonamentoContent a {
+    color: #111827 !important;
+    text-decoration: none !important;
+}
+
+.bi-whatsapp {
+    color: #25d366 !important;
+}
+
+#hubCardHeader {
+    display: none !important;
+}
+
+#hubContent {
+    padding-top: 0 !important;
+}
+
+#hubResponsavel,
+#hubResponsavel *,
+#hubEmbedResidencial .small,
+#hubEmbedRioEs .small {
+    color: #111827 !important;
+    font-weight: 400 !important;
+}
+
+.hub-table th,
+.hub-table td,
+.hub-table strong {
+    color: #111827 !important;
+    font-size: 13px !important;
+    font-weight: 400 !important;
+}
+
+.hub-table th {
+    background: #f3f4f6 !important;
+}
+
+.hub-table td:nth-child(4) a {
+    color: #111827 !important;
+    text-decoration: none !important;
+}
+
+#escalonamentoSection {
+    margin-top: 0 !important;
+    margin-bottom: 18px !important;
+}
+
+#escalonamentoBody > div:first-child {
+    padding: 12px 16px !important;
+}
+
+#escalonamentoTabs,
+#escalonamentoAreaTabs {
+    gap: 8px !important;
+}
+
+.escalonamento-tab-btn,
+.escalonamento-area-btn {
+    border-radius: 10px !important;
+    font-size: 13px !important;
+    font-weight: 400 !important;
+    padding: 6px 12px !important;
+}
+
+.escalonamento-nivel-heading {
+    font-weight: 400 !important;
+    text-transform: none !important;
+}
+
+#escalonamentoContent table {
+    table-layout: fixed;
+    width: 100%;
+}
+
+#escalonamentoContent th,
+#escalonamentoContent td {
+    color: #111827 !important;
+    font-size: 13px !important;
+    font-weight: 400 !important;
+    text-align: left !important;
+    vertical-align: middle !important;
+}
+
+#escalonamentoContent th:nth-child(5),
+#escalonamentoContent td:nth-child(5),
+#escalonamentoContent th:last-child,
+#escalonamentoContent td:last-child {
+    text-align: right !important;
+}
+
+.buttons-group .refresh-btn,
+.user-controls .refresh-btn,
+.admin-controls .refresh-btn {
+    border-radius: 12px !important;
+    box-shadow: 0 8px 18px rgba(44, 62, 80, 0.12) !important;
+}
+
+.user-controls .refresh-btn:not(.logout-viewer),
+.admin-controls .refresh-btn:not(.delete-admin):not(.logout-admin):not(.upload-admin) {
+    background: #eef0f3 !important;
+    color: #2c3e50 !important;
+    border-color: #eef0f3 !important;
+}
