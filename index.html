@@ -5664,14 +5664,14 @@ function atualizarStatusCalendarios() {
   if (cal1Status && cal1Info) {
     if (calendarios.calendario1) {
       const cal1 = calendarios.calendario1;
-      cal1Status.textContent = 'Carregado';
-      cal1Status.className = 'badge bg-success';
+      cal1Status.innerHTML = '<i class="bi bi-check-lg"></i>';
+      cal1Status.className = 'upload-status-icon loaded';
       const mesNome = MESES[cal1.mes] || 'N/A';
       const dias = Object.keys(cal1.dadosOriginais || {}).length;
       cal1Info.textContent = `${mesNome}/${cal1.ano} - ${dias} dias`;
     } else {
       cal1Status.textContent = 'Vazio';
-      cal1Status.className = 'badge bg-secondary';
+      cal1Status.className = 'upload-status-icon empty';
       cal1Info.textContent = 'Nenhuma planilha carregada';
     }
   }
@@ -5682,14 +5682,14 @@ function atualizarStatusCalendarios() {
   if (calRioEsStatus && calRioEsInfo) {
     const rioEsData = calendarios.calendario2?.rio_es;
     if (rioEsData) {
-      calRioEsStatus.textContent = 'Carregado';
-      calRioEsStatus.className = 'badge bg-success';
+      calRioEsStatus.innerHTML = '<i class="bi bi-check-lg"></i>';
+      calRioEsStatus.className = 'upload-status-icon loaded';
       const mesNome = MESES[rioEsData.mes] || 'N/A';
       const dias = Object.keys(rioEsData.dadosOriginais || {}).length;
       calRioEsInfo.textContent = `${mesNome}/${rioEsData.ano} - ${dias} dias`;
     } else {
       calRioEsStatus.textContent = 'Vazio';
-      calRioEsStatus.className = 'badge bg-secondary';
+      calRioEsStatus.className = 'upload-status-icon empty';
       calRioEsInfo.textContent = 'Nenhuma planilha carregada';
     }
   }
@@ -5700,14 +5700,14 @@ function atualizarStatusCalendarios() {
   if (calLesteStatus && calLesteInfo) {
     const lesteData = calendarios.calendario2?.leste;
     if (lesteData) {
-      calLesteStatus.textContent = 'Carregado';
-      calLesteStatus.className = 'badge bg-success';
+      calLesteStatus.innerHTML = '<i class="bi bi-check-lg"></i>';
+      calLesteStatus.className = 'upload-status-icon loaded';
       const mesNome = MESES[lesteData.mes] || 'N/A';
       const dias = Object.keys(lesteData.dadosOriginais || {}).length;
       calLesteInfo.textContent = `${mesNome}/${lesteData.ano} - ${dias} dias`;
     } else {
       calLesteStatus.textContent = 'Vazio';
-      calLesteStatus.className = 'badge bg-secondary';
+      calLesteStatus.className = 'upload-status-icon empty';
       calLesteInfo.textContent = 'Nenhuma planilha carregada';
     }
   }

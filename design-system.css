@@ -2250,9 +2250,46 @@ a,
 
 #calendarSectionRioEs .calendar-header,
 #calendarSectionLeste .calendar-header {
-    padding-bottom: 10px !important;
-    margin-bottom: 10px !important;
+    padding-bottom: 0 !important;
+    margin-bottom: 6px !important;
     justify-content: flex-end !important;
+}
+
+#calendarSectionRioEs .calendar-container,
+#calendarSectionLeste .calendar-container {
+    padding-top: 16px !important;
+}
+
+#calendarSectionRioEs .calendar-grid,
+#calendarSectionLeste .calendar-grid {
+    margin-top: 0 !important;
+}
+
+#telegramPanel .telegram-tabs {
+    padding-bottom: 8px !important;
+    margin-bottom: 8px !important;
+}
+
+#resumoAreasCop {
+    margin-top: 0 !important;
+}
+
+.upload-status-icon {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    min-width: 22px !important;
+    height: 22px !important;
+    border: 0 !important;
+    background: transparent !important;
+    color: #6b7280 !important;
+    font-size: 15px !important;
+    font-weight: 400 !important;
+}
+
+.upload-status-icon.empty {
+    color: #9ca3af !important;
+    font-size: 11px !important;
 }
 
 .calendar-day-absent,
