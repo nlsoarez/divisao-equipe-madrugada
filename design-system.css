@@ -2101,6 +2101,61 @@ a,
     border-top-color: transparent !important;
 }
 
+/* ==========================================================================
+   25. REFINOS DE VOLUMETRIA E HUB
+   ========================================================================== */
+.admin-nav-tabs {
+    gap: 18px !important;
+}
+
+.telegram-tabs {
+    gap: 14px !important;
+    margin-top: 14px !important;
+    padding-top: 12px !important;
+}
+
+#telegramPanel .telegram-header {
+    margin-bottom: 0 !important;
+}
+
+.admin-nav-tab.telegram-tab-nav.active .bi-whatsapp {
+    color: #ffffff !important;
+}
+
+#tabNovosAlertas,
+#btnExcluirTodosAlertas,
+.admin-controls .delete-admin {
+    display: none !important;
+}
+
+#resumoVolumePorArea,
+.telegram-area-summary {
+    background: #f3f4f6 !important;
+    border: 1px solid #e0e0e0 !important;
+    border-left: 4px solid #d32f2f !important;
+    color: #111827 !important;
+}
+
+#tabNovosAlertas > .d-flex.justify-content-end,
+#resumoVolumePorArea + .d-flex.justify-content-end {
+    display: none !important;
+}
+
+#hubPanel .hub-region-cell {
+    border-top-color: #f3f4f6 !important;
+    border-bottom-color: #f3f4f6 !important;
+}
+
+#hubPanel .hub-region-spacer {
+    border-top-color: #f3f4f6 !important;
+    border-bottom-color: #f3f4f6 !important;
+}
+
+#hubPanel .hub-phone-cell {
+    text-align: right !important;
+    padding-right: 10px !important;
+}
+
 .calendar-day-absent,
 .swap-status,
 .btn-trocas-empresarial {
