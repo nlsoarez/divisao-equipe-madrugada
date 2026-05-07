@@ -2221,6 +2221,40 @@ a,
     display: none !important;
 }
 
+/* ==========================================================================
+   26. ESPAÇAMENTO UNIFORME NAS ABAS EMPRESARIAIS
+   ========================================================================== */
+#empresarialSubnav {
+    margin-bottom: 14px !important;
+}
+
+#tabRioEs.active,
+#tabLeste.active {
+    gap: 14px !important;
+}
+
+#tabRioEs.active .config-accordion,
+#tabLeste.active .config-accordion,
+#tabRioEs.active #escalonamentoSection,
+#tabLeste.active #escalonamentoSection,
+#tabRioEs.active .calendar-container,
+#tabLeste.active .calendar-container {
+    margin-top: 0 !important;
+    margin-bottom: 0 !important;
+}
+
+#calendarSectionRioEs .calendar-title-wrapper,
+#calendarSectionLeste .calendar-title-wrapper {
+    display: none !important;
+}
+
+#calendarSectionRioEs .calendar-header,
+#calendarSectionLeste .calendar-header {
+    padding-bottom: 10px !important;
+    margin-bottom: 10px !important;
+    justify-content: flex-end !important;
+}
+
 .calendar-day-absent,
 .swap-status,
 .btn-trocas-empresarial {
