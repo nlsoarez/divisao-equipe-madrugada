@@ -2095,6 +2095,12 @@ a,
     font-weight: 400 !important;
 }
 
+#hubPanel .hub-region-spacer,
+.hub-region-spacer {
+    color: transparent !important;
+    border-top-color: transparent !important;
+}
+
 .calendar-day-absent,
 .swap-status,
 .btn-trocas-empresarial {

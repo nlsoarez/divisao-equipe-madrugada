@@ -12140,9 +12140,7 @@ function exibirAlocacaoHub(alocacao) {
         if (tecnicos.length > 0) {
           tecnicos.forEach((t, i) => {
             html += `<tr>`;
-            if (i === 0) {
-              html += `<td rowspan="${tecnicos.length}" class="hub-region-cell">${normalizarTextoCapitalizado(regiao)}</td>`;
-            }
+            html += `<td class="hub-region-cell ${i > 0 ? 'hub-region-spacer' : ''}">${i === 0 ? normalizarTextoCapitalizado(regiao) : ''}</td>`;
             html += `<td>${formatarHorarioHub(t.horario) || '-'}</td>`;
             html += `<td>${formatarNomeCurto(t.tecnico) || '-'}${t.sobreaviso ? ' <span class="badge bg-info">Sobreaviso</span>' : ''}</td>`;
             html += `<td class="hub-phone-cell"><a href="${whatsappLink(t.telefone) || '#'}" target="_blank">${t.telefone || '-'}</a></td>`;
@@ -12352,7 +12350,7 @@ function renderHubEmbed(containerId, alocacao) {
     for (const [regiao, tecnicos] of Object.entries(alocacao.regioes)) {
       tecnicos.forEach((t, i) => {
         linhasTabela += `<tr>`;
-        if (i === 0) linhasTabela += `<td rowspan="${tecnicos.length}" class="hub-region-cell">${normalizarTextoCapitalizado(regiao)}</td>`;
+        linhasTabela += `<td class="hub-region-cell ${i > 0 ? 'hub-region-spacer' : ''}">${i === 0 ? normalizarTextoCapitalizado(regiao) : ''}</td>`;
         linhasTabela += `<td>${formatarHorarioHub(t.horario) || '-'}</td><td>${formatarNomeCurto(t.tecnico) || '-'}${t.sobreaviso ? ' <span class="badge bg-info">Sobreaviso</span>' : ''}</td><td class="hub-phone-cell"><a href="${whatsappLink(t.telefone) || '#'}" target="_blank">${t.telefone || '-'}</a></td></tr>`;
       });
     }
