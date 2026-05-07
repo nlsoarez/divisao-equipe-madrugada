@@ -2120,6 +2120,12 @@ a,
     margin-bottom: 0 !important;
 }
 
+#telegramPanel .telegram-tabs {
+    justify-content: center !important;
+    background: #f3f4f6 !important;
+    border-radius: 0 0 18px 18px !important;
+}
+
 .admin-nav-tab.telegram-tab-nav.active .bi-whatsapp {
     color: #ffffff !important;
 }
@@ -2171,17 +2177,7 @@ a,
 }
 
 .btn-detalhes-lupa {
-    width: 34px !important;
-    height: 34px !important;
-    padding: 0 !important;
-    border: 0 !important;
-    background: transparent !important;
-    color: #6b7280 !important;
-    box-shadow: none !important;
-    display: inline-flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    transition: color 0.2s ease, transform 0.2s ease !important;
+    display: none !important;
 }
 
 .btn-detalhes-lupa i {
@@ -2204,6 +2200,11 @@ a,
 
 #incidentesAtivosSection {
     margin-top: 20px !important;
+}
+
+#incidentesAtivosSection .inc-analista-right,
+#incidentesAtivosSection .inc-summary-row {
+    display: none !important;
 }
 
 #hubPanel .hub-region-end {
