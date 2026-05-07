@@ -2009,3 +2009,67 @@ a,
 .logout-viewer i {
     font-size: 19px !important;
 }
+
+/* ==========================================================================
+   24. HUB SEM AMARELO E TABELA MAIS EQUILIBRADA
+   ========================================================================== */
+#hubPanel .hub-table {
+    border: 1px solid #e5e7eb !important;
+    border-radius: 16px !important;
+    border-collapse: separate !important;
+    border-spacing: 0 !important;
+    overflow: hidden !important;
+}
+
+#hubPanel .table-responsive {
+    border-radius: 16px !important;
+    overflow: hidden !important;
+}
+
+#hubPanel .hub-table thead,
+#hubPanel .hub-table thead[style],
+#hubPanel .hub-table thead th {
+    background: #f3f4f6 !important;
+}
+
+#hubPanel .hub-table th,
+#hubPanel .hub-table td {
+    padding: 12px 14px !important;
+    text-align: left !important;
+}
+
+#hubPanel .hub-table th:nth-child(1),
+#hubPanel .hub-table td:nth-child(1) {
+    width: 22% !important;
+}
+
+#hubPanel .hub-table th:nth-child(2),
+#hubPanel .hub-table td:nth-child(2) {
+    width: 22% !important;
+}
+
+#hubPanel .hub-table th:nth-child(3),
+#hubPanel .hub-table td:nth-child(3) {
+    width: 30% !important;
+}
+
+#hubPanel .hub-table th:nth-child(4),
+#hubPanel .hub-table td:nth-child(4) {
+    width: 26% !important;
+    text-align: right !important;
+}
+
+#hubPanel .hub-region-cell,
+.hub-region-cell {
+    background: #f3f4f6 !important;
+    color: #111827 !important;
+    font-weight: 400 !important;
+}
+
+.calendar-day-absent,
+.swap-status,
+.btn-trocas-empresarial {
+    background: #f3f4f6 !important;
+    color: #b71c1c !important;
+    border-color: #e0e0e0 !important;
+}

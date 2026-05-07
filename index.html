@@ -12132,10 +12132,10 @@ function exibirAlocacaoHub(alocacao) {
           tecnicos.forEach((t, i) => {
             html += `<tr>`;
             if (i === 0) {
-              html += `<td rowspan="${tecnicos.length}" style="background: #fff8e1; font-weight: 600;">${regiao}</td>`;
+              html += `<td rowspan="${tecnicos.length}" class="hub-region-cell">${normalizarTextoCapitalizado(regiao)}</td>`;
             }
-            html += `<td>${t.horario || '-'}</td>`;
-            html += `<td>${t.tecnico || '-'}${t.sobreaviso ? ' <span class="badge bg-info">Sobreaviso</span>' : ''}</td>`;
+            html += `<td>${formatarHorarioHub(t.horario) || '-'}</td>`;
+            html += `<td>${formatarNomeCurto(t.tecnico) || '-'}${t.sobreaviso ? ' <span class="badge bg-info">Sobreaviso</span>' : ''}</td>`;
             html += `<td><a href="${whatsappLink(t.telefone) || '#'}" target="_blank">${t.telefone || '-'}</a></td>`;
             html += `</tr>`;
           });
@@ -12150,8 +12150,8 @@ function exibirAlocacaoHub(alocacao) {
     if (tbody && alocacao.tecnicos) {
       let html = alocacao.tecnicos.map(t => `
         <tr>
-          <td>${t.nome || '-'}</td>
-          <td>${t.local || '-'}</td>
+          <td>${formatarNomeCurto(t.nome) || '-'}</td>
+          <td>${normalizarTextoCapitalizado(t.local) || '-'}</td>
           <td>${formatarAtividadeHub(t.atividade, t.observacao)}</td>
           <td><a href="${whatsappLink(t.telefone) || '#'}" target="_blank">${t.telefone || '-'}</a></td>
         </tr>
