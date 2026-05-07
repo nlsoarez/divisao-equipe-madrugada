@@ -1566,3 +1566,146 @@ body.ds-bg-gradient,
         min-width: 720px;
     }
 }
+
+/* ==========================================================================
+   21. ESTETICA DE REFERENCIA: CARDS LIMPOS E TITULO COM ICONE
+   ========================================================================== */
+:root {
+    --corp-card-radius-lg: 20px;
+    --corp-deep-shadow: 0 18px 38px rgba(44, 62, 80, 0.16), 0 4px 12px rgba(44, 62, 80, 0.08);
+    --corp-panel-shadow: 0 12px 30px rgba(44, 62, 80, 0.12);
+}
+
+body.ds-bg-gradient,
+.ds-bg-gradient {
+    padding: 18px 0 28px !important;
+    background: #d1d5db !important;
+}
+
+.app-header {
+    min-height: 68px;
+    display: flex;
+    align-items: center;
+    background: #fff !important;
+    border: 0 !important;
+    border-radius: var(--corp-card-radius-lg) !important;
+    box-shadow: var(--corp-deep-shadow) !important;
+}
+
+.app-header .main-container {
+    width: 100% !important;
+    max-width: none !important;
+    padding: 0 !important;
+}
+
+.app-header h1 {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: var(--corp-primary-dark) !important;
+    font-size: 22px !important;
+    line-height: 1.2;
+}
+
+.brand-dot {
+    display: none !important;
+}
+
+.brand-icon {
+    display: inline-flex;
+    width: 24px;
+    height: 24px;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    background: var(--corp-primary);
+    border-radius: 9px;
+    box-shadow: 0 5px 14px rgba(211, 47, 47, 0.26);
+    font-size: 13px;
+    flex: 0 0 auto;
+}
+
+.admin-controls,
+.user-controls,
+.admin-nav-tabs,
+.empresarial-subnav,
+.config-accordion,
+.calendar-container,
+.telegram-panel,
+#hubPanel,
+#escalonamentoSection > div,
+.ds-card,
+.card,
+.modal-content {
+    border: 0 !important;
+    border-radius: var(--corp-card-radius-lg) !important;
+    box-shadow: var(--corp-panel-shadow) !important;
+}
+
+.admin-controls,
+.user-controls {
+    min-height: 72px;
+    padding: 14px 20px !important;
+}
+
+.admin-nav-tabs,
+.empresarial-subnav {
+    padding: 12px !important;
+}
+
+.admin-nav-tab,
+.telegram-tab,
+.empresarial-subtab {
+    border-radius: 14px !important;
+}
+
+.admin-nav-tab.active,
+.telegram-tab.active,
+.empresarial-subtab.active,
+.btn-primary,
+.btn-success,
+.ds-btn,
+.telegram-btn-primary,
+.telegram-btn-success,
+.btn-primary-compact {
+    background: var(--corp-primary) !important;
+    color: #fff !important;
+    border-color: var(--corp-primary) !important;
+}
+
+.calendar-container,
+.telegram-panel,
+#hubPanel {
+    padding: 24px !important;
+}
+
+.calendar-grid {
+    border-radius: 12px !important;
+}
+
+.calendar-day {
+    min-height: 112px;
+}
+
+.calendar-weekday,
+.table thead th,
+.telegram-table th {
+    color: var(--corp-primary-dark) !important;
+    background: #f3f4f6 !important;
+}
+
+.modal-content {
+    overflow: hidden;
+}
+
+@media (max-width: 768px) {
+    .app-header h1 {
+        font-size: 20px !important;
+    }
+
+    .calendar-container,
+    .telegram-panel,
+    #hubPanel {
+        padding: 16px !important;
+    }
+}
