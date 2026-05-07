@@ -1148,3 +1148,258 @@ label,
         margin: 10px;
     }
 }
+
+/* ==========================================================================
+   19. REFINO CLEAN COM ACENTOS VERMELHOS
+   ========================================================================== */
+body.ds-bg-gradient,
+.ds-bg-gradient {
+    padding-top: 16px;
+}
+
+.app-header {
+    width: calc(100% - 24px);
+    max-width: 960px;
+    margin: 0 auto 22px;
+    padding: 18px 26px;
+    background: var(--corp-card-bg) !important;
+    color: var(--corp-primary-dark) !important;
+    border: 1px solid var(--corp-border);
+    border-radius: 18px;
+    box-shadow: var(--corp-shadow);
+}
+
+.app-header .main-container {
+    max-width: none;
+    width: 100%;
+    padding: 0;
+}
+
+.app-header h1 {
+    color: var(--corp-primary-dark) !important;
+    text-align: left;
+    text-shadow: none;
+}
+
+.brand-dot {
+    width: 20px;
+    height: 20px;
+    margin-right: 10px;
+    background: var(--corp-primary) !important;
+    border-radius: 8px;
+    box-shadow: 0 4px 10px rgba(211, 47, 47, 0.22);
+    vertical-align: -4px;
+}
+
+.admin-controls,
+.user-controls,
+.admin-nav-tabs,
+.empresarial-subnav,
+.config-accordion,
+.calendar-container,
+.ds-card,
+.card,
+.telegram-card,
+.telegram-section,
+.modal-content,
+#loginModal .modal-content {
+    border: 1px solid var(--corp-border) !important;
+    border-left: 1px solid var(--corp-border) !important;
+    background: #fff !important;
+    box-shadow: 0 10px 28px rgba(44, 62, 80, 0.10);
+}
+
+.admin-controls,
+.user-controls,
+.admin-nav-tabs,
+.empresarial-subnav {
+    border-radius: 14px !important;
+}
+
+.calendar-container {
+    padding: 22px;
+}
+
+.calendar-container::before,
+.calendar-day::after,
+.ds-card::before {
+    display: none !important;
+}
+
+.calendar-container:hover,
+.ds-card:hover,
+.card:hover {
+    transform: none;
+    box-shadow: 0 10px 28px rgba(44, 62, 80, 0.12);
+}
+
+.config-header,
+.swap-controls,
+.calendar-day.today,
+.calendar-day.has-data,
+.ds-output {
+    background: #fff !important;
+    border-color: var(--corp-border) !important;
+}
+
+.config-header {
+    color: var(--corp-text) !important;
+    border-left: 4px solid var(--corp-soft);
+}
+
+.mode-indicator.admin,
+.mode-indicator.viewer,
+.btn-agendar-trocas,
+.btn-trocas-empresarial {
+    background: #fff8f0 !important;
+    color: #8a5a00 !important;
+    border-left-color: #f59e0b !important;
+}
+
+.admin-nav-tab,
+.telegram-tab,
+.empresarial-subtab {
+    background: #fff !important;
+    color: var(--corp-muted) !important;
+    border: 1px solid transparent !important;
+    box-shadow: none !important;
+}
+
+.admin-nav-tab:hover,
+.telegram-tab:hover,
+.empresarial-subtab:hover {
+    background: #fafafa !important;
+    color: var(--corp-primary-dark) !important;
+}
+
+.admin-nav-tab.active,
+.telegram-tab.active,
+.empresarial-subtab.active {
+    background: var(--corp-primary) !important;
+    color: #fff !important;
+    border-color: var(--corp-primary) !important;
+    box-shadow: 0 5px 14px rgba(211, 47, 47, 0.22) !important;
+}
+
+.calendar-header {
+    border-bottom: 1px solid var(--corp-border) !important;
+}
+
+.calendar-title,
+.ds-card-title {
+    color: var(--corp-text) !important;
+    border-bottom-color: var(--corp-border) !important;
+}
+
+.escala-tipo-badge.residencial,
+.escala-tipo-badge.empresarial {
+    background: var(--corp-soft) !important;
+    color: var(--corp-primary-dark) !important;
+    border: 1px solid #f3c6c6;
+}
+
+.calendar-grid {
+    background: var(--corp-border) !important;
+    border-color: var(--corp-border) !important;
+}
+
+.calendar-weekday,
+.table thead th,
+.table thead td,
+.telegram-table th {
+    background: #f8f9fa !important;
+    color: var(--corp-primary-dark) !important;
+    border-color: var(--corp-border) !important;
+    text-shadow: none !important;
+}
+
+.calendar-day {
+    background: #fff !important;
+    border-left: 0 !important;
+}
+
+.calendar-day:hover {
+    background: #fffafa !important;
+    transform: none;
+    box-shadow: inset 0 0 0 2px rgba(211, 47, 47, 0.10);
+}
+
+.calendar-day.today {
+    box-shadow: inset 0 0 0 2px rgba(211, 47, 47, 0.14);
+}
+
+.calendar-day.has-data {
+    background: #fff !important;
+}
+
+.calendar-day-number {
+    color: var(--corp-text) !important;
+}
+
+.calendar-day-stats {
+    color: var(--corp-primary-dark) !important;
+    background: var(--corp-soft) !important;
+    border-color: #f3c6c6 !important;
+    box-shadow: none !important;
+}
+
+.calendar-day-absent {
+    background: #fff8e1 !important;
+    color: #7a5200 !important;
+    border-color: #ffe08a !important;
+    box-shadow: none !important;
+}
+
+#escalonamentoHeader {
+    background: #fff !important;
+    color: var(--corp-primary-dark) !important;
+    border: 1px solid var(--corp-border);
+    border-left: 4px solid var(--corp-primary);
+    box-shadow: 0 6px 16px rgba(44, 62, 80, 0.08);
+}
+
+#escalonamentoBody > div:first-child {
+    background: #fff !important;
+    border-color: var(--corp-border) !important;
+}
+
+#escalonamentoContent {
+    border-color: var(--corp-border) !important;
+}
+
+.modal-header,
+.day-modal .modal-header,
+#loginModal .modal-header {
+    background: #fff !important;
+    color: var(--corp-primary-dark) !important;
+    border-bottom: 1px solid var(--corp-border);
+}
+
+.modal-header .btn-close,
+#loginModal .btn-close,
+.day-modal .btn-close {
+    filter: none;
+}
+
+.btn-primary,
+.btn-success,
+.ds-btn,
+.telegram-btn-primary,
+.telegram-btn-success,
+.btn-primary-compact {
+    box-shadow: 0 4px 12px rgba(211, 47, 47, 0.20) !important;
+}
+
+.refresh-btn,
+.calendar-nav-btn {
+    background: var(--corp-primary) !important;
+    border-color: var(--corp-primary) !important;
+}
+
+@media (max-width: 768px) {
+    .app-header {
+        width: 100%;
+        margin-bottom: 16px;
+        padding: 16px 18px;
+    }
+}
