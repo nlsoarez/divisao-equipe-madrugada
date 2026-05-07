@@ -3146,7 +3146,7 @@
                     <th style="width: 120px;">Região</th>
                     <th>Horário</th>
                     <th>Técnico</th>
-                    <th style="width: 130px;">Telefone</th>
+                    <th class="hub-phone-cell" style="width: 130px;">Telefone</th>
                   </tr>
                 </thead>
                 <tbody id="hubTabelaDiurnoBody">
@@ -3170,7 +3170,7 @@
                     <th>Técnico</th>
                     <th>Local</th>
                     <th>Local de atividade</th>
-                    <th style="width: 120px;">Telefone</th>
+                    <th class="hub-phone-cell" style="width: 120px;">Telefone</th>
                   </tr>
                 </thead>
                 <tbody id="hubTabelaMadrugadaBody">
@@ -12145,7 +12145,7 @@ function exibirAlocacaoHub(alocacao) {
             }
             html += `<td>${formatarHorarioHub(t.horario) || '-'}</td>`;
             html += `<td>${formatarNomeCurto(t.tecnico) || '-'}${t.sobreaviso ? ' <span class="badge bg-info">Sobreaviso</span>' : ''}</td>`;
-            html += `<td><a href="${whatsappLink(t.telefone) || '#'}" target="_blank">${t.telefone || '-'}</a></td>`;
+            html += `<td class="hub-phone-cell"><a href="${whatsappLink(t.telefone) || '#'}" target="_blank">${t.telefone || '-'}</a></td>`;
             html += `</tr>`;
           });
         }
@@ -12162,7 +12162,7 @@ function exibirAlocacaoHub(alocacao) {
           <td>${formatarNomeCurto(t.nome) || '-'}</td>
           <td>${normalizarTextoCapitalizado(t.local) || '-'}</td>
           <td>${formatarAtividadeHub(t.atividade, t.observacao)}</td>
-          <td><a href="${whatsappLink(t.telefone) || '#'}" target="_blank">${t.telefone || '-'}</a></td>
+          <td class="hub-phone-cell"><a href="${whatsappLink(t.telefone) || '#'}" target="_blank">${t.telefone || '-'}</a></td>
         </tr>
       `).join('');
       tbody.innerHTML = html || '<tr><td colspan="4" class="text-center text-muted">Nenhum técnico</td></tr>';
@@ -12353,7 +12353,7 @@ function renderHubEmbed(containerId, alocacao) {
       tecnicos.forEach((t, i) => {
         linhasTabela += `<tr>`;
         if (i === 0) linhasTabela += `<td rowspan="${tecnicos.length}" class="hub-region-cell">${normalizarTextoCapitalizado(regiao)}</td>`;
-        linhasTabela += `<td>${formatarHorarioHub(t.horario) || '-'}</td><td>${formatarNomeCurto(t.tecnico) || '-'}${t.sobreaviso ? ' <span class="badge bg-info">Sobreaviso</span>' : ''}</td><td><a href="${whatsappLink(t.telefone) || '#'}" target="_blank">${t.telefone || '-'}</a></td></tr>`;
+        linhasTabela += `<td>${formatarHorarioHub(t.horario) || '-'}</td><td>${formatarNomeCurto(t.tecnico) || '-'}${t.sobreaviso ? ' <span class="badge bg-info">Sobreaviso</span>' : ''}</td><td class="hub-phone-cell"><a href="${whatsappLink(t.telefone) || '#'}" target="_blank">${t.telefone || '-'}</a></td></tr>`;
       });
     }
     linhasTabela = linhasTabela || `<tr><td colspan="4" class="text-center text-muted">Nenhum técnico</td></tr>`;
@@ -12362,13 +12362,13 @@ function renderHubEmbed(containerId, alocacao) {
       <td>${formatarNomeCurto(t.nome) || '-'}</td>
       <td>${normalizarTextoCapitalizado(t.local) || '-'}</td>
       <td>${formatarAtividadeHub(t.atividade, t.observacao)}</td>
-      <td><a href="${whatsappLink(t.telefone) || '#'}" target="_blank">${t.telefone || '-'}</a></td>
+      <td class="hub-phone-cell"><a href="${whatsappLink(t.telefone) || '#'}" target="_blank">${t.telefone || '-'}</a></td>
     </tr>`).join('') || `<tr><td colspan="4" class="text-center text-muted">Nenhum técnico</td></tr>`;
   }
 
   const theadCols = isMADRUGADA
-    ? '<th>Técnico</th><th>Local</th><th>Local de atividade</th><th>Telefone</th>'
-    : '<th>Região</th><th>Horário</th><th>Técnico</th><th>Telefone</th>';
+    ? '<th>Técnico</th><th>Local</th><th>Local de atividade</th><th class="hub-phone-cell">Telefone</th>'
+    : '<th>Região</th><th>Horário</th><th>Técnico</th><th class="hub-phone-cell">Telefone</th>';
 
   const responsavelHtml = (isMADRUGADA && alocacao.responsavel)
     ? `<div class="mt-2 small text-muted"><i class="bi bi-person-fill me-1"></i>Responsável: ${alocacao.responsavel.nome || '-'}${alocacao.responsavel.telefone ? ' &nbsp;<a href="' + (whatsappLink(alocacao.responsavel.telefone) || '#') + '" target="_blank"><i class="bi bi-whatsapp"></i> ' + alocacao.responsavel.telefone + '</a>' : ''}</div>`
