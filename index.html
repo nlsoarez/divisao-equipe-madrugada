@@ -2540,6 +2540,10 @@
       <i class="bi bi-cloud-arrow-up"></i>
     </button>
 
+    <button class="refresh-btn escalonamento-upload-admin" id="btnUploadEscalonamentoAdmin" onclick="document.getElementById('fileInputEscalonamento').click()" title="Upload do escalonamento" style="display: none;">
+      <i class="bi bi-telephone"></i>
+    </button>
+
     <!-- Botão Refresh -->
     <button class="refresh-btn" onclick="location.reload()" title="Recarregar página">
       <i class="bi bi-arrow-clockwise"></i>
@@ -2681,7 +2685,7 @@
         <!-- Sub-escala Rio/Es -->
         <div class="calendario-item mb-3 p-3" style="background: #f8f9fa; border-radius: 8px; border-left: 4px solid #d32f2f;">
           <div class="d-flex justify-content-between align-items-center mb-2">
-            <strong><i class="bi bi-geo-alt me-2"></i>Rio/ES</strong>
+            <strong><i class="bi bi-geo-alt me-2"></i>RJ/ES</strong>
             <span class="badge bg-secondary" id="calRioEsStatus">Vazio</span>
           </div>
           <div class="d-flex gap-2 align-items-center flex-wrap">
@@ -2707,8 +2711,8 @@
     <div class="calendar-container empresarial-calendar">
       <div class="calendar-header">
         <div class="calendar-title-wrapper">
-          <h5 class="calendar-title" id="calendarTitleRioEs">Rio/ES</h5>
-          <span class="escala-tipo-badge empresarial" style="font-size: 0.7rem;">Rio/ES</span>
+          <h5 class="calendar-title" id="calendarTitleRioEs">Maio de 2026</h5>
+          <span class="escala-tipo-badge empresarial" style="font-size: 0.7rem;"><i class="bi bi-building-fill"></i> Empresarial</span>
         </div>
         <div class="calendar-nav">
           <button class="btn-expand-calendar me-1" id="btnExpandRioEs" onclick="toggleExpandCalendario('rio_es')" title="Expandir calendário">
@@ -2793,8 +2797,8 @@
     <div class="calendar-container empresarial-calendar">
       <div class="calendar-header">
         <div class="calendar-title-wrapper">
-          <h5 class="calendar-title" id="calendarTitleLeste">Leste</h5>
-          <span class="escala-tipo-badge empresarial" style="font-size: 0.7rem;">Leste</span>
+          <h5 class="calendar-title" id="calendarTitleLeste">Maio de 2026</h5>
+          <span class="escala-tipo-badge empresarial" style="font-size: 0.7rem;"><i class="bi bi-building-fill"></i> Empresarial</span>
         </div>
         <div class="calendar-nav">
           <button class="btn-expand-calendar me-1" id="btnExpandLeste" onclick="toggleExpandCalendario('leste')" title="Expandir calendário">
@@ -3900,7 +3904,7 @@ function uploadCalendarioEmpresarial(subEscala, inputElement) {
       if (dadosMatrizEmpresarial?.sucesso) renderizarSirEmpresarial();
 
       hideLoading();
-      const nomeSubEscala = subEscala === 'rio_es' ? 'Rio/Es' : 'Leste';
+      const nomeSubEscala = subEscala === 'rio_es' ? 'RJ/ES' : 'Leste';
       showToast(`✅ Escala ${nomeSubEscala} carregada com sucesso!`, 'success');
 
       // Salvar automaticamente na nuvem após upload
@@ -3951,7 +3955,7 @@ function carregarSubEscalaEmpresarial(subEscala) {
     // Carregar dados no calendário
     carregarCalendario();
 
-    const nomeSubEscala = subEscala === 'rio_es' ? 'Rio/Es' : 'Leste';
+    const nomeSubEscala = subEscala === 'rio_es' ? 'RJ/ES' : 'Leste';
     showToast(`📅 Visualizando escala Empresarial - ${nomeSubEscala}`, 'info');
   } else {
     // Limpar tela se não há dados
@@ -3961,7 +3965,7 @@ function carregarSubEscalaEmpresarial(subEscala) {
     const container = document.getElementById('calendarioContainer');
     if (container) container.innerHTML = '<p class="text-center text-muted">Nenhuma planilha carregada para esta sub-escala.</p>';
 
-    const nomeSubEscala = subEscala === 'rio_es' ? 'Rio/Es' : 'Leste';
+    const nomeSubEscala = subEscala === 'rio_es' ? 'RJ/ES' : 'Leste';
     showToast(`⚠️ Sub-escala ${nomeSubEscala} ainda não tem dados`, 'warning');
   }
 }
@@ -4020,8 +4024,7 @@ function carregarCalendarioEmpresarialGrid(subEscala) {
   const ano = subEscalaDados.ano;
 
   // Atualizar título
-  const nomeSubEscala = subEscala === 'rio_es' ? 'Rio/Es' : 'Leste';
-  if (title) title.textContent = `${nomeSubEscala} - ${MESES[mes]} ${ano}`;
+  if (title) title.textContent = `${MESES[mes]} de ${ano}`;
 
   // Calcular dias do mês
   const primeiroDia = new Date(ano, mes, 1);
@@ -4290,7 +4293,7 @@ function mostrarDetalhesDiaEmpresarial(subEscala, dia) {
   const dadosDia = (subEscalaDados.dadosProcessados || subEscalaDados.dadosOriginais)[dia];
   if (!dadosDia) return;
 
-  const nomeSubEscala = subEscala === 'rio_es' ? 'Rio/Es' : 'Leste';
+  const nomeSubEscala = subEscala === 'rio_es' ? 'RJ/ES' : 'Leste';
   const mes = subEscalaDados.mes;
   const trocasDia = (subEscalaDados.trocas || []).filter(t =>
     (t.dia_a === dia || t.dia_b === dia) && t.status === 'ativa'
@@ -4468,7 +4471,7 @@ function editarDivisaoAreasEmpresarial(subEscala, dia) {
   const areaGrid = document.getElementById(`areaGridEmpresarial-${subEscala}-${dia}`);
   if (!areaGrid) return;
 
-  const nomeSubEscala = subEscala === 'rio_es' ? 'Rio/Es' : 'Leste';
+  const nomeSubEscala = subEscala === 'rio_es' ? 'RJ/ES' : 'Leste';
   const funcionariosDisponiveis = dadosDia.trabalhando || [];
   const numPessoas = dadosDia.numPessoas || funcionariosDisponiveis.length;
 
@@ -4677,7 +4680,7 @@ function marcarAusenciaNaoEsperadaEmpresarial(subEscala, dia) {
   if (!modalContent) return;
 
   const funcionariosDisponiveis = dadosDia.trabalhando || [];
-  const nomeSubEscala = subEscala === 'rio_es' ? 'Rio/Es' : 'Leste';
+  const nomeSubEscala = subEscala === 'rio_es' ? 'RJ/ES' : 'Leste';
 
   if (funcionariosDisponiveis.length === 0) {
     showToast('❌ Não há funcionários trabalhando para marcar como ausente', 'warning');
@@ -4839,7 +4842,7 @@ function removerAusenciaNaoEsperadaEmpresarial(subEscala, dia, nomeFuncionario) 
 function mudarMesEmpresarial(subEscala, delta) {
   const subEscalaDados = calendarios.calendario2?.[subEscala];
   if (!subEscalaDados) {
-    showToast(`⚠️ Nenhuma planilha carregada para ${subEscala === 'rio_es' ? 'Rio/Es' : 'Leste'}`, 'warning');
+    showToast(`⚠️ Nenhuma planilha carregada para ${subEscala === 'rio_es' ? 'RJ/ES' : 'Leste'}`, 'warning');
     return;
   }
 
@@ -4989,7 +4992,7 @@ function toggleModoTrocaEmpresarial(subEscala) {
     if (status) status.style.display = 'block';
     if (statusText) statusText.textContent = 'Selecione o primeiro dia...';
     resetarSelecaoTrocaEmpresarial(subEscala);
-    showToast(`🔄 Modo troca ativado para ${subEscala === 'rio_es' ? 'Rio/Es' : 'Leste'}`, 'info');
+    showToast(`🔄 Modo troca ativado para ${subEscala === 'rio_es' ? 'RJ/ES' : 'Leste'}`, 'info');
   } else {
     if (btn) btn.classList.remove('active');
     if (status) status.style.display = 'none';
@@ -5061,7 +5064,7 @@ function mostrarModalSelecaoPessoaEmpresarial(subEscala, dia, etapa) {
     return;
   }
 
-  const nomeSubEscala = subEscala === 'rio_es' ? 'Rio/Es' : 'Leste';
+  const nomeSubEscala = subEscala === 'rio_es' ? 'RJ/ES' : 'Leste';
   const modal = new bootstrap.Modal(document.getElementById('selectPersonModal'));
   const personList = document.getElementById('personList');
 
@@ -5104,7 +5107,7 @@ function mostrarModalSelecaoPessoaEmpresarial(subEscala, dia, etapa) {
 }
 
 function selecionarPessoaEmpresarial(subEscala, pessoa, dia, etapa) {
-  const nomeSubEscala = subEscala === 'rio_es' ? 'Rio/Es' : 'Leste';
+  const nomeSubEscala = subEscala === 'rio_es' ? 'RJ/ES' : 'Leste';
   const statusTextId = subEscala === 'rio_es' ? 'swapStatusTextRioEs' : 'swapStatusTextLeste';
 
   if (etapa === 'primeiro') {
@@ -5161,7 +5164,7 @@ function selecionarPessoaEmpresarial(subEscala, pessoa, dia, etapa) {
 function mostrarModalConfirmacaoTrocaEmpresarial(subEscala) {
   const selecao = selecaoTrocaEmpresarial[subEscala];
   const subEscalaDados = calendarios.calendario2?.[subEscala];
-  const nomeSubEscala = subEscala === 'rio_es' ? 'Rio/Es' : 'Leste';
+  const nomeSubEscala = subEscala === 'rio_es' ? 'RJ/ES' : 'Leste';
 
   const modal = new bootstrap.Modal(document.getElementById('swapModal'));
   const swapDetails = document.getElementById('swapDetails');
@@ -5243,7 +5246,7 @@ function confirmarTrocaEmpresarial() {
   const subEscalaDados = calendarios.calendario2?.[subEscala];
   const observacao = document.getElementById('swapObservation');
   const observacaoTexto = observacao ? observacao.value : '';
-  const nomeSubEscala = subEscala === 'rio_es' ? 'Rio/Es' : 'Leste';
+  const nomeSubEscala = subEscala === 'rio_es' ? 'RJ/ES' : 'Leste';
 
   const novaTroca = {
     id: 'troca-emp-' + Date.now(),
@@ -5376,7 +5379,7 @@ function cancelarTrocaEmpresarial(subEscala, trocaId, dia) {
 
 function iniciarSubstituicaoSimples(subEscala) {
   const selecao = selecaoTrocaEmpresarial[subEscala];
-  const nomeSubEscala = subEscala === 'rio_es' ? 'Rio/Es' : 'Leste';
+  const nomeSubEscala = subEscala === 'rio_es' ? 'RJ/ES' : 'Leste';
   const configFunc = subEscala === 'leste' ? CONFIG?.FUNCIONARIOS_LESTE : CONFIG?.FUNCIONARIOS_RIO_ES;
   const todosFunc = Object.keys(configFunc || {});
   const personList = document.getElementById('personList');
@@ -6625,7 +6628,7 @@ function entrarComoVisualizador(tipo = 'residencial') {
 
   let nomeEscala = 'Residencial';
   if (tipo === 'empresarial') nomeEscala = 'Empresarial';
-  else if (tipo === 'rio_es') nomeEscala = 'Rio/ES';
+  else if (tipo === 'rio_es') nomeEscala = 'RJ/ES';
   else if (tipo === 'leste') nomeEscala = 'Leste';
   showToast(`🔍 Visualizando escala ${nomeEscala}`, 'info');
 }
@@ -6664,15 +6667,18 @@ function iniciarComoAdmin() {
   const calendarioPanelResidencial = document.getElementById('calendarioPanelResidencial');
   const calendarioPanelEmpresarial = document.getElementById('calendarioPanelEmpresarial');
   const escalonamentoPanelResidencial = document.getElementById('escalonamentoPanelResidencial');
+  const btnUploadEscalonamentoAdmin = document.getElementById('btnUploadEscalonamentoAdmin');
 
   if (calendarioAtivo === 'calendario1') {
     if (calendarioPanelResidencial) calendarioPanelResidencial.style.display = 'block';
     if (calendarioPanelEmpresarial) calendarioPanelEmpresarial.style.display = 'none';
     if (escalonamentoPanelResidencial) escalonamentoPanelResidencial.style.display = 'block';
+    if (btnUploadEscalonamentoAdmin) btnUploadEscalonamentoAdmin.style.display = 'inline-flex';
   } else {
     if (calendarioPanelResidencial) calendarioPanelResidencial.style.display = 'none';
     if (calendarioPanelEmpresarial) calendarioPanelEmpresarial.style.display = 'block';
     if (escalonamentoPanelResidencial) escalonamentoPanelResidencial.style.display = 'none';
+    if (btnUploadEscalonamentoAdmin) btnUploadEscalonamentoAdmin.style.display = 'none';
   }
 
   showToast('👑 Modo administrador ativado', 'warning');
@@ -9636,8 +9642,15 @@ function trocarAbaAdmin(abaId) {
   const calendarioPanelLeste = document.getElementById('calendarioPanelLeste');
   const telegramPanel = document.getElementById('telegramPanel');
   const escalonamentoSection = document.getElementById('escalonamentoSection');
+  const btnUploadEscalonamentoAdmin = document.getElementById('btnUploadEscalonamentoAdmin');
 
-  if (escalonamentoSection && abaId === 'rio_es' && tabRioEs && calendarSectionRioEs) {
+  if (btnUploadEscalonamentoAdmin) {
+    btnUploadEscalonamentoAdmin.style.display = isAdmin && abaId === 'residencial' ? 'inline-flex' : 'none';
+  }
+
+  if (escalonamentoSection && abaId === 'residencial' && tabResidencial && tabRioEs) {
+    tabResidencial.parentNode.insertBefore(escalonamentoSection, tabRioEs);
+  } else if (escalonamentoSection && abaId === 'rio_es' && tabRioEs && calendarSectionRioEs) {
     tabRioEs.insertBefore(escalonamentoSection, calendarSectionRioEs);
   } else if (escalonamentoSection && abaId === 'leste' && tabLeste && calendarSectionLeste) {
     tabLeste.insertBefore(escalonamentoSection, calendarSectionLeste);

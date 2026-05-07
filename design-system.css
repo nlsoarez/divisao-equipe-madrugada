@@ -1991,6 +1991,20 @@ a,
     order: 2;
 }
 
+#escalonamentoPanelResidencial {
+    display: none !important;
+}
+
+.admin-controls .escalonamento-upload-admin {
+    background: #eef0f3 !important;
+    color: #2c3e50 !important;
+    border-color: #eef0f3 !important;
+}
+
+.admin-controls .escalonamento-upload-admin i {
+    font-size: 19px !important;
+}
+
 .refresh-btn {
     width: 42px !important;
     height: 42px !important;
@@ -2228,11 +2242,19 @@ a,
     margin-bottom: 14px !important;
 }
 
+#tabResidencial.active {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 14px !important;
+}
+
 #tabRioEs.active,
 #tabLeste.active {
     gap: 14px !important;
 }
 
+#tabResidencial.active .config-accordion,
+#tabResidencial.active #hubEmbedResidencial,
 #tabRioEs.active .config-accordion,
 #tabLeste.active .config-accordion,
 #tabRioEs.active #escalonamentoSection,
@@ -2243,26 +2265,69 @@ a,
     margin-bottom: 0 !important;
 }
 
+#tabResidencial.active + #escalonamentoSection,
+#calendarSection {
+    margin-top: 14px !important;
+    margin-bottom: 0 !important;
+}
+
 #calendarSectionRioEs .calendar-title-wrapper,
 #calendarSectionLeste .calendar-title-wrapper {
-    display: none !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 6px !important;
 }
 
 #calendarSectionRioEs .calendar-header,
 #calendarSectionLeste .calendar-header {
-    padding-bottom: 0 !important;
-    margin-bottom: 6px !important;
-    justify-content: flex-end !important;
+    padding-bottom: 14px !important;
+    margin-bottom: 12px !important;
+    justify-content: space-between !important;
+    align-items: flex-start !important;
 }
 
 #calendarSectionRioEs .calendar-container,
 #calendarSectionLeste .calendar-container {
-    padding-top: 16px !important;
+    padding-top: 24px !important;
 }
 
 #calendarSectionRioEs .calendar-grid,
 #calendarSectionLeste .calendar-grid {
     margin-top: 0 !important;
+}
+
+#calendarSectionRioEs .escala-tipo-badge.empresarial,
+#calendarSectionLeste .escala-tipo-badge.empresarial {
+    background: var(--corp-primary) !important;
+    color: #ffffff !important;
+    border: 1px solid var(--corp-primary) !important;
+    border-radius: 999px !important;
+    padding: 4px 10px !important;
+    font-size: 11px !important;
+    font-weight: 500 !important;
+    line-height: 1.1 !important;
+    text-transform: none !important;
+}
+
+.hub-embed-header,
+#escalonamentoHeader {
+    background: #ffffff !important;
+    color: #111827 !important;
+}
+
+.hub-embed-header span,
+.hub-embed-header i,
+#escalonamentoHeader span,
+#escalonamentoHeader i {
+    color: #111827 !important;
+}
+
+[id^="hubEmbed"][id$="_header"] span:nth-of-type(1) {
+    background: transparent !important;
+    border: 0 !important;
+    color: #111827 !important;
+    padding: 0 !important;
 }
 
 #telegramPanel .telegram-tabs {
