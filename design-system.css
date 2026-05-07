@@ -1522,7 +1522,7 @@ body.ds-bg-gradient,
 .hub-table th:nth-child(4),
 .hub-table td:nth-child(4) {
     width: 22%;
-    text-align: right !important;
+    text-align: left !important;
 }
 
 .hub-table td:nth-child(3) {
@@ -2077,7 +2077,7 @@ a,
 .hub-table .hub-phone-cell,
 .hub-table .hub-phone-cell a {
     display: table-cell !important;
-    text-align: right !important;
+    text-align: left !important;
     font-variant-numeric: tabular-nums !important;
     white-space: nowrap !important;
 }
@@ -2112,6 +2112,8 @@ a,
     gap: 14px !important;
     margin-top: 14px !important;
     padding-top: 12px !important;
+    padding-bottom: 16px !important;
+    margin-bottom: 18px !important;
 }
 
 #telegramPanel .telegram-header {
@@ -2152,8 +2154,20 @@ a,
 }
 
 #hubPanel .hub-phone-cell {
-    text-align: right !important;
-    padding-right: 10px !important;
+    text-align: left !important;
+    padding-left: 12px !important;
+    padding-right: 12px !important;
+}
+
+#hubPanel .hub-table th.hub-phone-cell,
+#hubPanel .hub-table td.hub-phone-cell {
+    text-align: left !important;
+    padding-left: 12px !important;
+    padding-right: 12px !important;
+}
+
+#hubPanel .hub-table td.hub-phone-cell a {
+    text-align: left !important;
 }
 
 .btn-detalhes-lupa {
@@ -2198,8 +2212,12 @@ a,
 
 #hubPanel .hub-table th.hub-phone-cell {
     text-align: left !important;
-    padding-left: 44px !important;
-    padding-right: 0 !important;
+    padding-left: 12px !important;
+    padding-right: 12px !important;
+}
+
+#copRedeEmpty {
+    display: none !important;
 }
 
 .calendar-day-absent,
