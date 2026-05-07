@@ -3134,15 +3134,15 @@
             </div>
           </div>
 
-          <!-- Tabela de tecnicos (DIURNO) -->
+          <!-- Tabela de técnicos (DIURNO) -->
           <div id="hubTabelaDiurno" style="display: none;">
             <div class="table-responsive">
-              <table class="table table-sm table-hover">
+              <table class="table table-sm table-hover hub-table">
                 <thead style="background: #fff8e1;">
                   <tr>
-                    <th style="width: 120px;">Regiao</th>
-                    <th>Horario</th>
-                    <th>Tecnico</th>
+                    <th style="width: 120px;">Região</th>
+                    <th>Horário</th>
+                    <th>Técnico</th>
                     <th style="width: 130px;">Telefone</th>
                   </tr>
                 </thead>
@@ -3152,13 +3152,13 @@
             </div>
           </div>
 
-          <!-- Tabela de tecnicos (MADRUGADA) -->
+          <!-- Tabela de técnicos (MADRUGADA) -->
           <div id="hubTabelaMadrugada" style="display: none;">
             <div class="table-responsive">
-              <table class="table table-sm table-hover">
+              <table class="table table-sm table-hover hub-table">
                 <thead style="background: #e3f2fd;">
                   <tr>
-                    <th>Tecnico</th>
+                    <th>Técnico</th>
                     <th>Local</th>
                     <th>Atividade</th>
                     <th style="width: 120px;">Telefone</th>
@@ -12132,7 +12132,7 @@ function exibirAlocacaoHub(alocacao) {
           });
         }
       }
-      tbody.innerHTML = html || '<tr><td colspan="4" class="text-center text-muted">Nenhum tecnico</td></tr>';
+      tbody.innerHTML = html || '<tr><td colspan="4" class="text-center text-muted">Nenhum técnico</td></tr>';
     }
   } else {
     // Exibir tabela madrugada
@@ -12143,11 +12143,11 @@ function exibirAlocacaoHub(alocacao) {
         <tr>
           <td><strong>${t.nome || '-'}</strong></td>
           <td>${t.local || '-'}</td>
-          <td>${t.atividade || '-'}${t.observacao ? '<br><small class="text-muted">' + t.observacao + '</small>' : ''}</td>
+          <td>${formatarAtividadeHub(t.atividade, t.observacao)}</td>
           <td><a href="${whatsappLink(t.telefone) || '#'}" target="_blank">${t.telefone || '-'}</a></td>
         </tr>
       `).join('');
-      tbody.innerHTML = html || '<tr><td colspan="4" class="text-center text-muted">Nenhum tecnico</td></tr>';
+      tbody.innerHTML = html || '<tr><td colspan="4" class="text-center text-muted">Nenhum técnico</td></tr>';
     }
 
     // Responsavel (apenas madrugada)
@@ -12188,6 +12188,13 @@ function whatsappLink(telefone) {
   return `https://wa.me/${number}`;
 }
 
+function formatarAtividadeHub(atividade, observacao) {
+  const partes = [atividade, observacao]
+    .map(v => String(v || '').trim())
+    .filter(v => v && v !== '-');
+  return partes.length ? partes.join(' ') : '';
+}
+
 function renderHubEmbed(containerId, alocacao) {
   const container = document.getElementById(containerId);
   if (!container) return;
@@ -12206,19 +12213,19 @@ function renderHubEmbed(containerId, alocacao) {
         linhasTabela += `<td>${t.horario || '-'}</td><td>${t.tecnico || '-'}${t.sobreaviso ? ' <span class="badge bg-info">Sobreaviso</span>' : ''}</td><td><a href="${whatsappLink(t.telefone) || '#'}" target="_blank">${t.telefone || '-'}</a></td></tr>`;
       });
     }
-    linhasTabela = linhasTabela || `<tr><td colspan="4" class="text-center text-muted">Nenhum tecnico</td></tr>`;
+    linhasTabela = linhasTabela || `<tr><td colspan="4" class="text-center text-muted">Nenhum técnico</td></tr>`;
   } else if (isMADRUGADA && alocacao.tecnicos) {
     linhasTabela = alocacao.tecnicos.map(t => `<tr>
       <td><strong>${t.nome || '-'}</strong></td>
       <td>${t.local || '-'}</td>
-      <td>${t.atividade || '-'}${t.observacao ? '<br><small class="text-muted">' + t.observacao + '</small>' : ''}</td>
+      <td>${formatarAtividadeHub(t.atividade, t.observacao)}</td>
       <td><a href="${whatsappLink(t.telefone) || '#'}" target="_blank">${t.telefone || '-'}</a></td>
-    </tr>`).join('') || `<tr><td colspan="4" class="text-center text-muted">Nenhum tecnico</td></tr>`;
+    </tr>`).join('') || `<tr><td colspan="4" class="text-center text-muted">Nenhum técnico</td></tr>`;
   }
 
   const theadCols = isMADRUGADA
-    ? '<th>Tecnico</th><th>Local</th><th>Atividade</th><th>Telefone</th>'
-    : '<th>Regiao</th><th>Horario</th><th>Tecnico</th><th>Telefone</th>';
+    ? '<th>Técnico</th><th>Local</th><th>Atividade</th><th>Telefone</th>'
+    : '<th>Região</th><th>Horário</th><th>Técnico</th><th>Telefone</th>';
 
   const responsavelHtml = (isMADRUGADA && alocacao.responsavel)
     ? `<div class="mt-2 small text-muted"><i class="bi bi-person-fill me-1"></i>Responsavel: <strong>${alocacao.responsavel.nome || '-'}</strong>${alocacao.responsavel.telefone ? ' &nbsp;<a href="' + (whatsappLink(alocacao.responsavel.telefone) || '#') + '" target="_blank"><i class="bi bi-whatsapp"></i> ' + alocacao.responsavel.telefone + '</a>' : ''}</div>`
@@ -12243,7 +12250,7 @@ function renderHubEmbed(containerId, alocacao) {
       </div>
       <div id="${hubBodyId}" style="display:none; padding:0.5rem; background:#fff;">
         <div class="table-responsive">
-          <table class="table table-sm table-hover mb-0">
+          <table class="table table-sm table-hover mb-0 hub-table">
             <thead style="background:${bgBadge};"><tr>${theadCols}</tr></thead>
             <tbody>${linhasTabela}</tbody>
           </table>
@@ -12702,7 +12709,7 @@ function renderEscalonamentoSheet(sheetName) {
 }
 
 function _renderEscalonamentoSections(sections) {
-  var NIVEL_COLORS = ['#b71c1c', '#b71c1c', '#d32f2f', '#d32f2f', '#c62828'];
+  var NIVEL_COLORS = ['#f3f4f6', '#f3f4f6', '#f3f4f6', '#f3f4f6', '#f3f4f6'];
   var html = '';
 
   sections.forEach(function(section, idx) {
@@ -12710,7 +12717,7 @@ function _renderEscalonamentoSections(sections) {
     var displayHeaders = section.headers.filter(function(h) { return h && h !== ''; });
 
     html += '<div class="mb-4">';
-    html += '<div style="background:' + color + ';color:white;padding:0.35rem 0.75rem;border-radius:4px;font-weight:bold;font-size:0.82rem;margin-bottom:0.25rem;">'
+    html += '<div class="escalonamento-nivel-heading" style="background:' + color + ';color:#2c3e50;padding:0.5rem 0.75rem;border-radius:8px;font-weight:bold;font-size:0.82rem;margin-bottom:0.25rem;border-left:4px solid #d32f2f;">'
       + escapeHtml(section.nivel || ('NÍVEL ' + (idx + 1))) + '</div>';
 
     if (section.subtitulo) {
