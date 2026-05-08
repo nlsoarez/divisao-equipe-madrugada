@@ -1779,6 +1779,31 @@ a,
     font-weight: 400 !important;
 }
 
+#hubResponsavel {
+    align-items: center !important;
+    flex-wrap: wrap !important;
+    gap: 8px !important;
+    justify-content: center !important;
+    text-align: center !important;
+}
+
+#hubResponsavel a {
+    margin-left: 0 !important;
+    text-decoration: none !important;
+}
+
+#hubResponsavel .bi-whatsapp {
+    color: #25d366 !important;
+}
+
+.hub-sync-info,
+.hub-embed-sync-info {
+    color: #6b7280 !important;
+    font-size: 12px !important;
+    font-weight: 400 !important;
+    text-align: center !important;
+}
+
 .hub-table th,
 .hub-table td,
 .hub-table strong {
@@ -2580,4 +2605,54 @@ body.viewer-mode #tabRioEs.active #hubEmbedRioEs {
 
 .hub-embed-body > .hub-embed-sync-info {
     display: block !important;
+    margin-top: 12px !important;
+}
+
+button,
+[role="button"],
+.btn,
+.ds-btn,
+.refresh-btn,
+.telegram-btn,
+.calendar-nav-btn,
+.btn-agendar-trocas,
+.btn-trocas-empresarial,
+.btn-primary-compact,
+.btn-compact,
+.admin-nav-tab,
+.telegram-tab,
+.empresarial-subtab,
+.escalonamento-tab-btn,
+.escalonamento-area-btn,
+.mode-toggle-btn,
+.hub-sync-btn,
+.btn-detalhes-lupa,
+.btn-atualizar-ofensores {
+    transform-origin: center !important;
+    transition: transform 0.16s ease, box-shadow 0.16s ease, filter 0.16s ease, background-color 0.16s ease, border-color 0.16s ease, color 0.16s ease !important;
+}
+
+button:not(:disabled):active,
+[role="button"]:not(:disabled):active,
+.btn:not(:disabled):active,
+.ds-btn:not(:disabled):active,
+.refresh-btn:not(:disabled):active,
+.telegram-btn:not(:disabled):active,
+.calendar-nav-btn:not(:disabled):active,
+.btn-agendar-trocas:not(:disabled):active,
+.btn-trocas-empresarial:not(:disabled):active,
+.btn-primary-compact:not(:disabled):active,
+.btn-compact:not(:disabled):active,
+.admin-nav-tab:not(:disabled):active,
+.telegram-tab:not(:disabled):active,
+.empresarial-subtab:not(:disabled):active,
+.escalonamento-tab-btn:not(:disabled):active,
+.escalonamento-area-btn:not(:disabled):active,
+.mode-toggle-btn:not(:disabled):active,
+.hub-sync-btn:not(:disabled):active,
+.btn-detalhes-lupa:not(:disabled):active,
+.btn-atualizar-ofensores:not(:disabled):active {
+    box-shadow: inset 0 3px 8px rgba(17, 24, 39, 0.22), 0 1px 2px rgba(17, 24, 39, 0.12) !important;
+    filter: brightness(0.96) !important;
+    transform: translateY(2px) scale(0.98) !important;
 }

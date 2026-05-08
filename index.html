@@ -226,7 +226,7 @@
       border-left: 4px solid #d32f2f;
     }
 
-    /* Botão Agendar trocas - estilo similar ao mode-indicator */
+    /* Botão Trocas - estilo similar ao mode-indicator */
     .btn-agendar-trocas {
       background: rgba(0,0,0,0.05);
       padding: 0.5rem 1rem;
@@ -3180,6 +3180,8 @@
             <span id="hubResponsavelNome"></span>
             <a id="hubResponsavelTel" href="#" class="ms-2"><i class="bi bi-telephone"></i></a>
           </div>
+
+          <div id="hubSincronismo" class="hub-sync-info mt-2" style="display: none;"></div>
         </div>
       </div>
     </div>
@@ -3232,10 +3234,10 @@
           <span class="escala-tipo-badge" id="escalaTipoBadge"></span>
         </div>
         <div class="calendar-nav">
-          <!-- Botão Agendar trocas dentro do calendário -->
+          <!-- Botão Trocas dentro do calendário -->
           <button class="btn-agendar-trocas me-2" id="btnAgendarTrocas" style="display: none;" onclick="toggleModoTroca()">
             <i class="bi bi-arrow-left-right"></i>
-            <span>Agendar trocas</span>
+            <span>Trocas</span>
           </button>
           <button class="calendar-nav-btn" onclick="mudarMes(-1)">
             <i class="bi bi-chevron-left"></i>
@@ -12105,11 +12107,22 @@ async function carregarAlocacaoHub() {
   }
 }
 
+function montarTextoSincronismoHub(alocacao) {
+  if (!alocacao) return '';
+
+  return [
+    alocacao.dataRecebimento ? `Recebido: ${formatarDataHora(alocacao.dataRecebimento)}` : '',
+    alocacao.processadoEm ? `Processado: ${formatarDataHora(alocacao.processadoEm)}` : '',
+    alocacao.messageId ? `ID: ${alocacao.messageId}` : ''
+  ].filter(Boolean).join(' | ');
+}
+
 function exibirAlocacaoHub(alocacao) {
   const card = document.getElementById('hubCard');
   const tipoBadge = document.getElementById('hubTipoBadge');
   const dataEl = document.getElementById('hubData');
   const recebidoEl = document.getElementById('hubRecebido');
+  const sincronismoEl = document.getElementById('hubSincronismo');
   const tabelaDiurno = document.getElementById('hubTabelaDiurno');
   const tabelaMadrugada = document.getElementById('hubTabelaMadrugada');
   const folgas = document.getElementById('hubFolgas');
@@ -12126,7 +12139,12 @@ function exibirAlocacaoHub(alocacao) {
     tipoBadge.className = 'badge ' + (alocacao.tipoAlocacao === 'DIURNO' ? 'bg-warning text-dark' : 'bg-primary');
   }
   if (dataEl) dataEl.textContent = alocacao.data || '--/--';
-  if (recebidoEl) recebidoEl.textContent = 'Recebido: ' + formatarDataHora(alocacao.dataRecebimento);
+  const sincronismoHub = montarTextoSincronismoHub(alocacao);
+  if (recebidoEl) recebidoEl.textContent = sincronismoHub || 'Recebido: --';
+  if (sincronismoEl) {
+    sincronismoEl.textContent = sincronismoHub;
+    sincronismoEl.style.display = sincronismoHub ? 'block' : 'none';
+  }
 
   // Esconder ambas tabelas primeiro
   if (tabelaDiurno) tabelaDiurno.style.display = 'none';
@@ -12170,7 +12188,7 @@ function exibirAlocacaoHub(alocacao) {
 
     // Responsavel (apenas madrugada)
     if (responsavel && alocacao.responsavel) {
-      responsavel.style.display = 'block';
+      responsavel.style.display = 'flex';
       if (responsavelNome) responsavelNome.textContent = alocacao.responsavel.nome || '-';
       if (responsavelTel) {
         responsavelTel.href = whatsappLink(alocacao.responsavel.telefone) || '#';
@@ -12378,10 +12396,7 @@ function renderHubEmbed(containerId, alocacao) {
     ? `<div class="hub-embed-folgas"><i class="bi bi-calendar-x me-1"></i>Folgas: ${alocacao.folgas.join(', ')}</div>`
     : '';
 
-  const sincronismoHub = [
-    alocacao.dataRecebimento ? `Recebido: ${formatarDataHora(alocacao.dataRecebimento)}` : '',
-    alocacao.processadoEm ? `Processado: ${formatarDataHora(alocacao.processadoEm)}` : ''
-  ].filter(Boolean).join(' | ');
+  const sincronismoHub = montarTextoSincronismoHub(alocacao);
 
   const hubBodyId = containerId + '_body';
   const hubChevronId = containerId + '_chevron';
