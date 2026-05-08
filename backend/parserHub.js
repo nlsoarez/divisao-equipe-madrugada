@@ -280,7 +280,16 @@ function processarMadrugada(texto) {
       // Formato: "° Tijuca: (rebaixamento rota Grajaú [8])."
       const atividadeMatch = linhaLimpa.match(/^[°•]\s*[A-Za-zÀ-ÿ\s]+\s*:\s*\((.+?)\)\.?\s*$/);
       if (atividadeMatch && tecnicoAtual) {
-        atividadeAtual = atividadeMatch[1].trim();
+        atividadeAtual = linhaLimpa
+          .replace(/^[^A-Za-z0-9]+/, '')
+          .replace(/\((.+?)\)\.?\s*$/, '$1')
+          .trim();
+        continue;
+      }
+
+      const atividadeMatchSemParenteses = linhaLimpa.match(/^\s*[^A-Za-z0-9]+?\s*([^:]+?)\s*:\s*(.+?)\.?\s*$/i);
+      if (atividadeMatchSemParenteses && tecnicoAtual) {
+        atividadeAtual = `${atividadeMatchSemParenteses[1].trim()}: ${atividadeMatchSemParenteses[2].trim()}`;
         continue;
       }
 
@@ -297,6 +306,12 @@ function processarMadrugada(texto) {
       const obsMatch = linhaLimpa.match(/^\[Obs\s*:\s*(.+?)\]\.?\s*$/i);
       if (obsMatch && tecnicoAtual) {
         observacaoAtual = obsMatch[1].trim();
+        continue;
+      }
+
+      const obsMatchSemColchetes = linhaLimpa.match(/^Obs\s*:\s*(.+?)\.?\s*$/i);
+      if (obsMatchSemColchetes && tecnicoAtual) {
+        observacaoAtual = obsMatchSemColchetes[1].trim();
         continue;
       }
     }
@@ -354,6 +369,7 @@ function processarMensagemHub(msg) {
     dados: {
       id: `hub_${msg.message_id || Date.now()}_${timestamp.getTime()}`,
       messageId: msg.message_id?.toString() || Date.now().toString(),
+      parserVersao: 2,
       tipoAlocacao: tipo,
       data: data,
       dataRecebimento: timestamp.toISOString(),

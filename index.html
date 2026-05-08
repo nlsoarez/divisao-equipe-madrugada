@@ -12019,6 +12019,7 @@ function atualizarBadgeAlertas() {
 // ============================================
 
 let hubAutoSincronizado = false;
+let hubOrigemCompletaSincronizada = false;
 
 async function carregarAlocacaoHub() {
   const loading = document.getElementById('hubLoading');
@@ -12076,6 +12077,21 @@ async function carregarAlocacaoHub() {
         emptyHint.textContent = 'Clique em "Sincronizar do WhatsApp" para buscar as alocacoes do grupo.';
       }
       return;
+    }
+
+    if ((Number(alocacao.parserVersao || 0) < 2) && !hubOrigemCompletaSincronizada) {
+      hubOrigemCompletaSincronizada = true;
+      console.log('[Hub] Dados antigos detectados, reprocessando origem completa...');
+      try {
+        await fetch(`${backendUrl}/api/alocacao-hub/sincronizar`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' }
+        });
+        carregarAlocacaoHub();
+        return;
+      } catch (e) {
+        console.warn('[Hub] Erro ao reprocessar origem completa:', e.message);
+      }
     }
 
     exibirAlocacaoHub(alocacao);
@@ -12228,22 +12244,12 @@ function formatarAtividadeHub(atividade, observacao) {
   const texto = [atividade, observacao]
     .map(v => String(v || '').trim())
     .filter(v => v && v !== '-')
-    .join(' ')
+    .join(' | ')
     .replace(/\s+/g, ' ')
     .trim();
 
   if (!texto) return '';
-
-  const direto = texto.match(/vai\s+direto\s+para\s+(.+)$/i);
-  if (direto) return normalizarTextoCapitalizado(direto[1].trim());
-
-  const comCarro = texto.match(/pega\s+o\s+carro\s+em\s+(.+?)\s+e\s+vai\s+para\s+(.+)$/i);
-  if (comCarro) return `${normalizarTextoCapitalizado(comCarro[1].trim())} → ${normalizarTextoCapitalizado(comCarro[2].trim())}`;
-
-  return normalizarTextoCapitalizado(texto
-    .replace(/^-\s*/, '')
-    .replace(/\bvai\s+direto\s+para\s+/gi, '')
-    .trim());
+  return texto.replace(/^-\s*/, '');
 }
 
 function normalizarTextoCapitalizado(valor) {
