@@ -12408,9 +12408,9 @@ function renderHubEmbed(containerId, alocacao) {
         <i class="bi bi-geo-alt-fill"></i>
         <span>Alocação de Hub</span>
         <span class="hub-embed-date">${tipoTexto}${alocacao.data ? ' - ' + alocacao.data : ''}</span>
-        <i class="bi bi-chevron-down" id="${hubChevronId}" style="margin-left:auto; transition:transform 0.2s; flex-shrink:0; transform:rotate(180deg);"></i>
+        <i class="bi bi-chevron-down" id="${hubChevronId}" style="margin-left:auto; transition:transform 0.2s; flex-shrink:0;"></i>
       </div>
-      <div id="${hubBodyId}" class="hub-embed-body" style="display:block;">
+      <div id="${hubBodyId}" class="hub-embed-body" style="display:none;">
         <div class="table-responsive">
           <table class="table table-sm table-hover mb-0 hub-table">
             <thead><tr>${theadCols}</tr></thead>
@@ -12600,10 +12600,12 @@ function toggleEscalonamento() {
   const body = document.getElementById('escalonamentoBody');
   const chevron = document.getElementById('escalonamentoChevron');
   const header = document.getElementById('escalonamentoHeader');
+  const section = document.getElementById('escalonamentoSection');
   if (!body) return;
   const isOpen = body.style.display !== 'none';
   body.style.display = isOpen ? 'none' : 'block';
   if (chevron) chevron.style.transform = isOpen ? '' : 'rotate(180deg)';
+  if (section) section.classList.toggle('is-open', !isOpen);
   if (header) header.style.borderRadius = isOpen ? '8px' : '8px 8px 0 0';
 }
 
@@ -12617,7 +12619,10 @@ function toggleHubEmbed(bodyId, chevronId, headerId) {
   if (chevron) chevron.style.transform = isOpen ? '' : 'rotate(180deg)';
   if (header) {
     const parentDiv = header.parentElement;
-    if (parentDiv) parentDiv.style.borderRadius = isOpen ? '8px' : '8px';
+    if (parentDiv) {
+      parentDiv.classList.toggle('is-open', !isOpen);
+      parentDiv.style.borderRadius = '14px';
+    }
   }
 }
 

@@ -2656,3 +2656,61 @@ button:not(:disabled):active,
     filter: brightness(0.96) !important;
     transform: translateY(2px) scale(0.98) !important;
 }
+
+.config-accordion,
+#escalonamentoSection,
+.hub-embed-card {
+    background: #ffffff !important;
+    border: 1px solid #e5e7eb !important;
+    border-radius: 14px !important;
+    box-shadow: 0 10px 24px rgba(44, 62, 80, 0.10) !important;
+    overflow: hidden !important;
+}
+
+.config-header,
+#escalonamentoHeader,
+.hub-embed-header {
+    align-items: center !important;
+    background: #ffffff !important;
+    border: 0 !important;
+    border-radius: 14px !important;
+    box-shadow: none !important;
+    color: #111827 !important;
+    cursor: pointer !important;
+    display: flex !important;
+    font-size: 14px !important;
+    font-weight: 400 !important;
+    gap: 10px !important;
+    min-height: 54px !important;
+    padding: 0 16px !important;
+}
+
+.config-header span,
+.config-header i,
+#escalonamentoHeader span,
+#escalonamentoHeader i,
+.hub-embed-header span,
+.hub-embed-header i {
+    color: #111827 !important;
+    font-size: 14px !important;
+    font-weight: 400 !important;
+}
+
+.config-header:not(.collapsed),
+#escalonamentoSection.is-open #escalonamentoHeader,
+.hub-embed-card.is-open .hub-embed-header {
+    border-bottom: 1px solid #eef0f3 !important;
+    border-radius: 14px 14px 0 0 !important;
+}
+
+.config-header.collapsed,
+#escalonamentoSection:not(.is-open) #escalonamentoHeader,
+.hub-embed-card:not(.is-open) .hub-embed-header {
+    border-bottom: 0 !important;
+}
+
+#escalonamentoBody,
+.hub-embed-body,
+.config-accordion .collapse.show {
+    background: #ffffff !important;
+}
