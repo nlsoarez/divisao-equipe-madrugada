@@ -12371,11 +12371,11 @@ function renderHubEmbed(containerId, alocacao) {
     : '<th>Região</th><th>Horário</th><th>Técnico</th><th class="hub-phone-cell">Telefone</th>';
 
   const responsavelHtml = (isMADRUGADA && alocacao.responsavel)
-    ? `<div class="mt-2 small text-muted"><i class="bi bi-person-fill me-1"></i>Responsável: ${alocacao.responsavel.nome || '-'}${alocacao.responsavel.telefone ? ' &nbsp;<a href="' + (whatsappLink(alocacao.responsavel.telefone) || '#') + '" target="_blank"><i class="bi bi-whatsapp"></i> ' + alocacao.responsavel.telefone + '</a>' : ''}</div>`
+    ? `<div class="hub-embed-responsavel"><span><i class="bi bi-person-badge me-1"></i>Responsável: ${alocacao.responsavel.nome || '-'}</span>${alocacao.responsavel.telefone ? ' <a href="' + (whatsappLink(alocacao.responsavel.telefone) || '#') + '" target="_blank"><i class="bi bi-whatsapp"></i> ' + alocacao.responsavel.telefone + '</a>' : ''}</div>`
     : '';
 
   const folgasHtml = (alocacao.folgas && alocacao.folgas.length > 0)
-    ? `<div class="mt-2 small text-muted"><i class="bi bi-calendar-x me-1"></i>Folgas: ${alocacao.folgas.join(', ')}</div>`
+    ? `<div class="hub-embed-folgas"><i class="bi bi-calendar-x me-1"></i>Folgas: ${alocacao.folgas.join(', ')}</div>`
     : '';
 
   const hubBodyId = containerId + '_body';
@@ -12386,11 +12386,11 @@ function renderHubEmbed(containerId, alocacao) {
     <div class="hub-embed-card">
       <div id="${hubHeaderId}" class="hub-embed-header" onclick="toggleHubEmbed('${hubBodyId}','${hubChevronId}','${hubHeaderId}')">
         <i class="bi bi-geo-alt-fill"></i>
-        <span>Alocação de Hub - ${tipoTexto}</span>
-        <span class="hub-embed-date">${alocacao.data || ''}</span>
-        <i class="bi bi-chevron-down" id="${hubChevronId}" style="margin-left:auto; transition:transform 0.2s; flex-shrink:0;"></i>
+        <span>Alocação de Hub</span>
+        <span class="hub-embed-date">${tipoTexto}${alocacao.data ? ' - ' + alocacao.data : ''}</span>
+        <i class="bi bi-chevron-down" id="${hubChevronId}" style="margin-left:auto; transition:transform 0.2s; flex-shrink:0; transform:rotate(180deg);"></i>
       </div>
-      <div id="${hubBodyId}" class="hub-embed-body" style="display:none;">
+      <div id="${hubBodyId}" class="hub-embed-body" style="display:block;">
         <div class="table-responsive">
           <table class="table table-sm table-hover mb-0 hub-table">
             <thead><tr>${theadCols}</tr></thead>
