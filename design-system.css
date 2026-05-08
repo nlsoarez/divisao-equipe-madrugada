@@ -2445,19 +2445,20 @@ body.viewer-mode #tabRioEs.active #hubEmbedRioEs {
 }
 
 .hub-embed-card {
-    border: 0 !important;
-    border-radius: 0 !important;
-    background: transparent !important;
-    box-shadow: none !important;
-    overflow: visible !important;
-}
-
-.hub-embed-header {
     background: #ffffff !important;
     border: 1px solid #e5e7eb !important;
     border-left: 4px solid var(--corp-primary) !important;
     border-radius: 14px !important;
-    box-shadow: 0 7px 18px rgba(44, 62, 80, 0.08) !important;
+    box-shadow: 0 10px 24px rgba(44, 62, 80, 0.10) !important;
+    overflow: hidden !important;
+}
+
+.hub-embed-header {
+    background: #ffffff !important;
+    border: 0 !important;
+    border-bottom: 1px solid #eef0f3 !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
     color: #111827 !important;
     cursor: pointer !important;
     min-height: 54px !important;
@@ -2465,19 +2466,19 @@ body.viewer-mode #tabRioEs.active #hubEmbedRioEs {
 }
 
 .hub-embed-body {
-    background: transparent !important;
-    padding: 12px 12px 0 !important;
+    background: #ffffff !important;
+    padding: 12px 12px 14px !important;
 }
 
 .hub-embed-body .table-responsive {
-    border-radius: 16px !important;
+    border-radius: 12px !important;
     overflow: hidden !important;
 }
 
 .hub-embed-card .hub-table {
     border: 1px solid #e5e7eb !important;
     border-collapse: separate !important;
-    border-radius: 16px !important;
+    border-radius: 12px !important;
     border-spacing: 0 !important;
     overflow: hidden !important;
     table-layout: fixed !important;
@@ -2548,7 +2549,7 @@ body.viewer-mode #tabRioEs.active #hubEmbedRioEs {
     display: flex !important;
     flex-wrap: wrap !important;
     gap: 8px !important;
-    margin-top: 28px !important;
+    margin-top: 14px !important;
     padding: 10px 12px !important;
 }
 
