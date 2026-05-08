@@ -2447,7 +2447,6 @@ body.viewer-mode #tabRioEs.active #hubEmbedRioEs {
 .hub-embed-card {
     background: #ffffff !important;
     border: 1px solid #e5e7eb !important;
-    border-left: 4px solid var(--corp-primary) !important;
     border-radius: 14px !important;
     box-shadow: 0 10px 24px rgba(44, 62, 80, 0.10) !important;
     overflow: hidden !important;
