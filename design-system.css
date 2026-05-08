@@ -2464,6 +2464,12 @@ body.viewer-mode #tabRioEs.active #hubEmbedRioEs {
     padding: 0 16px !important;
 }
 
+#hubEmbedResidencial .hub-embed-header,
+#hubEmbedRioEs .hub-embed-header,
+[id^="hubEmbed"][id$="_header"].hub-embed-header {
+    border-left: 0 !important;
+}
+
 .hub-embed-body {
     background: #ffffff !important;
     padding: 12px 12px 14px !important;
@@ -2487,6 +2493,10 @@ body.viewer-mode #tabRioEs.active #hubEmbedRioEs {
 .hub-embed-card .hub-table thead,
 .hub-embed-card .hub-table thead th {
     background: #f3f4f6 !important;
+}
+
+.hub-embed-card .hub-table thead th {
+    color: var(--corp-primary) !important;
 }
 
 .hub-embed-card .hub-table th,
@@ -2548,6 +2558,7 @@ body.viewer-mode #tabRioEs.active #hubEmbedRioEs {
     display: flex !important;
     flex-wrap: wrap !important;
     gap: 8px !important;
+    justify-content: center !important;
     margin-top: 14px !important;
     padding: 10px 12px !important;
 }
