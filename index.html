@@ -6636,6 +6636,8 @@ function entrarComoVisualizador(tipo = 'residencial') {
 function iniciarComoAdmin() {
   isAdmin = true;
   document.body.classList.add('app-logged-in');
+  document.body.classList.add('admin-mode');
+  document.body.classList.remove('viewer-mode');
 
   // Mostrar controles admin
   const adminControls = document.getElementById('adminControls');
@@ -6711,6 +6713,8 @@ function toggleModoTroca() {
 function iniciarComoVisualizador() {
   isAdmin = false;
   document.body.classList.add('app-logged-in');
+  document.body.classList.add('viewer-mode');
+  document.body.classList.remove('admin-mode');
 
   // Mostrar controles usuário
   const adminControls = document.getElementById('adminControls');

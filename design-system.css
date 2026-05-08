@@ -2242,6 +2242,11 @@ a,
     margin-bottom: 14px !important;
 }
 
+body.viewer-mode #tabRioEs.active #hubEmbedRioEs {
+    margin-bottom: 0 !important;
+    margin-top: 0 !important;
+}
+
 #tabResidencial.active {
     display: flex !important;
     flex-direction: column !important;
