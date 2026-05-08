@@ -12378,6 +12378,11 @@ function renderHubEmbed(containerId, alocacao) {
     ? `<div class="hub-embed-folgas"><i class="bi bi-calendar-x me-1"></i>Folgas: ${alocacao.folgas.join(', ')}</div>`
     : '';
 
+  const sincronismoHub = [
+    alocacao.dataRecebimento ? `Recebido: ${formatarDataHora(alocacao.dataRecebimento)}` : '',
+    alocacao.processadoEm ? `Processado: ${formatarDataHora(alocacao.processadoEm)}` : ''
+  ].filter(Boolean).join(' | ');
+
   const hubBodyId = containerId + '_body';
   const hubChevronId = containerId + '_chevron';
   const hubHeaderId = containerId + '_header';
@@ -12398,7 +12403,7 @@ function renderHubEmbed(containerId, alocacao) {
           </table>
         </div>
         ${responsavelHtml}${folgasHtml}
-        <div class="text-end mt-1"><small class="text-muted">${formatarDataHora(alocacao.dataRecebimento)}</small></div>
+        ${sincronismoHub ? `<div class="text-end mt-1 hub-embed-sync-info"><small class="text-muted">${sincronismoHub}</small></div>` : ''}
       </div>
     </div>`;
 }

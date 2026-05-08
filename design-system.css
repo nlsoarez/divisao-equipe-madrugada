@@ -2578,6 +2578,6 @@ body.viewer-mode #tabRioEs.active #hubEmbedRioEs {
     text-decoration: none !important;
 }
 
-.hub-embed-body > .text-end {
-    display: none !important;
+.hub-embed-body > .hub-embed-sync-info {
+    display: block !important;
 }
