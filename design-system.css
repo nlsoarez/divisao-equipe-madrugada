@@ -2242,8 +2242,10 @@ a,
     margin-bottom: 14px !important;
 }
 
-body.admin-mode #empresarialSubnav.show {
-    margin-bottom: 0 !important;
+body.admin-mode #tabResidencial.active #hubEmbedResidencial,
+body.admin-mode #tabRioEs.active #hubEmbedRioEs {
+    display: none !important;
+    margin: 0 !important;
 }
 
 body.viewer-mode #tabRioEs.active #hubEmbedRioEs {
