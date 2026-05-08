@@ -2392,6 +2392,49 @@ body.viewer-mode #tabRioEs.active #hubEmbedRioEs {
     border-color: #e0e0e0 !important;
 }
 
+.calendar-nav .btn-agendar-trocas,
+.calendar-nav .btn-trocas-empresarial,
+.calendar-nav .calendar-nav-btn {
+    align-items: center !important;
+    background: #f3f4f6 !important;
+    border: 1px solid #e0e0e0 !important;
+    border-left: 1px solid #e0e0e0 !important;
+    border-radius: 10px !important;
+    color: #b71c1c !important;
+    display: inline-flex !important;
+    justify-content: center !important;
+    min-height: 34px !important;
+    box-shadow: 0 5px 14px rgba(44, 62, 80, 0.10) !important;
+}
+
+.calendar-nav .btn-agendar-trocas,
+.calendar-nav .btn-trocas-empresarial {
+    gap: 8px !important;
+    padding: 0 14px !important;
+}
+
+.calendar-nav .calendar-nav-btn {
+    height: 34px !important;
+    min-width: 34px !important;
+    padding: 0 !important;
+    width: 34px !important;
+}
+
+.calendar-nav .btn-agendar-trocas:hover,
+.calendar-nav .btn-trocas-empresarial:hover,
+.calendar-nav .calendar-nav-btn:hover {
+    background: #e5e7eb !important;
+    border-color: #d1d5db !important;
+    color: #b71c1c !important;
+}
+
+.calendar-nav .btn-agendar-trocas.active,
+.calendar-nav .btn-trocas-empresarial.active {
+    background: #e5e7eb !important;
+    border-color: #d1d5db !important;
+    color: #b71c1c !important;
+}
+
 #hubPanel .hub-sync-btn i {
     font-size: 17px !important;
 }
