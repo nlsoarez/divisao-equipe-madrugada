@@ -10883,9 +10883,10 @@ function renderCopEmpresarialEmbed(containerId, dados, subEscala) {
     return;
   }
 
-  // Calcular número de pessoas para a data
-  const dataMensagem = new Date(ultimaMensagem.dataRecebimento);
-  const diaMensagem = obterDiaEscalaMadrugada(dataMensagem);
+  // Responsáveis vêm da escala de HOJE (mesma referência usada no SIR por Cluster),
+  // não da data da última mensagem — caso contrário, se a última msg for de dias
+  // atrás, a volumetria mostra os analistas do dia errado.
+  const diaMensagem = obterDiaEscalaMadrugada(new Date());
   const subEscalaDados = calendarios.calendario2?.[subEscala]?.dadosOriginais;
   const dadosDia = subEscalaDados?.[diaMensagem] || {};
   const numPessoas = dadosDia.numPessoas || 4;
