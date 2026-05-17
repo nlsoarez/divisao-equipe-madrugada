@@ -191,10 +191,12 @@ const CONFIG = {
   //
   // Analistas: Roberto, Rodrigo, Jefferson, Monica, Suellen
   //
-  // Prioridade:
-  // SUELLEN tem prioridade TOTAL para áreas com ES
-  // Se Suellen não estiver, MONICA tem prioridade para ES
-  // Demais funcionários mantêm sempre na mesma área
+  // OBS: o caminho Rio/ES agora usa rodízio justo (ver
+  // calcularDivisaoRodizioRioEs em index.html). Apenas as CHAVES de área
+  // (ex.: 'ES/NO3/NO1/CZS/SU2/SEF') são lidas — os arrays de prioridade
+  // abaixo ficam como legado / fallback e NÃO são mais consultados quando
+  // tipoConfig === 'rio_es'. Mexer só nas chaves quando a divisão de áreas
+  // mudar.
   //
   PRIORIDADES_RIO_ES: {
     2: {
