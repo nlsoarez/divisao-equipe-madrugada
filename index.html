@@ -7634,6 +7634,81 @@ function recalcularDivisoesOriginais(tipoConfig = 'residencial') {
   console.log('✅ Divisões recalculadas com sucesso!');
 }
 
+// ============================================
+// RODÍZIO JUSTO - RIO/ES
+// ============================================
+// Substitui o caminho de prioridades fixas para a sub-escala Rio/ES por um
+// rodízio onde cada analista pega uma área por vez e só repete uma área
+// depois que todos os outros já passaram por ela.
+// Regras:
+//  - Determinístico: dado o mesmo histórico e mesmas entradas, retorna o
+//    mesmo resultado (re-render/F5 não muda nada).
+//  - Fim de semana: quem pegou uma área no sábado mantém no domingo (apenas
+//    se também estiver escalado no domingo). Áreas/analistas restantes
+//    entram no rodízio normal.
+//  - Histórico persistido em calendarios.calendario2.rio_es.rotacaoState.
+// Trocas manuais (aplicarTrocasEmpresarial) atuam depois e não alteram o
+// histórico — são overrides em tempo de render.
+function calcularDivisaoRodizioRioEs(numPessoas, trabalhandoHoje, areasDoDia, historico, divisaoSabado) {
+  const divisao = {};
+  const pessoasDisponiveis = [...trabalhandoHoje];
+  const areasRestantes = [...areasDoDia];
+
+  // 1) Herança de fim de semana: cada analista que trabalhou ontem e está
+  //    hoje mantém a mesma área.
+  if (divisaoSabado && typeof divisaoSabado === 'object') {
+    for (const [area, primeiroNomeSabado] of Object.entries(divisaoSabado)) {
+      if (!areasRestantes.includes(area)) continue;
+      const pessoaHoje = encontrarPessoaPorPrimeiroNome(primeiroNomeSabado, pessoasDisponiveis);
+      if (pessoaHoje) {
+        divisao[area] = extrairPrimeiroNome(pessoaHoje);
+        const idx = pessoasDisponiveis.indexOf(pessoaHoje);
+        if (idx > -1) pessoasDisponiveis.splice(idx, 1);
+        areasRestantes.splice(areasRestantes.indexOf(area), 1);
+        console.log(`   🔁 ${area}: ${divisao[area]} (herdado do sábado)`);
+      }
+    }
+  }
+
+  // 2) Derivar contadores a partir do histórico.
+  //    contPorArea[area][nome] = vezes que `nome` pegou `area`.
+  //    contTotal[nome] = total de áreas que `nome` já pegou.
+  const contPorArea = {};
+  const contTotal = {};
+  for (const divDia of Object.values(historico || {})) {
+    for (const [area, nome] of Object.entries(divDia || {})) {
+      const n = normalizarNome(nome);
+      if (!n) continue;
+      if (!contPorArea[area]) contPorArea[area] = {};
+      contPorArea[area][n] = (contPorArea[area][n] || 0) + 1;
+      contTotal[n] = (contTotal[n] || 0) + 1;
+    }
+  }
+
+  // 3) Rodízio para as áreas restantes.
+  for (const area of areasRestantes) {
+    if (pessoasDisponiveis.length === 0) break;
+    const ranked = [...pessoasDisponiveis].sort((a, b) => {
+      const na = normalizarNome(extrairPrimeiroNome(a));
+      const nb = normalizarNome(extrairPrimeiroNome(b));
+      const ca = (contPorArea[area] && contPorArea[area][na]) || 0;
+      const cb = (contPorArea[area] && contPorArea[area][nb]) || 0;
+      if (ca !== cb) return ca - cb;                 // menos vezes nessa área
+      const ta = contTotal[na] || 0;
+      const tb = contTotal[nb] || 0;
+      if (ta !== tb) return ta - tb;                  // menos carga geral
+      return na.localeCompare(nb);                     // estável e determinístico
+    });
+    const escolhido = ranked[0];
+    const primeiroNome = extrairPrimeiroNome(escolhido);
+    divisao[area] = primeiroNome;
+    pessoasDisponiveis.splice(pessoasDisponiveis.indexOf(escolhido), 1);
+    console.log(`   🎲 ${area}: ${primeiroNome} (rodízio)`);
+  }
+
+  return divisao;
+}
+
 // Função para recalcular divisões de uma sub-escala Empresarial específica
 function recalcularDivisoesEmpresarial(subEscala) {
   const tipoConfig = subEscala === 'leste' ? 'leste' : 'rio_es';
@@ -7646,6 +7721,98 @@ function recalcularDivisoesEmpresarial(subEscala) {
 
   console.log(`🔄 Recalculando divisões Empresarial ${subEscala}...`);
 
+  // Caminho Rio/ES: rodízio justo (com histórico cross-month persistido).
+  if (subEscala === 'rio_es') {
+    const mes = subEscalaDados.mes;
+    const ano = subEscalaDados.ano;
+
+    subEscalaDados.rotacaoState = subEscalaDados.rotacaoState || { historico: {} };
+    const rotacaoState = subEscalaDados.rotacaoState;
+    if (!rotacaoState.historico) rotacaoState.historico = {};
+
+    // Snapshot pré-recálculo para decidir se vale salvar no fim.
+    const historicoAntes = JSON.stringify(rotacaoState.historico);
+
+    // Limpar entradas do mês corrente — vamos reaplicar do zero para evitar
+    // double-count quando o mês é recalculado várias vezes. Histórico de
+    // outros meses permanece intacto (continuidade entre meses).
+    const prefixoMes = `${ano}-${String(mes + 1).padStart(2, '0')}-`;
+    for (const k of Object.keys(rotacaoState.historico)) {
+      if (k.startsWith(prefixoMes)) delete rotacaoState.historico[k];
+    }
+
+    const diasOrdenados = Object.keys(subEscalaDados.dadosOriginais)
+      .map(d => parseInt(d, 10))
+      .filter(d => !isNaN(d))
+      .sort((a, b) => a - b);
+
+    for (const dia of diasOrdenados) {
+      const dadosDia = subEscalaDados.dadosOriginais[dia];
+      if (!dadosDia) continue;
+
+      if (dadosDia.divisaoManual) {
+        console.log(`   📅 Dia ${dia}: Divisão manual preservada`);
+        // Registrar a divisão manual no histórico para que o rodízio dos
+        // dias seguintes "conte" o que foi atribuído manualmente.
+        if (dadosDia.divisao && Object.keys(dadosDia.divisao).length > 0) {
+          const chave = `${ano}-${String(mes + 1).padStart(2, '0')}-${String(dia).padStart(2, '0')}`;
+          rotacaoState.historico[chave] = { ...dadosDia.divisao };
+        }
+        continue;
+      }
+
+      if (!dadosDia.trabalhando || dadosDia.trabalhando.length === 0) continue;
+
+      const numPessoas = dadosDia.numPessoas || dadosDia.trabalhando.length;
+      const numClampado = Math.max(2, Math.min(5, numPessoas));
+      const regras = CONFIG?.PRIORIDADES_RIO_ES?.[numClampado];
+      if (!regras || !regras.areas) {
+        console.warn(`Rio/ES: sem definição de áreas para ${numClampado} pessoas`);
+        continue;
+      }
+      const areasDoDia = Object.keys(regras.areas);
+
+      // Detectar herança sábado→domingo.
+      const dataHoje = new Date(ano, mes, dia);
+      let divisaoSabado = null;
+      if (dataHoje.getDay() === 0) {
+        const dataOntem = new Date(ano, mes, dia - 1);
+        if (dataOntem.getDay() === 6) {
+          const ontem = subEscalaDados.dadosOriginais[dia - 1];
+          if (ontem && ontem.divisao) divisaoSabado = ontem.divisao;
+        }
+      }
+
+      const novaDivisao = calcularDivisaoRodizioRioEs(
+        numClampado,
+        dadosDia.trabalhando,
+        areasDoDia,
+        rotacaoState.historico,
+        divisaoSabado
+      );
+
+      if (Object.keys(novaDivisao).length > 0) {
+        subEscalaDados.dadosOriginais[dia].divisao = novaDivisao;
+        const chave = `${ano}-${String(mes + 1).padStart(2, '0')}-${String(dia).padStart(2, '0')}`;
+        rotacaoState.historico[chave] = { ...novaDivisao };
+        console.log(`   📅 Dia ${dia}: ${dadosDia.trabalhando.length} pessoas - ${JSON.stringify(novaDivisao)}`);
+      }
+    }
+
+    console.log(`✅ Divisões ${subEscala} recalculadas com sucesso!`);
+
+    // Persistir apenas se o histórico realmente mudou (evita save em re-renders no-op).
+    if (JSON.stringify(rotacaoState.historico) !== historicoAntes) {
+      if (typeof salvarConfiguracaoCalendarios === 'function') {
+        salvarConfiguracaoCalendarios().catch(err =>
+          console.warn('⚠️ Falha ao salvar histórico do rodízio Rio/ES:', err)
+        );
+      }
+    }
+    return;
+  }
+
+  // Caminho Leste (e qualquer outra sub-escala): mantém prioridades fixas.
   Object.keys(subEscalaDados.dadosOriginais).forEach(dia => {
     const dadosDia = subEscalaDados.dadosOriginais[dia];
 
