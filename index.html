@@ -5786,6 +5786,27 @@ function salvarBackupLocalSeguro(dados, marcarPendente = false) {
 }
 
 // Salvar configuração dos calendários na nuvem
+function removerCamposDerivadosParaNuvem(valor) {
+  if (!valor || typeof valor !== 'object') return valor;
+  if (Array.isArray(valor)) {
+    return valor.map(removerCamposDerivadosParaNuvem);
+  }
+
+  const limpo = {};
+  Object.entries(valor).forEach(([chave, item]) => {
+    if (chave === 'dadosPlanilha' || chave === 'dadosProcessados') return;
+    limpo[chave] = removerCamposDerivadosParaNuvem(item);
+  });
+  return limpo;
+}
+
+function prepararCalendariosParaPersistencia(calendariosOrigem) {
+  return removerCamposDerivadosParaNuvem(calendariosOrigem || {
+    calendario1: null,
+    calendario2: null
+  });
+}
+
 async function salvarConfiguracaoCalendarios(tentativa = 1) {
   console.log('💾 Salvando configuração dos calendários...');
   console.log('📅 Calendário ativo:', calendarioAtivo);
@@ -5813,12 +5834,13 @@ async function salvarConfiguracaoCalendarios(tentativa = 1) {
 
   showLoading();
 
+  const calendariosParaSalvar = prepararCalendariosParaPersistencia(calendarios);
   const dadosParaSalvar = {
     escala_id: 'portal_escala_v3_multi',
     versao: '3.0',
     calendarioAtivo: calendarioAtivo,
-    calendario1: calendarios.calendario1,
-    calendario2: calendarios.calendario2,
+    calendario1: calendariosParaSalvar.calendario1,
+    calendario2: calendariosParaSalvar.calendario2,
     escalonamento: Object.keys(escalonamentoDados).length > 0 ? escalonamentoDados : null,
     ultima_atualizacao: new Date().toISOString()
   };
@@ -5868,6 +5890,10 @@ async function salvarConfiguracaoCalendarios(tentativa = 1) {
     const payloadKB = (payload.length / 1024).toFixed(1);
     console.log(`📦 Tamanho do payload: ${payloadKB} KB`);
 
+    if (payload.length > 95 * 1024) {
+      console.warn('Payload perto/acima do limite de 100KB do plano gratuito JSONBin:', payloadKB + ' KB');
+    }
+
     const response = await fetch(`${JSONBIN_CONFIG.API_URL}/${binId}`, {
       method: 'PUT',
       headers: {
@@ -5909,6 +5935,9 @@ async function salvarConfiguracaoCalendarios(tentativa = 1) {
     } else {
       const errorText = await response.text();
       console.error('❌ Resposta da API:', response.status, errorText);
+      if (response.status === 403 && payload.length > 95 * 1024) {
+        throw new Error(`JSONBin recusou o salvamento porque o payload tem ${payloadKB} KB. O plano gratuito aceita ate 100 KB por bin.`);
+      }
       throw new Error(`Falha ao salvar (${response.status}): ${errorText.substring(0, 100)}`);
     }
   } catch (error) {
@@ -5920,8 +5949,9 @@ async function salvarConfiguracaoCalendarios(tentativa = 1) {
         escala_id: 'backup_local',
         versao: '3.0',
         calendarioAtivo: calendarioAtivo,
-        calendario1: calendarios.calendario1,
-        calendario2: calendarios.calendario2,
+        calendario1: calendariosParaSalvar.calendario1,
+        calendario2: calendariosParaSalvar.calendario2,
+        escalonamento: Object.keys(escalonamentoDados).length > 0 ? escalonamentoDados : null,
         ultima_atualizacao: new Date().toISOString()
       };
       const backupOk = salvarBackupLocalSeguro(dadosBackup, true);
@@ -6264,8 +6294,12 @@ function carregarDoBackupLocal() {
       // seja aceito e sobrescreva a nuvem com vazio no próximo save.
       const cal1TemConteudo = dados && dados.calendario1 && dados.calendario1.dadosOriginais
         && Object.keys(dados.calendario1.dadosOriginais).length > 0;
-      const cal2TemConteudo = dados && dados.calendario2 && dados.calendario2.dadosOriginais
-        && Object.keys(dados.calendario2.dadosOriginais).length > 0;
+      const cal2RioEs = dados?.calendario2?.rio_es?.dadosOriginais;
+      const cal2Leste = dados?.calendario2?.leste?.dadosOriginais;
+      const cal2Legado = dados?.calendario2?.dadosOriginais;
+      const cal2TemConteudo = (cal2RioEs && Object.keys(cal2RioEs).length > 0)
+        || (cal2Leste && Object.keys(cal2Leste).length > 0)
+        || (cal2Legado && Object.keys(cal2Legado).length > 0);
       const v2TemConteudo = dados && dados.dadosOriginais
         && Object.keys(dados.dadosOriginais).length > 0;
       const temConteudo = cal1TemConteudo || cal2TemConteudo || v2TemConteudo;
