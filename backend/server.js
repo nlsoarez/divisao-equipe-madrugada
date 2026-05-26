@@ -6,6 +6,8 @@
 const express = require('express');
 const cors = require('cors');
 const fetch = require('node-fetch');
+const fs = require('fs');
+const path = require('path');
 require('dotenv').config();
 
 const { SERVER_CONFIG, EVOLUTION_CONFIG, ALOCACAO_HUB_CONFIG, COP_REDE_EMPRESARIAL_CONFIG, JSONBIN_CONFIG } = require('./config');
@@ -246,11 +248,30 @@ function getJsonBinHeaders(extraHeaders = {}) {
   };
 }
 
+const SCALE_CACHE_PATH = path.join(__dirname, 'data', 'escala-cache.json');
+
+function salvarEscalaEmCache(dados, binId) {
+  fs.mkdirSync(path.dirname(SCALE_CACHE_PATH), { recursive: true });
+  fs.writeFileSync(SCALE_CACHE_PATH, JSON.stringify({
+    binId,
+    dados,
+    atualizadoEm: new Date().toISOString()
+  }, null, 2));
+}
+
+function carregarEscalaDoCache() {
+  if (!fs.existsSync(SCALE_CACHE_PATH)) {
+    return null;
+  }
+
+  return JSON.parse(fs.readFileSync(SCALE_CACHE_PATH, 'utf8'));
+}
+
 async function jsonBinScaleRequest(method, binId, body = null) {
   const options = {
     method,
     headers: getJsonBinHeaders(),
-    timeout: 30000
+    timeout: 8000
   };
 
   if (body !== null) {
@@ -285,11 +306,24 @@ app.get('/api/escala', async (req, res) => {
     res.json({
       sucesso: true,
       binId,
+      origem: 'jsonbin',
       dados: result?.record || null,
       metadata: result?.metadata || null
     });
   } catch (error) {
     console.error('[API Escala] Erro ao carregar:', error.message);
+    const cache = carregarEscalaDoCache();
+    if (cache?.dados) {
+      return res.json({
+        sucesso: true,
+        binId: cache.binId || getScaleBinId(req.query.binId),
+        origem: 'backend-cache',
+        aviso: 'JSONBin indisponível; usando cache do backend',
+        dados: cache.dados,
+        atualizadoEm: cache.atualizadoEm
+      });
+    }
+
     res.status(error.status || 500).json({
       sucesso: false,
       erro: error.message,
@@ -308,17 +342,23 @@ app.put('/api/escala', async (req, res) => {
     }
 
     const result = await jsonBinScaleRequest('PUT', binId, dados);
+    salvarEscalaEmCache(dados, binId);
     res.json({
       sucesso: true,
       binId,
+      origem: 'jsonbin',
       metadata: result?.metadata || null
     });
   } catch (error) {
     console.error('[API Escala] Erro ao salvar:', error.message);
-    res.status(error.status || 500).json({
-      sucesso: false,
-      erro: error.message,
-      detalhes: error.details || null
+    const binId = getScaleBinId(req.body?.binId);
+    salvarEscalaEmCache(req.body?.dados, binId);
+    res.json({
+      sucesso: true,
+      binId,
+      origem: 'backend-cache',
+      aviso: 'JSONBin indisponível; escala salva no cache do backend',
+      erroJsonBin: error.message
     });
   }
 });
