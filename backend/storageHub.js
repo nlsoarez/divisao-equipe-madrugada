@@ -4,10 +4,13 @@
  */
 
 const { ALOCACAO_HUB_CONFIG } = require('./config');
+const fs = require('fs');
+const path = require('path');
 
 // Cache local
 let cachedData = null;
 let cacheTimestamp = 0;
+const HUB_CACHE_PATH = path.join(__dirname, 'data', 'alocacao-hub-cache.json');
 
 // Validar BIN_ID: IDs do JSONBin são hex de 24 chars. Se parecer uma chave bcrypt ($2a$...), ignorar.
 const rawBinId = ALOCACAO_HUB_CONFIG.BIN_ID;
@@ -45,6 +48,33 @@ function limparCache() {
 /**
  * Faz requisição ao JSONBin.io
  */
+function normalizarDadosHub(dados) {
+  return {
+    alocacoes: Array.isArray(dados?.alocacoes) ? dados.alocacoes : [],
+    ultimaAtualizacao: dados?.ultimaAtualizacao || null
+  };
+}
+
+function carregarCacheArquivo() {
+  try {
+    if (!fs.existsSync(HUB_CACHE_PATH)) return null;
+    return normalizarDadosHub(JSON.parse(fs.readFileSync(HUB_CACHE_PATH, 'utf8')));
+  } catch (error) {
+    console.error('[StorageHub] Erro ao carregar cache de arquivo:', error.message);
+    return null;
+  }
+}
+
+function salvarCacheArquivo(dados) {
+  const dadosNormalizados = normalizarDadosHub(dados);
+  dadosNormalizados.ultimaAtualizacao = dadosNormalizados.ultimaAtualizacao || new Date().toISOString();
+  fs.mkdirSync(path.dirname(HUB_CACHE_PATH), { recursive: true });
+  fs.writeFileSync(HUB_CACHE_PATH, JSON.stringify(dadosNormalizados, null, 2));
+  cachedData = dadosNormalizados;
+  cacheTimestamp = Date.now();
+  return dadosNormalizados;
+}
+
 async function jsonBinRequest(method, data = null) {
   if (!binId) {
     throw new Error('Bin ID não configurado para Alocação de HUB');
@@ -57,13 +87,10 @@ async function jsonBinRequest(method, data = null) {
     'X-Master-Key': ALOCACAO_HUB_CONFIG.MASTER_KEY
   };
 
-  if (ALOCACAO_HUB_CONFIG.ACCESS_KEY) {
-    headers['X-Access-Key'] = ALOCACAO_HUB_CONFIG.ACCESS_KEY;
-  }
-
   const options = {
     method,
-    headers
+    headers,
+    timeout: 8000
   };
 
   if (data && method !== 'GET') {
@@ -97,13 +124,10 @@ async function criarBin() {
     'X-Bin-Name': 'alocacao-hub'
   };
 
-  if (ALOCACAO_HUB_CONFIG.ACCESS_KEY) {
-    headers['X-Access-Key'] = ALOCACAO_HUB_CONFIG.ACCESS_KEY;
-  }
-
   const response = await fetch(url, {
     method: 'POST',
     headers,
+    timeout: 8000,
     body: JSON.stringify(dadosIniciais)
   });
 
@@ -125,6 +149,16 @@ async function criarBin() {
  * Carrega dados do JSONBin
  */
 async function carregarDados(forcarAtualizacao = false) {
+  if (!binId) {
+    const cacheArquivo = carregarCacheArquivo();
+    if (cacheArquivo) {
+      cachedData = cacheArquivo;
+      cacheTimestamp = Date.now();
+      return cacheArquivo;
+    }
+    return salvarCacheArquivo({ alocacoes: [], ultimaAtualizacao: null });
+  }
+
   const agora = Date.now();
   const idadeCache = agora - cacheTimestamp;
 
@@ -156,6 +190,22 @@ async function carregarDados(forcarAtualizacao = false) {
  * Salva dados no JSONBin
  */
 async function salvarDados(dados) {
+  dados.ultimaAtualizacao = new Date().toISOString();
+  salvarCacheArquivo(dados);
+
+  if (!binId) {
+    console.log('[StorageHub] Bin ID nao configurado; dados salvos no cache do backend');
+    return true;
+  }
+
+  try {
+    await jsonBinRequest('PUT', dados);
+  } catch (error) {
+    console.error('[StorageHub] Falha ao publicar no JSONBin; mantendo cache do backend:', error.message);
+  }
+
+  return true;
+
   if (!binId) {
     throw new Error('Bin ID não configurado para Alocação de HUB');
   }
