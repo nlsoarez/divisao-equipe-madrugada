@@ -40,6 +40,7 @@ const JSONBIN_CONFIG = {
   API_URL: 'https://api.jsonbin.io/v3/b',
   MASTER_KEY: process.env.JSONBIN_MASTER_KEY || '$2a$10$tGExKDQ1CS6U/A7JPWOlRerdm4XUs6sQcChusEUmlqiVdkugQ/MZW',
   ACCESS_KEY: process.env.JSONBIN_ACCESS_KEY || '$2a$10$2dbmigUDE0MQ/2jxympm8eyPQzRdC/Ts4FIksSn/F9Pb4Qu8Mg0wm',
+  SCALE_BIN_ID: process.env.SCALE_BIN_ID || process.env.ESCALA_BIN_ID || '697531c843b1c97be9474ae9',
   // Bin específico para mensagens do WhatsApp (SEPARADO do bin da escala!)
   // Este bin armazena apenas: COP REDE INFORMA e Alertas
   // O bin da escala (697531c843b1c97be9474ae9) armazena os calendários de trabalho

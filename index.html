@@ -3550,6 +3550,8 @@ const JSONBIN_CONFIG = {
   API_URL: CONFIG.JSONBIN.API_URL
 };
 
+const ESCALA_BACKEND_URL = 'https://divisao-equipe-madrugada-production.up.railway.app';
+
 // Funções de compatibilidade com código existente
 function obterBinId() { return API.getBinId(); }
 function salvarBinId(id) { return API.saveBinId(id); }
@@ -5807,6 +5809,23 @@ function prepararCalendariosParaPersistencia(calendariosOrigem) {
   });
 }
 
+async function salvarEscalaViaBackend(dados, binId) {
+  const response = await fetch(`${ESCALA_BACKEND_URL}/api/escala`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ binId, dados })
+  });
+
+  const result = await response.json().catch(() => null);
+  if (!response.ok || !result?.sucesso) {
+    throw new Error(result?.erro || `Backend ${response.status}`);
+  }
+
+  return result;
+}
+
 async function salvarConfiguracaoCalendarios(tentativa = 1) {
   console.log('💾 Salvando configuração dos calendários...');
   console.log('📅 Calendário ativo:', calendarioAtivo);
@@ -5892,6 +5911,18 @@ async function salvarConfiguracaoCalendarios(tentativa = 1) {
 
     if (payload.length > 95 * 1024) {
       console.warn('Payload perto/acima do limite de 100KB do plano gratuito JSONBin:', payloadKB + ' KB');
+    }
+
+    try {
+      const resultadoBackend = await salvarEscalaViaBackend(dadosParaSalvar, binId);
+      if (resultadoBackend?.binId) {
+        salvarBinId(resultadoBackend.binId);
+      }
+      showToast('✅ Escalas salvas e publicadas para todos!', 'success');
+      salvarBackupLocalSeguro(dadosParaSalvar, false);
+      return;
+    } catch (backendError) {
+      console.warn('⚠️ Backend não conseguiu salvar a escala. Tentando JSONBin direto...', backendError);
     }
 
     const response = await fetch(`${JSONBIN_CONFIG.API_URL}/${binId}`, {
@@ -6090,6 +6121,21 @@ async function salvarDadosNaNuvem() {
   return await salvarConfiguracaoCalendarios();
 }
 
+async function carregarEscalaViaBackend(binId) {
+  const url = new URL(`${ESCALA_BACKEND_URL}/api/escala`);
+  if (binId) {
+    url.searchParams.set('binId', binId);
+  }
+
+  const response = await fetch(url.toString());
+  const result = await response.json().catch(() => null);
+  if (!response.ok || !result?.sucesso) {
+    throw new Error(result?.erro || `Backend ${response.status}`);
+  }
+
+  return result;
+}
+
 async function tentarSalvarNoBin(binId, dados, tentarCriarNovo = true) {
   try {
     console.log(`🔄 Enviando PUT para Bin ${binId}...`);
@@ -6148,9 +6194,30 @@ async function carregarDadosDaNuvem() {
   console.log('🔵 INICIANDO CARREGAMENTO DA NUVEM...');
 
   const binId = obterBinId();
+  showLoading();
   console.log('📌 BIN_ID para carregar:', binId || 'Nenhum configurado');
 
   // Se não houver BIN_ID, mostrar mensagem apropriada
+  try {
+    const resultadoBackend = await carregarEscalaViaBackend(binId);
+    if (resultadoBackend?.binId) {
+      salvarBinId(resultadoBackend.binId);
+    }
+
+    const dadosBackend = resultadoBackend?.dados;
+    const formatoV2Backend = dadosBackend && (dadosBackend.dadosOriginais || dadosBackend.dadosPlanilha);
+    const formatoV3Backend = dadosBackend && (dadosBackend.versao === '3.0' || dadosBackend.calendario1 || dadosBackend.calendario2);
+
+    if (formatoV2Backend || formatoV3Backend) {
+      processarDadosCarregados(dadosBackend);
+      hideLoading();
+      showToast('✅ Escalas carregadas da nuvem!', 'success');
+      return true;
+    }
+  } catch (backendError) {
+    console.warn('⚠️ Backend não conseguiu carregar a escala. Tentando JSONBin direto...', backendError);
+  }
+
   if (!binId) {
     console.warn('⚠️ Nenhum BIN_ID configurado');
     if (isAdmin) {
@@ -6161,8 +6228,6 @@ async function carregarDadosDaNuvem() {
     hideLoading();
     return false;
   }
-
-  showLoading();
 
   try {
     // Fazer requisição com timeout para o BIN

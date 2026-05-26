@@ -5,9 +5,10 @@
 
 const express = require('express');
 const cors = require('cors');
+const fetch = require('node-fetch');
 require('dotenv').config();
 
-const { SERVER_CONFIG, EVOLUTION_CONFIG, ALOCACAO_HUB_CONFIG, COP_REDE_EMPRESARIAL_CONFIG } = require('./config');
+const { SERVER_CONFIG, EVOLUTION_CONFIG, ALOCACAO_HUB_CONFIG, COP_REDE_EMPRESARIAL_CONFIG, JSONBIN_CONFIG } = require('./config');
 const storage = require('./storage');
 const storageHub = require('./storageHub');
 const whatsapp = require('./whatsapp');
@@ -233,6 +234,95 @@ app.get('/api/health', (req, res) => {
 /**
  * Estatísticas gerais
  */
+function getScaleBinId(binId = null) {
+  return binId || JSONBIN_CONFIG.SCALE_BIN_ID;
+}
+
+function getJsonBinHeaders(extraHeaders = {}) {
+  return {
+    'Content-Type': 'application/json',
+    'X-Master-Key': JSONBIN_CONFIG.MASTER_KEY,
+    ...extraHeaders
+  };
+}
+
+async function jsonBinScaleRequest(method, binId, body = null) {
+  const options = {
+    method,
+    headers: getJsonBinHeaders(),
+    timeout: 30000
+  };
+
+  if (body !== null) {
+    options.body = JSON.stringify(body);
+  }
+
+  const response = await fetch(`${JSONBIN_CONFIG.API_URL}/${binId}${method === 'GET' ? '/latest' : ''}`, options);
+  const text = await response.text();
+  let json = null;
+  if (text) {
+    try {
+      json = JSON.parse(text);
+    } catch (parseError) {
+      json = { raw: text };
+    }
+  }
+
+  if (!response.ok) {
+    const error = new Error(`JSONBin ${response.status}: ${text.substring(0, 300)}`);
+    error.status = response.status;
+    error.details = json;
+    throw error;
+  }
+
+  return json;
+}
+
+app.get('/api/escala', async (req, res) => {
+  try {
+    const binId = getScaleBinId(req.query.binId);
+    const result = await jsonBinScaleRequest('GET', binId);
+    res.json({
+      sucesso: true,
+      binId,
+      dados: result?.record || null,
+      metadata: result?.metadata || null
+    });
+  } catch (error) {
+    console.error('[API Escala] Erro ao carregar:', error.message);
+    res.status(error.status || 500).json({
+      sucesso: false,
+      erro: error.message,
+      detalhes: error.details || null
+    });
+  }
+});
+
+app.put('/api/escala', async (req, res) => {
+  try {
+    const binId = getScaleBinId(req.body?.binId);
+    const dados = req.body?.dados;
+
+    if (!dados || typeof dados !== 'object') {
+      return res.status(400).json({ sucesso: false, erro: 'dados é obrigatório' });
+    }
+
+    const result = await jsonBinScaleRequest('PUT', binId, dados);
+    res.json({
+      sucesso: true,
+      binId,
+      metadata: result?.metadata || null
+    });
+  } catch (error) {
+    console.error('[API Escala] Erro ao salvar:', error.message);
+    res.status(error.status || 500).json({
+      sucesso: false,
+      erro: error.message,
+      detalhes: error.details || null
+    });
+  }
+});
+
 app.get('/api/estatisticas', async (req, res) => {
   try {
     const stats = await storage.obterEstatisticas();
