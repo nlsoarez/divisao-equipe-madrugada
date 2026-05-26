@@ -5798,9 +5798,12 @@ async function salvarConfiguracaoCalendarios(tentativa = 1) {
   const cal1Vazio = !calendarios.calendario1
     || !calendarios.calendario1.dadosOriginais
     || Object.keys(calendarios.calendario1.dadosOriginais).length === 0;
-  const cal2Vazio = !calendarios.calendario2
-    || !calendarios.calendario2.dadosOriginais
-    || Object.keys(calendarios.calendario2.dadosOriginais).length === 0;
+  const cal2RioEs = calendarios.calendario2?.rio_es?.dadosOriginais;
+  const cal2Leste = calendarios.calendario2?.leste?.dadosOriginais;
+  const cal2Legado = calendarios.calendario2?.dadosOriginais;
+  const cal2Vazio = (!cal2RioEs || Object.keys(cal2RioEs).length === 0)
+    && (!cal2Leste || Object.keys(cal2Leste).length === 0)
+    && (!cal2Legado || Object.keys(cal2Legado).length === 0);
   if (cal1Vazio && cal2Vazio && obterBinId()) {
     console.warn('⛔ Save cancelado: ambos calendários vazios e bin já existe. Protegendo dados remotos.');
     showToast('⚠️ Nenhum dado para salvar. Operação cancelada para proteger as escalas existentes.', 'warning');
