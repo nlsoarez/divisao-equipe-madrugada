@@ -1421,11 +1421,43 @@
       font-size: 0.8rem;
       color: var(--ds-text-secondary, #616161);
       margin-top: 2rem;
-      padding: var(--ds-spacing-2xl, 14px);
+      padding: var(--ds-spacing-2xl, 14px) var(--ds-spacing-2xl, 14px);
       background: white;
       border-radius: var(--ds-border-radius-lg, 8px);
       box-shadow: var(--ds-shadow-sm, 0 2px 6px rgba(0, 0, 0, 0.05));
       font-weight: 500;
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      align-items: center;
+      gap: 0.4rem 1rem;
+      line-height: 1.4;
+    }
+    .assinatura .assinatura-item {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+    .assinatura .assinatura-item i {
+      color: #d32f2f;
+      font-size: 0.95rem;
+    }
+    .assinatura .assinatura-label {
+      color: var(--ds-text-secondary, #616161);
+    }
+    .assinatura .assinatura-valor {
+      color: #212121;
+      font-weight: 600;
+      letter-spacing: 0.2px;
+    }
+    .assinatura .assinatura-sep {
+      width: 1px;
+      height: 14px;
+      background: #e0e0e0;
+      display: inline-block;
+    }
+    @media (max-width: 480px) {
+      .assinatura .assinatura-sep { display: none; }
     }
     
     /* Loading */
@@ -3481,7 +3513,17 @@
 <!-- Assinatura -->
 <div class="main-container">
   <div class="assinatura">
-    CNPJ da Empresa Nelson Soares: 66.955.143/0001-65 | N5923221 - Kelly Lira
+    <span class="assinatura-item">
+      <i class="bi bi-building"></i>
+      <span class="assinatura-label">CNPJ Empresa Nelson Soares</span>
+      <span class="assinatura-valor">66.955.143/0001-65</span>
+    </span>
+    <span class="assinatura-sep"></span>
+    <span class="assinatura-item">
+      <i class="bi bi-person-badge"></i>
+      <span class="assinatura-label">N5923221</span>
+      <span class="assinatura-valor">Kelly Lira</span>
+    </span>
   </div>
 </div>
 
@@ -5756,9 +5798,12 @@ async function salvarConfiguracaoCalendarios(tentativa = 1) {
   const cal1Vazio = !calendarios.calendario1
     || !calendarios.calendario1.dadosOriginais
     || Object.keys(calendarios.calendario1.dadosOriginais).length === 0;
-  const cal2Vazio = !calendarios.calendario2
-    || !calendarios.calendario2.dadosOriginais
-    || Object.keys(calendarios.calendario2.dadosOriginais).length === 0;
+  const cal2RioEs = calendarios.calendario2?.rio_es?.dadosOriginais;
+  const cal2Leste = calendarios.calendario2?.leste?.dadosOriginais;
+  const cal2Legado = calendarios.calendario2?.dadosOriginais;
+  const cal2Vazio = (!cal2RioEs || Object.keys(cal2RioEs).length === 0)
+    && (!cal2Leste || Object.keys(cal2Leste).length === 0)
+    && (!cal2Legado || Object.keys(cal2Legado).length === 0);
   if (cal1Vazio && cal2Vazio && obterBinId()) {
     console.warn('⛔ Save cancelado: ambos calendários vazios e bin já existe. Protegendo dados remotos.');
     showToast('⚠️ Nenhum dado para salvar. Operação cancelada para proteger as escalas existentes.', 'warning');
