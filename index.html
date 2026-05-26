@@ -5864,6 +5864,10 @@ async function salvarConfiguracaoCalendarios(tentativa = 1) {
       temCal2: !!dadosParaSalvar.calendario2
     });
 
+    const payload = JSON.stringify(dadosParaSalvar);
+    const payloadKB = (payload.length / 1024).toFixed(1);
+    console.log(`📦 Tamanho do payload: ${payloadKB} KB`);
+
     const response = await fetch(`${JSONBIN_CONFIG.API_URL}/${binId}`, {
       method: 'PUT',
       headers: {
@@ -5871,7 +5875,7 @@ async function salvarConfiguracaoCalendarios(tentativa = 1) {
         'X-Master-Key': JSONBIN_CONFIG.MASTER_KEY,
         'X-Access-Key': JSONBIN_CONFIG.ACCESS_KEY
       },
-      body: JSON.stringify(dadosParaSalvar)
+      body: payload
     });
 
     if (response.ok) {
@@ -5925,7 +5929,8 @@ async function salvarConfiguracaoCalendarios(tentativa = 1) {
 
       if (backupOk) {
         // Mostrar alerta mais claro para o admin
-        showToast('⚠️ ATENÇÃO: Dados salvos APENAS localmente! Outros usuários NÃO verão as alterações. Tente "Republicar" mais tarde.', 'danger');
+        const msgErro = (error && error.message) ? ` (${error.message.substring(0, 120)})` : '';
+        showToast('⚠️ ATENÇÃO: Dados salvos APENAS localmente! Outros usuários NÃO verão as alterações.' + msgErro, 'danger');
         // Mostrar botão de republicar se não existir
         mostrarBotaoRepublicar();
       } else {
