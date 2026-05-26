@@ -61,7 +61,6 @@ const API = {
         headers: {
           'Content-Type': 'application/json',
           'X-Master-Key': CONFIG.JSONBIN.MASTER_KEY,
-          'X-Access-Key': CONFIG.JSONBIN.ACCESS_KEY,
           'X-Bin-Name': `Escala Equipe Madrugada - ${new Date().toISOString().split('T')[0]}`,
           'X-Bin-Private': 'false'
         },
@@ -115,7 +114,6 @@ const API = {
         method: 'GET',
         headers: {
           'X-Master-Key': CONFIG.JSONBIN.MASTER_KEY,
-          'X-Access-Key': CONFIG.JSONBIN.ACCESS_KEY
         },
         signal: controller.signal
       });
@@ -175,7 +173,6 @@ const API = {
         headers: {
           'Content-Type': 'application/json',
           'X-Master-Key': CONFIG.JSONBIN.MASTER_KEY,
-          'X-Access-Key': CONFIG.JSONBIN.ACCESS_KEY,
           'X-Bin-Name': `Escala ${dados.mes !== undefined ? CONFIG.MESES[dados.mes] : ''} ${dados.ano || ''}`
         },
         body: JSON.stringify(dados)
@@ -249,7 +246,6 @@ const API = {
         method: 'GET',
         headers: {
           'X-Master-Key': CONFIG.JSONBIN.MASTER_KEY,
-          'X-Access-Key': CONFIG.JSONBIN.ACCESS_KEY
         }
       });
       return response.ok;

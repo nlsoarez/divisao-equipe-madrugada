@@ -5873,7 +5873,6 @@ async function salvarConfiguracaoCalendarios(tentativa = 1) {
       headers: {
         'Content-Type': 'application/json',
         'X-Master-Key': JSONBIN_CONFIG.MASTER_KEY,
-        'X-Access-Key': JSONBIN_CONFIG.ACCESS_KEY
       },
       body: payload
     });
@@ -6046,7 +6045,6 @@ async function verificarBinExiste(binId) {
       method: 'GET',
       headers: {
         'X-Master-Key': JSONBIN_CONFIG.MASTER_KEY,
-        'X-Access-Key': JSONBIN_CONFIG.ACCESS_KEY
       }
     });
     return response.ok;
@@ -6072,7 +6070,6 @@ async function tentarSalvarNoBin(binId, dados, tentarCriarNovo = true) {
         'Content-Type': 'application/json',
         'X-Master-Key': JSONBIN_CONFIG.MASTER_KEY,
         'X-Bin-Name': `Escala ${MESES[mesSelecionado]} ${anoSelecionado}`,
-        'X-Access-Key': JSONBIN_CONFIG.ACCESS_KEY
       },
       body: JSON.stringify(dados)
     });
@@ -6147,7 +6144,6 @@ async function carregarDadosDaNuvem() {
     const response = await fetch(`${JSONBIN_CONFIG.API_URL}/${binId}/latest`, {
       headers: {
         'X-Master-Key': JSONBIN_CONFIG.MASTER_KEY,
-        'X-Access-Key': JSONBIN_CONFIG.ACCESS_KEY
       },
       signal: controller.signal
     });
@@ -6860,7 +6856,6 @@ async function testarConexaoNuvem() {
     const response = await fetch(`${JSONBIN_CONFIG.API_URL}/${binId}/latest`, {
       headers: {
         'X-Master-Key': JSONBIN_CONFIG.MASTER_KEY,
-        'X-Access-Key': JSONBIN_CONFIG.ACCESS_KEY
       }
     });
 
@@ -6968,7 +6963,6 @@ async function excluirPlanilha() {
         'Content-Type': 'application/json',
         'X-Master-Key': JSONBIN_CONFIG.MASTER_KEY,
         'X-Bin-Name': 'Escala Vazia',
-        'X-Access-Key': JSONBIN_CONFIG.ACCESS_KEY
       },
       body: JSON.stringify(dadosVazios)
     });
