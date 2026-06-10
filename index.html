@@ -10775,6 +10775,16 @@ async function carregarMatrizOfensores(forcar = false) {
   const grid = document.getElementById('matrizAreaGrid');
   if (grid) grid.innerHTML = '<p class="text-muted small text-center mb-0">Carregando...</p>';
 
+  // Quando o refresh é forçado (auto-refresh ou botão manual), atualizar também o
+  // COP Rede Informa para destravar o painel "Volume por Área". Roda em paralelo
+  // — quando os dois terminam, renderizarIncidentesPorAnalista re-renderiza com
+  // resumoAreasCopRede atualizado.
+  if (forcar && backendConectado) {
+    carregarCopRedeInforma(true).catch(err =>
+      console.warn('[Ofensores] Falha ao refrescar COP Rede Informa:', err?.message || err)
+    );
+  }
+
   try {
     const resp = await fetch(`${backendUrl}/api/matriz-ofensores`);
     if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
