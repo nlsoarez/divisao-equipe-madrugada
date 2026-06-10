@@ -8435,8 +8435,11 @@ function aplicarTrocasAosDados() {
     });
 
   // Re-renderizar o Volume por Área para refletir trocas/edições no plantonista
-  if (calendarioAtivo === 'calendario1' && typeof dadosCopRedeInforma !== 'undefined' && dadosCopRedeInforma.length > 0) {
-    try { atualizarTabelaCopRede(dadosCopRedeInforma); } catch (e) { /* painel pode não estar montado ainda */ }
+  if (calendarioAtivo === 'calendario1') {
+    try {
+      atualizarVolumePorAreaIncidentes();
+      renderizarIncidentesPorAnalista();
+    } catch (e) { /* painel pode não estar montado ainda */ }
   }
 }
 
@@ -9121,7 +9124,8 @@ function salvarDivisaoAreas(dia) {
     showToast('✅ Divisão de áreas atualizada!', 'success');
     atualizarCalendario();
     // Refletir novo plantonista no painel Volume por Área
-    if (dadosCopRedeInforma.length > 0) atualizarTabelaCopRede(dadosCopRedeInforma);
+    atualizarVolumePorAreaIncidentes();
+    renderizarIncidentesPorAnalista();
 
     // Fechar modal e reabrir com dados atualizados
     const modal = bootstrap.Modal.getInstance(document.getElementById('dayModal'));
@@ -9152,7 +9156,8 @@ function recalcularDivisaoAutomatica(dia) {
     showToast('✅ Divisão recalculada automaticamente!', 'success');
     atualizarCalendario();
     // Refletir novo plantonista no painel Volume por Área
-    if (dadosCopRedeInforma.length > 0) atualizarTabelaCopRede(dadosCopRedeInforma);
+    atualizarVolumePorAreaIncidentes();
+    renderizarIncidentesPorAnalista();
 
     // Fechar modal e reabrir com dados atualizados
     const modal = bootstrap.Modal.getInstance(document.getElementById('dayModal'));
@@ -10452,12 +10457,76 @@ function calcularOfensoresPorArea(numPessoas) {
 }
 
 /**
+ * Formata nome da escala para exibição: primeiro + último nome,
+ * ou primeiros nomes separados por " / " quando há dois responsáveis.
+ */
+function formatarNomeEscala(nomeCompleto) {
+  if (!nomeCompleto) return '-';
+  if (nomeCompleto.includes(' / ')) {
+    return nomeCompleto.split(' / ').map(n => n.trim().split(' ')[0]).join(' / ');
+  }
+  const partes = nomeCompleto.split(' ');
+  return partes.length > 1 ? `${partes[0]} ${partes[partes.length - 1]}` : partes[0];
+}
+
+/**
+ * Renderiza o painel "Volume por Área" a partir dos incidentes ativos do
+ * Supabase (window.dadosMatrizOfensores) — MESMA fonte da seção
+ * "Incidentes ativos por analista". Não depende de mensagens do COP,
+ * que podem ficar dias sem chegar.
+ * Plantonista e nº de pessoas vêm da escala Residencial de AGORA.
+ */
+function atualizarVolumePorAreaIncidentes() {
+  const resumoDiv = document.getElementById('resumoAreasCop');
+  const summaryGrid = document.getElementById('areaSummaryGrid');
+  if (!summaryGrid) return;
+
+  // Escala de AGORA (com trocas/edições aplicadas)
+  const diaHoje = obterDiaEscalaMadrugada(new Date());
+  const dadosDia = obterDadosDiaEscalaResidencial(diaHoje);
+  const divisaoHoje = dadosDia?.divisao || {};
+  const numPessoas = dadosDia?.numPessoas || 4;
+  window.numPessoasEscala = numPessoas;
+
+  const ofPorArea = calcularOfensoresPorArea(numPessoas);
+
+  // Áreas: todas da escala de hoje + as que têm incidentes (exceto OUTRO)
+  const areas = Object.keys(divisaoHoje);
+  for (const k of Object.keys(ofPorArea)) {
+    if (k !== 'OUTRO' && !areas.includes(k)) areas.push(k);
+  }
+
+  if (areas.length === 0) {
+    if (resumoDiv) resumoDiv.style.display = 'none';
+    return;
+  }
+
+  summaryGrid.innerHTML = areas.map(area => {
+    const total = ofPorArea[area]?.total || 0;
+    const responsavel = divisaoHoje[area]
+      ? formatarNomeEscala(divisaoHoje[area])
+      : obterResponsavelPorArea(area, new Date());
+    return `
+      <div class="area-summary-item ${getCorOfensores(total)}">
+        <span class="area-name">${area}</span>
+        <span class="area-volume">${total}</span>
+        <span class="area-responsible"><i class="bi bi-person me-1"></i>${responsavel}</span>
+      </div>`;
+  }).join('');
+
+  if (resumoDiv) resumoDiv.style.display = 'block';
+
+  // Badge de ofensores (>6h) nos cards
+  atualizarAreaCardsComOfensores();
+}
+
+/**
  * Após carregar ofensores, atualiza os cards da areaSummaryGrid do CopRede
  * para incluir contagem de ofensores por área.
  */
 function atualizarAreaCardsComOfensores() {
   const summaryGrid = document.getElementById('areaSummaryGrid');
-  if (!summaryGrid || !window.resumoAreasCopRede) return;
+  if (!summaryGrid || !window.dadosMatrizOfensores) return;
   const numPessoas = window.numPessoasEscala || 4;
   const ofData = calcularOfensoresPorArea(numPessoas);
 
@@ -10510,6 +10579,9 @@ function renderizarIncidentesPorAnalista() {
   const numPessoas = window.numPessoasEscala || 4;
   const ofPorArea = calcularOfensoresPorArea(numPessoas);
 
+  // Divisão da escala de AGORA (fallback para o nome do plantonista)
+  const divisaoAgora = obterDadosDiaEscalaResidencial(obterDiaEscalaMadrugada(new Date()))?.divisao || {};
+
   // Atualizar badge de críticos
   const badge = document.getElementById('badgeOfensores');
   const totalCriticos = Object.values(ofPorArea).reduce((s, a) => s + (a.criticos || 0), 0);
@@ -10520,16 +10592,20 @@ function renderizarIncidentesPorAnalista() {
 
   // Ordenar áreas: críticas primeiro
   const areasOrdenadas = Object.keys(resumoCop || {});
-  if (!areasOrdenadas.length && ofensoresData) {
-    // Se só temos ofensores sem CopRede, usar áreas dos ofensores
-    areasOrdenadas.push(...Object.keys(ofPorArea).filter(a => a !== 'OUTRO'));
+  if (!areasOrdenadas.length) {
+    // Sem dados do CopRede: usar áreas da escala de agora + áreas com incidentes
+    areasOrdenadas.push(...Object.keys(divisaoAgora));
+    for (const a of Object.keys(ofPorArea)) {
+      if (a !== 'OUTRO' && !areasOrdenadas.includes(a)) areasOrdenadas.push(a);
+    }
   }
 
   let html = '';
   for (const area of areasOrdenadas) {
     const info = resumoCop?.[area];
     const of = ofPorArea[area] || { total: 0, criticos: 0, entre12e24h: 0, lista: [] };
-    const responsavel = info?.responsavel || '-';
+    const responsavel = (divisaoAgora[area] ? formatarNomeEscala(divisaoAgora[area]) : null)
+      || info?.responsavel || '-';
     const volCop = info?.volume ?? null;
 
     const corBorda = of.criticos > 0 ? '#dc2626' : of.entre12e24h > 0 ? '#f59e0b' : '#22c55e';
@@ -10809,8 +10885,8 @@ async function carregarMatrizOfensores(forcar = false) {
     renderizarMatrizAreaGrid(data.ofensores || []);
     renderizarTabelaOfensores(data.ofensores || []);
 
-    // Enriquecer os cards de volume CopRede com dados de ofensores
-    atualizarAreaCardsComOfensores();
+    // Volume por Área usa os incidentes ativos como fonte — atualizar junto
+    atualizarVolumePorAreaIncidentes();
 
     // Renderizar seção unificada de incidentes por analista (aba Residencial)
     renderizarIncidentesPorAnalista();
@@ -11564,9 +11640,11 @@ function atualizarTabelaCopRede(dados) {
   const infoSpan = document.getElementById('copRedeUltimaAtualizacao');
 
   if (!dados || dados.length === 0) {
-    if (resumoDiv) resumoDiv.style.display = 'none';
     if (emptyDiv) emptyDiv.style.display = 'block';
     if (infoDiv) infoDiv.style.display = 'none';
+    // Volume por Área não depende de mensagens do COP — renderizar mesmo assim
+    atualizarVolumePorAreaIncidentes();
+    renderizarIncidentesPorAnalista();
     return;
   }
 
@@ -11633,9 +11711,11 @@ function atualizarTabelaCopRede(dados) {
   // Se não há mensagens com cluster, mostrar área vazia
   if (mensagensComCluster.length === 0) {
     console.log('[COP] Nenhuma mensagem com dados de cluster encontrada');
-    if (resumoDiv) resumoDiv.style.display = 'none';
     if (emptyDiv) emptyDiv.style.display = 'block';
     if (infoDiv) infoDiv.style.display = 'none';
+    // Volume por Área não depende de mensagens do COP — renderizar mesmo assim
+    atualizarVolumePorAreaIncidentes();
+    renderizarIncidentesPorAnalista();
     return;
   }
 
@@ -11706,33 +11786,12 @@ function atualizarTabelaCopRede(dados) {
 
   // Salvar globalmente para uso na Matriz de Ofensores
   window.resumoAreasCopRede = resumoPorArea;
-  window.numPessoasEscala = numPessoasHoje;
 
-  // Função para obter a classe de cor baseada na quantidade
-  // 0-19: vermelho suave (OK), 20-29: amarelo (atenção), 30+: vermelho (crítico)
-  function getCorVolume(quantidade) {
-    if (quantidade >= 30) return 'volume-critico';
-    if (quantidade >= 20) return 'volume-atencao';
-    return 'volume-ok';
-  }
-
-  // Atualizar resumo visual
-  if (Object.keys(resumoPorArea).length > 0 && summaryGrid) {
-    resumoDiv.style.display = 'block';
-    summaryGrid.innerHTML = Object.entries(resumoPorArea).map(([area, info]) => `
-      <div class="area-summary-item ${getCorVolume(info.volume)}">
-        <span class="area-name">${area || 'Não mapeada'}</span>
-        <span class="area-volume">${info.volume}</span>
-        <span class="area-responsible"><i class="bi bi-person me-1"></i>${info.responsavel}</span>
-      </div>
-    `).join('');
-    // Enriquecer com ofensores se já carregados
-    atualizarAreaCardsComOfensores();
-    // Renderizar seção unificada de incidentes por analista
-    renderizarIncidentesPorAnalista();
-  } else if (resumoDiv) {
-    resumoDiv.style.display = 'none';
-  }
+  // Atualizar resumo visual — o painel "Volume por Área" usa SOMENTE os
+  // incidentes ativos do Supabase (mesma fonte da seção "Incidentes ativos
+  // por analista"), não as mensagens do COP que podem ficar desatualizadas
+  atualizarVolumePorAreaIncidentes();
+  renderizarIncidentesPorAnalista();
 
   // Atualizar info da última atualização
   const dataFormatada = formatarDataHora(ultimaMensagem.dataRecebimento);
