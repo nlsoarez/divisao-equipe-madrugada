@@ -11648,17 +11648,17 @@ function atualizarTabelaCopRede(dados) {
   // Calcular resumo por área APENAS da última mensagem
   const resumoPorArea = {};
 
-  // Determinar número de pessoas trabalhando na data da mensagem
-  // NOTA: Sempre usa dados do Residencial (calendario1) para o Volume por Área
-  // parsearDataBR evita que "09/06/2026" seja lido como 6 de setembro (MM/DD)
-  const dataMensagem = parsearDataBR(ultimaMensagem.dataRecebimento);
-  const diaMensagem = obterDiaEscalaMadrugada(dataMensagem);
+  // Determinar número de pessoas trabalhando AGORA (não na data da mensagem)
+  // O volume da última mensagem pode ser antigo (segunda-feira), mas o plantonista
+  // e o tamanho da equipe devem refletir o turno atual. Caso contrário, se nenhuma
+  // mensagem nova chegou, o painel ficaria mostrando a equipe do dia anterior.
+  const diaHoje = obterDiaEscalaMadrugada(new Date());
   let numPessoasHoje = 4; // padrão
-  const dadosDiaEscala = obterDadosDiaEscalaResidencial(diaMensagem);
+  const dadosDiaEscala = obterDadosDiaEscalaResidencial(diaHoje);
   if (dadosDiaEscala) {
     numPessoasHoje = dadosDiaEscala.numPessoas || 4;
   }
-  console.log(`[COP] Dia ${diaMensagem}: ${numPessoasHoje} pessoas trabalhando (dados do Residencial)`);
+  console.log(`[COP] Dia da escala AGORA: ${diaHoje} (${numPessoasHoje} pessoas) — última msg: ${ultimaMensagem.dataRecebimento}`);
 
   if (ultimaMensagem.resumo && ultimaMensagem.resumo.grupo) {
     console.log('[COP] Grupos encontrados:', ultimaMensagem.resumo.grupo);
@@ -11670,7 +11670,8 @@ function atualizarTabelaCopRede(dados) {
       }
       resumoPorArea[areaKey].volume += quantidade;
       if (resumoPorArea[areaKey].responsavel === '-') {
-        resumoPorArea[areaKey].responsavel = obterResponsavelPorArea(areaKey, ultimaMensagem.dataRecebimento);
+        // Plantonista do AGORA, não do dia da mensagem
+        resumoPorArea[areaKey].responsavel = obterResponsavelPorArea(areaKey, new Date());
       }
     }
   } else if (ultimaMensagem.areaMapeada) {
@@ -11678,7 +11679,7 @@ function atualizarTabelaCopRede(dados) {
     const areaKey = mapearGrupoParaAreaFrontend(ultimaMensagem.areaMapeada, numPessoasHoje);
     resumoPorArea[areaKey] = {
       volume: extrairVolumeDaMensagem(ultimaMensagem),
-      responsavel: obterResponsavelPorArea(areaKey, ultimaMensagem.dataRecebimento)
+      responsavel: obterResponsavelPorArea(areaKey, new Date())
     };
   } else {
     console.log('[COP] Nenhum grupo ou areaMapeada encontrado na mensagem:', ultimaMensagem);
