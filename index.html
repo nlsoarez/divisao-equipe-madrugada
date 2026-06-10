@@ -8433,6 +8433,11 @@ function aplicarTrocasAosDados() {
         }
       }
     });
+
+  // Re-renderizar o Volume por Área para refletir trocas/edições no plantonista
+  if (calendarioAtivo === 'calendario1' && typeof dadosCopRedeInforma !== 'undefined' && dadosCopRedeInforma.length > 0) {
+    try { atualizarTabelaCopRede(dadosCopRedeInforma); } catch (e) { /* painel pode não estar montado ainda */ }
+  }
 }
 
 function resetarSelecaoTroca() {
@@ -9115,6 +9120,8 @@ function salvarDivisaoAreas(dia) {
   salvarDadosNaNuvem().then(() => {
     showToast('✅ Divisão de áreas atualizada!', 'success');
     atualizarCalendario();
+    // Refletir novo plantonista no painel Volume por Área
+    if (dadosCopRedeInforma.length > 0) atualizarTabelaCopRede(dadosCopRedeInforma);
 
     // Fechar modal e reabrir com dados atualizados
     const modal = bootstrap.Modal.getInstance(document.getElementById('dayModal'));
@@ -9144,6 +9151,8 @@ function recalcularDivisaoAutomatica(dia) {
   salvarDadosNaNuvem().then(() => {
     showToast('✅ Divisão recalculada automaticamente!', 'success');
     atualizarCalendario();
+    // Refletir novo plantonista no painel Volume por Área
+    if (dadosCopRedeInforma.length > 0) atualizarTabelaCopRede(dadosCopRedeInforma);
 
     // Fechar modal e reabrir com dados atualizados
     const modal = bootstrap.Modal.getInstance(document.getElementById('dayModal'));
@@ -11178,18 +11187,7 @@ function renderCopEmpresarialEmbed(containerId, dados, subEscala) {
     return;
   }
 
-  // Pegar a mensagem mais recente com clusters
-  function parsearDataBR(dataStr) {
-    if (!dataStr) return new Date(0);
-    const matchBR = dataStr.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:[\s,]+(\d{1,2}):(\d{2})(?::(\d{2}))?)?/);
-    if (matchBR) {
-      return new Date(parseInt(matchBR[3],10), parseInt(matchBR[2],10)-1, parseInt(matchBR[1],10),
-        matchBR[4]?parseInt(matchBR[4],10):0, matchBR[5]?parseInt(matchBR[5],10):0, matchBR[6]?parseInt(matchBR[6],10):0);
-    }
-    const d = new Date(dataStr);
-    return isNaN(d.getTime()) ? new Date(0) : d;
-  }
-
+  // Pegar a mensagem mais recente com clusters (usa parsearDataBR global)
   const dadosOrdenados = [...dados].sort((a, b) => {
     const dA = parsearDataBR(a.dataGeracao || a.dataRecebimento || a.dataMensagem);
     const dB = parsearDataBR(b.dataGeracao || b.dataRecebimento || b.dataMensagem);
@@ -11468,31 +11466,71 @@ function obterDiaEscalaMadrugada(data) {
   return dia;
 }
 
+// Parsear datas em formato brasileiro "dd/mm/yyyy HH:mm:ss"
+// IMPORTANTE: Verifica formato brasileiro PRIMEIRO porque JavaScript interpreta
+// "08/02/2026" como MM/DD/YYYY (agosto 2) em vez de DD/MM/YYYY (fevereiro 8)
+function parsearDataBR(dataStr) {
+  if (!dataStr) return new Date(0);
+  if (dataStr instanceof Date) return dataStr;
+
+  // PRIMEIRO: Tentar formato brasileiro "dd/mm/yyyy HH:mm:ss" ou "dd/mm/yyyy HH:mm" ou "dd/mm/yyyy"
+  const matchBR = String(dataStr).match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:[\s,]+(\d{1,2}):(\d{2})(?::(\d{2}))?)?/);
+  if (matchBR) {
+    const dia = parseInt(matchBR[1], 10);
+    const mes = parseInt(matchBR[2], 10) - 1;
+    const ano = parseInt(matchBR[3], 10);
+    const hora = matchBR[4] ? parseInt(matchBR[4], 10) : 0;
+    const minuto = matchBR[5] ? parseInt(matchBR[5], 10) : 0;
+    const segundo = matchBR[6] ? parseInt(matchBR[6], 10) : 0;
+    return new Date(ano, mes, dia, hora, minuto, segundo);
+  }
+
+  // SEGUNDO: Se não é formato brasileiro, tentar ISO ou formato reconhecido pelo JS
+  const dataISO = new Date(dataStr);
+  if (!isNaN(dataISO.getTime())) return dataISO;
+
+  return new Date(0);
+}
+
+// Retorna os dados da escala Residencial para um dia, considerando trocas e
+// edições manuais (dadosProcessados). Fallback para dadosOriginais quando o
+// calendário ativo não é o Residencial (dadosProcessados global é de outro calendário).
+function obterDadosDiaEscalaResidencial(dia) {
+  if (calendarioAtivo === 'calendario1' && dadosProcessados && dadosProcessados[dia]) {
+    return dadosProcessados[dia];
+  }
+  return calendarios.calendario1?.dadosOriginais?.[dia] || null;
+}
+
 // Função para obter o responsável por uma área em uma data específica
 // NOTA: Sempre usa dados do Residencial (calendario1) para o Volume por Área
 function obterResponsavelPorArea(areaTelegram, dataMensagem) {
   try {
-    const data = new Date(dataMensagem);
+    const data = parsearDataBR(dataMensagem);
     // Usar o dia ajustado para a escala da madrugada (vira às 07h)
     const dia = obterDiaEscalaMadrugada(data);
 
-    // Usar sempre dados do Residencial (calendario1) para Volume por Área
-    const dadosResidencial = calendarios.calendario1?.dadosOriginais;
+    // Usar a escala Residencial com trocas/edições aplicadas
+    const dadosDia = obterDadosDiaEscalaResidencial(dia);
 
     // Verificar se temos dados para este dia
-    if (!dadosResidencial || !dadosResidencial[dia] || !dadosResidencial[dia].divisao) {
+    if (!dadosDia || !dadosDia.divisao) {
       return '-';
     }
 
-    const divisao = dadosResidencial[dia].divisao;
+    const divisao = dadosDia.divisao;
 
     // Mapear área do Telegram para área da escala
     const areasEscala = MAPEAMENTO_AREAS_TELEGRAM[areaTelegram] || [areaTelegram];
 
     for (const areaEscala of areasEscala) {
       if (divisao[areaEscala]) {
-        // Retornar apenas primeiro nome para economizar espaço
         const nomeCompleto = divisao[areaEscala];
+        // Múltiplos responsáveis (ex: RIO "ALAN COSTA / THIAGO SILVA") → primeiro nome de cada
+        if (nomeCompleto.includes(' / ')) {
+          return nomeCompleto.split(' / ').map(n => n.trim().split(' ')[0]).join(' / ');
+        }
+        // Retornar apenas primeiro nome para economizar espaço
         const partes = nomeCompleto.split(' ');
         return partes.length > 1 ? `${partes[0]} ${partes[partes.length - 1]}` : partes[0];
       }
@@ -11534,34 +11572,6 @@ function atualizarTabelaCopRede(dados) {
 
   // Esconder área vazia
   if (emptyDiv) emptyDiv.style.display = 'none';
-
-  // Função para parsear datas em formato brasileiro "dd/mm/yyyy HH:mm:ss"
-  // JavaScript não parseia esse formato nativamente
-  // IMPORTANTE: Verifica formato brasileiro PRIMEIRO porque JavaScript interpreta
-  // "08/02/2026" como MM/DD/YYYY (agosto 2) em vez de DD/MM/YYYY (fevereiro 8)
-  function parsearDataBR(dataStr) {
-    if (!dataStr) return new Date(0);
-
-    // PRIMEIRO: Tentar formato brasileiro "dd/mm/yyyy HH:mm:ss" ou "dd/mm/yyyy HH:mm" ou "dd/mm/yyyy"
-    // Isso DEVE vir antes do new Date() porque JavaScript interpreta "08/02/2026"
-    // como MM/DD/YYYY (americano) em vez de DD/MM/YYYY (brasileiro)
-    const matchBR = dataStr.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:[\s,]+(\d{1,2}):(\d{2})(?::(\d{2}))?)?/);
-    if (matchBR) {
-      const dia = parseInt(matchBR[1], 10);
-      const mes = parseInt(matchBR[2], 10) - 1;
-      const ano = parseInt(matchBR[3], 10);
-      const hora = matchBR[4] ? parseInt(matchBR[4], 10) : 0;
-      const minuto = matchBR[5] ? parseInt(matchBR[5], 10) : 0;
-      const segundo = matchBR[6] ? parseInt(matchBR[6], 10) : 0;
-      return new Date(ano, mes, dia, hora, minuto, segundo);
-    }
-
-    // SEGUNDO: Se não é formato brasileiro, tentar ISO ou formato reconhecido pelo JS
-    const dataISO = new Date(dataStr);
-    if (!isNaN(dataISO.getTime())) return dataISO;
-
-    return new Date(0);
-  }
 
   // PEGAR APENAS A ÚLTIMA MENSAGEM QUE TEM DADOS DE CLUSTER (resumo.grupo)
   // Ignora mensagens do formato errado que não têm volumetria
@@ -11640,12 +11650,13 @@ function atualizarTabelaCopRede(dados) {
 
   // Determinar número de pessoas trabalhando na data da mensagem
   // NOTA: Sempre usa dados do Residencial (calendario1) para o Volume por Área
-  const dataMensagem = new Date(ultimaMensagem.dataRecebimento);
+  // parsearDataBR evita que "09/06/2026" seja lido como 6 de setembro (MM/DD)
+  const dataMensagem = parsearDataBR(ultimaMensagem.dataRecebimento);
   const diaMensagem = obterDiaEscalaMadrugada(dataMensagem);
   let numPessoasHoje = 4; // padrão
-  const dadosResidencial = calendarios.calendario1?.dadosOriginais;
-  if (dadosResidencial && dadosResidencial[diaMensagem]) {
-    numPessoasHoje = dadosResidencial[diaMensagem].numPessoas || 4;
+  const dadosDiaEscala = obterDadosDiaEscalaResidencial(diaMensagem);
+  if (dadosDiaEscala) {
+    numPessoasHoje = dadosDiaEscala.numPessoas || 4;
   }
   console.log(`[COP] Dia ${diaMensagem}: ${numPessoasHoje} pessoas trabalhando (dados do Residencial)`);
 
@@ -11677,11 +11688,16 @@ function atualizarTabelaCopRede(dados) {
 
   // Completar com áreas da escala que não tiveram eventos (volume 0)
   // Garante que todos os técnicos escalados apareçam no painel mesmo sem eventos
-  const divisaoHoje = dadosResidencial?.[diaMensagem]?.divisao || {};
+  const divisaoHoje = dadosDiaEscala?.divisao || {};
   for (const [areaEscala, nomeCompleto] of Object.entries(divisaoHoje)) {
     if (!resumoPorArea[areaEscala]) {
-      const partes = (nomeCompleto || '').split(' ');
-      const primeiroNome = partes.length > 1 ? `${partes[0]} ${partes[partes.length - 1]}` : partes[0];
+      let primeiroNome;
+      if ((nomeCompleto || '').includes(' / ')) {
+        primeiroNome = nomeCompleto.split(' / ').map(n => n.trim().split(' ')[0]).join(' / ');
+      } else {
+        const partes = (nomeCompleto || '').split(' ');
+        primeiroNome = partes.length > 1 ? `${partes[0]} ${partes[partes.length - 1]}` : partes[0];
+      }
       resumoPorArea[areaEscala] = { volume: 0, responsavel: primeiroNome || '-' };
       console.log(`[COP] Área "${areaEscala}" sem eventos → adicionada com volume 0 (${primeiroNome})`);
     }
