@@ -3455,6 +3455,66 @@
   </div>
 </div>
 
+<!-- Modal para escolher tipo de operação no Empresarial (troca, mover ou substituir) -->
+<div class="modal fade" id="operacaoModalEmpresarial" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-sm">
+    <div class="modal-content">
+      <div class="modal-header text-white" style="background: linear-gradient(135deg, #ff9800 0%, #f57c00 100%);">
+        <h5 class="modal-title">
+          <i class="bi bi-question-circle me-2"></i>Tipo de operação
+        </h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" onclick="resetarSelecaoTrocaEmpresarialAtual()"></button>
+      </div>
+      <div class="modal-body">
+        <p class="text-center mb-3" id="operacaoInfoEmpresarial">Escolha a operação:</p>
+        <div class="d-grid gap-2">
+          <button type="button" class="btn btn-outline-primary" onclick="escolherTrocaEmpresarial()">
+            <i class="bi bi-arrow-left-right me-2"></i>Trocar com outra pessoa
+            <small class="d-block text-muted mt-1">Selecionar outro dia e pessoa para troca</small>
+          </button>
+          <button type="button" class="btn btn-outline-warning" onclick="escolherMoverEmpresarial()">
+            <i class="bi bi-box-arrow-right me-2"></i>Mover para outro dia
+            <small class="d-block text-muted mt-1">Apenas mudar o dia de trabalho</small>
+          </button>
+          <button type="button" class="btn btn-outline-success" onclick="escolherSubstituicaoEmpresarial()">
+            <i class="bi bi-person-fill-check me-2"></i>Substituição simples
+            <small class="d-block text-muted mt-1">Outra pessoa assume a posição no mesmo dia</small>
+          </button>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal" onclick="resetarSelecaoTrocaEmpresarialAtual()">Cancelar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal para selecionar dia destino (mover pessoa - Empresarial) -->
+<div class="modal fade" id="moverDiaModalEmpresarial" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header text-white" style="background: linear-gradient(135deg, #ff9800 0%, #f57c00 100%);">
+        <h5 class="modal-title">
+          <i class="bi bi-calendar-plus me-2"></i>Selecionar dia destino
+        </h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <p class="mb-3" id="moverDiaInfoEmpresarial">Selecione o dia para onde deseja mover:</p>
+        <div class="row" id="diasDisponiveisEmpresarial">
+        </div>
+        <div class="mt-3">
+          <label for="moverObservacaoEmpresarial" class="form-label small">Observação (opcional):</label>
+          <textarea class="form-control form-control-sm" id="moverObservacaoEmpresarial" rows="2" placeholder="Motivo da mudança..."></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancelar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- Modal para Login PIN - SEGURO -->
 <div class="modal fade" id="loginModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
   <div class="modal-dialog modal-md">
@@ -4121,9 +4181,10 @@ function carregarCalendarioEmpresarialGrid(subEscala) {
         content += `<div class="calendar-day-absent">${numAusentes} ausente(s)</div>`;
       }
 
-      // Verificar se há trocas ativas para este dia
+      // Verificar se há trocas ativas para este dia (inclui movimentos)
       const trocasAtivas = (subEscalaDados.trocas || []).filter(t =>
-        (t.dia_a === dia || t.dia_b === dia) && t.status === 'ativa'
+        t.status === 'ativa' &&
+        (t.dia_a === dia || t.dia_b === dia || t.dia_origem === dia || t.dia_destino === dia)
       );
       if (trocasAtivas.length > 0) {
         cell.classList.add('swapped');
@@ -4342,7 +4403,8 @@ function mostrarDetalhesDiaEmpresarial(subEscala, dia) {
   const nomeSubEscala = subEscala === 'rio_es' ? 'RJ/ES' : 'Leste';
   const mes = subEscalaDados.mes;
   const trocasDia = (subEscalaDados.trocas || []).filter(t =>
-    (t.dia_a === dia || t.dia_b === dia) && t.status === 'ativa'
+    t.status === 'ativa' &&
+    (t.dia_a === dia || t.dia_b === dia || t.dia_origem === dia || t.dia_destino === dia)
   );
 
   const modal = new bootstrap.Modal(document.getElementById('dayModal'));
@@ -4429,7 +4491,7 @@ function mostrarDetalhesDiaEmpresarial(subEscala, dia) {
 
   divisaoTOA.forEach(({horario, analista}) => {
     const primeiroNome = obterPrimeiroNome(analista);
-    const pessoaEmTroca = trocasDia.some(t => t.pessoa_a === analista || t.pessoa_b === analista);
+    const pessoaEmTroca = trocasDia.some(t => t.pessoa_a === analista || t.pessoa_b === analista || t.pessoa === analista);
 
     html += `
       <tr>
@@ -4488,9 +4550,14 @@ function mostrarDetalhesDiaEmpresarial(subEscala, dia) {
         <span>Trocas ativas</span>
       </div>
       ${trocasDia.map(t => {
-        const descricao = t.dia_b
-          ? `${obterPrimeiroNome(t.pessoa_a)} (Dia ${t.dia_a}) ⇄ ${obterPrimeiroNome(t.pessoa_b)} (Dia ${t.dia_b})`
-          : `${obterPrimeiroNome(t.pessoa_b)} substitui ${obterPrimeiroNome(t.pessoa_a)} (Dia ${t.dia_a})`;
+        let descricao;
+        if (t.tipo === 'MOVER') {
+          descricao = `${obterPrimeiroNome(t.pessoa)} movido(a): Dia ${t.dia_origem} → Dia ${t.dia_destino}`;
+        } else if (t.dia_b) {
+          descricao = `${obterPrimeiroNome(t.pessoa_a)} (Dia ${t.dia_a}) ⇄ ${obterPrimeiroNome(t.pessoa_b)} (Dia ${t.dia_b})`;
+        } else {
+          descricao = `${obterPrimeiroNome(t.pessoa_b)} substitui ${obterPrimeiroNome(t.pessoa_a)} (Dia ${t.dia_a})`;
+        }
         return `
           <div class="d-flex justify-content-between align-items-center py-1 border-bottom">
             <span class="small">${descricao}</span>
@@ -5163,20 +5230,8 @@ function selecionarPessoaEmpresarial(subEscala, pessoa, dia, etapa) {
     const modalPessoa = bootstrap.Modal.getInstance(document.getElementById('selectPersonModal'));
     if (modalPessoa) modalPessoa.hide();
 
-    // Mostrar status com opção de selecionar segundo dia OU fazer substituição simples
-    const statusStatusId = subEscala === 'rio_es' ? 'swapStatusRioEs' : 'swapStatusLeste';
-    const statusEl = document.getElementById(statusStatusId);
-    if (statusEl) {
-      statusEl.innerHTML = `
-        <i class="bi bi-info-circle me-1"></i>
-        <span>${pessoa} (Dia ${dia}) selecionado. Selecione o segundo dia ou</span>
-        <button class="btn btn-sm btn-warning ms-2 py-0 px-2" style="font-size:0.75rem;" onclick="iniciarSubstituicaoSimples('${subEscala}')">
-          <i class="bi bi-person-fill-check"></i> Substituição simples
-        </button>`;
-    }
-
-    // Atualizar visual do calendário
-    carregarCalendarioEmpresarialGrid(subEscala);
+    // Mostrar modal de escolha de operação (trocar / mover / substituir)
+    setTimeout(() => mostrarModalOperacaoEmpresarial(subEscala, pessoa, dia), 300);
 
   } else if (etapa === 'segundo') {
     selecaoTrocaEmpresarial[subEscala].segundo.pessoa = pessoa;
@@ -5353,6 +5408,31 @@ function aplicarTrocasEmpresarial(subEscala) {
   subEscalaDados.dadosProcessados = JSON.parse(JSON.stringify(subEscalaDados.dadosOriginais));
 
   subEscalaDados.trocas.filter(t => t.status === 'ativa').forEach(troca => {
+    // Movimento simples: remove a pessoa do dia de origem e a adiciona no destino
+    if (troca.tipo === 'MOVER') {
+      const dadosOrigem = subEscalaDados.dadosProcessados[troca.dia_origem];
+      const dadosDestino = subEscalaDados.dadosProcessados[troca.dia_destino];
+      if (dadosOrigem && dadosDestino) {
+        if (dadosOrigem.trabalhando) {
+          const idx = dadosOrigem.trabalhando.indexOf(troca.pessoa);
+          if (idx !== -1) {
+            dadosOrigem.trabalhando.splice(idx, 1);
+            dadosOrigem.numPessoas = dadosOrigem.trabalhando.length;
+          }
+        }
+        if (dadosOrigem.divisao) {
+          Object.keys(dadosOrigem.divisao).forEach(area => {
+            if (dadosOrigem.divisao[area] === troca.pessoa) delete dadosOrigem.divisao[area];
+          });
+        }
+        if (dadosDestino.trabalhando && !dadosDestino.trabalhando.includes(troca.pessoa)) {
+          dadosDestino.trabalhando.push(troca.pessoa);
+          dadosDestino.numPessoas = dadosDestino.trabalhando.length;
+        }
+      }
+      return;
+    }
+
     const diaA = troca.dia_a;
     const diaB = troca.dia_b;
     const pessoaA = troca.pessoa_a;
@@ -5444,6 +5524,165 @@ function iniciarSubstituicaoSimples(subEscala) {
   }
   const modal = new bootstrap.Modal(document.getElementById('selectPersonModal'));
   modal.show();
+}
+
+// ============================================
+// OPERAÇÕES DE TROCA/MOVER (EMPRESARIAL)
+// ============================================
+
+// Mostra o modal de escolha de operação após selecionar a primeira pessoa
+function mostrarModalOperacaoEmpresarial(subEscala, pessoa, dia) {
+  window.operacaoEmpresarialAtual = subEscala;
+  const nomeSubEscala = subEscala === 'rio_es' ? 'RJ/ES' : 'Leste';
+  const info = document.getElementById('operacaoInfoEmpresarial');
+  if (info) {
+    info.innerHTML = `<strong>${pessoa}</strong> está escalado(a) no dia <strong>${dia}</strong> (${nomeSubEscala}).<br>O que deseja fazer?`;
+  }
+  const modal = new bootstrap.Modal(document.getElementById('operacaoModalEmpresarial'));
+  modal.show();
+}
+
+// Cancelar a operação em andamento, limpando a seleção
+function resetarSelecaoTrocaEmpresarialAtual() {
+  const subEscala = window.operacaoEmpresarialAtual;
+  if (subEscala) {
+    resetarSelecaoTrocaEmpresarial(subEscala);
+    carregarCalendarioEmpresarialGrid(subEscala);
+  }
+}
+
+// Opção "Trocar com outra pessoa": volta ao fluxo de seleção do segundo dia
+function escolherTrocaEmpresarial() {
+  const subEscala = window.operacaoEmpresarialAtual;
+  if (!subEscala) return;
+  const modal = bootstrap.Modal.getInstance(document.getElementById('operacaoModalEmpresarial'));
+  if (modal) modal.hide();
+
+  const selecao = selecaoTrocaEmpresarial[subEscala];
+  const statusStatusId = subEscala === 'rio_es' ? 'swapStatusRioEs' : 'swapStatusLeste';
+  const statusEl = document.getElementById(statusStatusId);
+  if (statusEl) {
+    statusEl.innerHTML = `
+      <i class="bi bi-info-circle me-1"></i>
+      <span>${selecao.primeiro.pessoa} (Dia ${selecao.primeiro.dia}) selecionado. Agora selecione o segundo dia para a troca...</span>`;
+  }
+  carregarCalendarioEmpresarialGrid(subEscala);
+}
+
+// Opção "Mover para outro dia": abre o seletor de dia destino
+function escolherMoverEmpresarial() {
+  const subEscala = window.operacaoEmpresarialAtual;
+  if (!subEscala) return;
+  const modal = bootstrap.Modal.getInstance(document.getElementById('operacaoModalEmpresarial'));
+  if (modal) modal.hide();
+  setTimeout(() => mostrarModalMoverDiaEmpresarial(subEscala), 300);
+}
+
+// Opção "Substituição simples": reaproveita o fluxo existente
+function escolherSubstituicaoEmpresarial() {
+  const subEscala = window.operacaoEmpresarialAtual;
+  if (!subEscala) return;
+  const modal = bootstrap.Modal.getInstance(document.getElementById('operacaoModalEmpresarial'));
+  if (modal) modal.hide();
+  setTimeout(() => iniciarSubstituicaoSimples(subEscala), 300);
+}
+
+function mostrarModalMoverDiaEmpresarial(subEscala) {
+  const subEscalaDados = calendarios.calendario2?.[subEscala];
+  if (!subEscalaDados) return;
+
+  const selecao = selecaoTrocaEmpresarial[subEscala];
+  const pessoa = selecao.primeiro.pessoa;
+  const diaOrigem = selecao.primeiro.dia;
+  const nomeSubEscala = subEscala === 'rio_es' ? 'RJ/ES' : 'Leste';
+  const dadosTodos = subEscalaDados.dadosProcessados || subEscalaDados.dadosOriginais;
+
+  const info = document.getElementById('moverDiaInfoEmpresarial');
+  if (info) {
+    info.innerHTML = `Mover <strong>${pessoa}</strong> do dia <strong>${diaOrigem}</strong> para (${nomeSubEscala}):`;
+  }
+
+  const diasDisponiveis = document.getElementById('diasDisponiveisEmpresarial');
+  if (diasDisponiveis) {
+    const diasComDados = Object.keys(dadosTodos)
+      .map(d => parseInt(d))
+      .filter(d => d !== diaOrigem)
+      .sort((a, b) => a - b);
+
+    diasDisponiveis.innerHTML = diasComDados.map(dia => {
+      const dados = dadosTodos[dia];
+      const numPessoas = (dados.trabalhando || []).length;
+      const pessoaJaEsta = (dados.trabalhando || []).includes(pessoa);
+
+      return `
+        <div class="col-4 col-md-3 mb-2">
+          <button type="button"
+                  class="btn w-100 ${pessoaJaEsta ? 'btn-secondary disabled' : 'btn-outline-warning'}"
+                  ${pessoaJaEsta ? 'disabled' : ''}
+                  onclick="confirmarMoverPessoaEmpresarial('${subEscala}', ${dia})"
+                  title="${pessoaJaEsta ? pessoa + ' já está neste dia' : 'Mover para dia ' + dia}">
+            <strong>${dia}</strong>
+            <small class="d-block">${numPessoas}p</small>
+          </button>
+        </div>
+      `;
+    }).join('');
+  }
+
+  const modal = new bootstrap.Modal(document.getElementById('moverDiaModalEmpresarial'));
+  modal.show();
+}
+
+function confirmarMoverPessoaEmpresarial(subEscala, diaDestino) {
+  const subEscalaDados = calendarios.calendario2?.[subEscala];
+  if (!subEscalaDados) return;
+
+  const selecao = selecaoTrocaEmpresarial[subEscala];
+  const pessoa = selecao.primeiro.pessoa;
+  const diaOrigem = selecao.primeiro.dia;
+  const observacao = document.getElementById('moverObservacaoEmpresarial');
+  const observacaoTexto = observacao ? observacao.value : '';
+  const nomeSubEscala = subEscala === 'rio_es' ? 'RJ/ES' : 'Leste';
+
+  // Registro de movimento (mesma estrutura do Residencial, com subEscala)
+  const novoMovimento = {
+    id: 'mover-emp-' + Date.now(),
+    tipo: 'MOVER',
+    data_registro: new Date().toISOString().split('T')[0],
+    dia_origem: diaOrigem,
+    dia_destino: diaDestino,
+    pessoa: pessoa,
+    observacao: observacaoTexto,
+    status: 'ativa',
+    subEscala: subEscala
+  };
+
+  if (!subEscalaDados.trocas) subEscalaDados.trocas = [];
+  subEscalaDados.trocas.push(novoMovimento);
+
+  const modal = bootstrap.Modal.getInstance(document.getElementById('moverDiaModalEmpresarial'));
+  if (modal) modal.hide();
+  if (observacao) observacao.value = '';
+
+  // Resetar seleção e desativar modo troca
+  resetarSelecaoTrocaEmpresarial(subEscala);
+  modoTrocaEmpresarial[subEscala] = false;
+
+  const btnId = subEscala === 'rio_es' ? 'btnAgendarTrocasRioEs' : 'btnAgendarTrocasLeste';
+  const statusId = subEscala === 'rio_es' ? 'swapStatusRioEs' : 'swapStatusLeste';
+  const btn = document.getElementById(btnId);
+  const status = document.getElementById(statusId);
+  if (btn) btn.classList.remove('active');
+  if (status) status.style.display = 'none';
+
+  aplicarTrocasEmpresarial(subEscala);
+  carregarCalendarioEmpresarialGrid(subEscala);
+
+  salvarDadosNaNuvem().then(() => {
+    showToast(`✅ ${pessoa} movido(a) do dia ${diaOrigem} para o dia ${diaDestino} (${nomeSubEscala})!`, 'success');
+  });
+
+  delete window.operacaoEmpresarialAtual;
 }
 
 // Processar planilha para gerar dados do calendário
