@@ -1,0 +1,29 @@
+{
+  "manifest_version": 3,
+  "name": "Portal Coprede - Ponte de Topologia",
+  "description": "Ponte que permite ao portal da equipe validar topologias (nodes/NAPs) nos monitores internos usando a sessao autenticada do navegador.",
+  "version": "1.0.0",
+  "minimum_chrome_version": "109",
+  "permissions": [
+    "scripting",
+    "tabs"
+  ],
+  "host_permissions": [
+    "https://newmonitor.claro.com.br/*",
+    "https://outage.claro.com.br/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://nlsoarez.github.io/*",
+        "http://localhost/*",
+        "http://127.0.0.1/*"
+      ],
+      "js": ["content-portal.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}
