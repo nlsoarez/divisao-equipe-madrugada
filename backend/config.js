@@ -8,8 +8,8 @@ require('dotenv').config();
 // Configurações da Evolution API (WhatsApp) - ÚNICA FONTE DE DADOS
 const EVOLUTION_CONFIG = {
   API_URL: process.env.EVOLUTION_API_URL || 'https://evolution-api-production-b976.up.railway.app',
-  API_KEY: process.env.EVOLUTION_API_KEY || 'B1E0A9BC4BFF-4586-B06F-42011477C6B5',
-  INSTANCE_NAME: process.env.EVOLUTION_INSTANCE_NAME || 'Cop Rede',
+  API_KEY: process.env.EVOLUTION_API_KEY || 'BCCA054B44D0-4F28-B60A-0C9C1410221F',
+  INSTANCE_NAME: process.env.EVOLUTION_INSTANCE_NAME || 'NIA',
   // Número do grupo ou contato de onde vêm as mensagens (formato: 5511999999999@g.us para grupos)
   SOURCE_CHAT_ID: process.env.EVOLUTION_SOURCE_CHAT_ID || null
 };
