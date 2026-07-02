@@ -2186,6 +2186,17 @@
       border-radius: 4px;
       white-space: nowrap;
     }
+    /* Badge da validação automática de topologia (via extensão-ponte) */
+    .inc-validacao {
+      font-size: 0.6rem;
+      font-weight: 700;
+      padding: 0 4px;
+      border-radius: 4px;
+      white-space: nowrap;
+      cursor: default;
+    }
+    .inc-validacao.ok { color: #15803d; background: #dcfce7; }
+    .inc-validacao.falha { color: #b91c1c; background: #fee2e2; }
     .inc-status {
       white-space: nowrap;
       text-align: right;
@@ -3113,6 +3124,7 @@
       <div id="matrizOfensoresInfo" class="text-center text-muted small mt-2" style="display:none;">
         <i class="bi bi-clock me-1"></i><span id="matrizUltimaAtualizacao"></span>
       </div>
+      <div id="validacaoTopologiaInfo" class="text-center text-muted small mt-1" style="display:none;"></div>
     </div>
 
   </div><!-- Fim tabTelegram -->
@@ -9212,7 +9224,7 @@ function mostrarDetalhesDia(dia) {
           secaoHtml += `
             <div class="ofensores-analista-inc">
               <span class="ofensores-analista-id">${inc.id_mostra || '-'}</span>
-              <span class="ofensores-analista-city">${inc.nm_cidade || '-'}${cluster && cluster !== (inc.nm_cidade || '') ? ' <span style="color:#888;font-size:0.65rem;">(' + cluster + ')</span>' : ''}${inc.topologia && inc.topologia.trim() ? ' <span class="inc-topologia">' + inc.topologia.trim() + '</span>' : ''}</span>
+              <span class="ofensores-analista-city">${inc.nm_cidade || '-'}${cluster && cluster !== (inc.nm_cidade || '') ? ' <span style="color:#888;font-size:0.65rem;">(' + cluster + ')</span>' : ''}${inc.topologia && inc.topologia.trim() ? ' <span class="inc-topologia">' + inc.topologia.trim() + '</span>' : ''}${badgeValidacaoTopologia(inc)}</span>
               <span class="ofensores-analista-status">${inc.nm_status || '-'}</span>
               <span class="ofensores-analista-dur" style="color:${cor};font-weight:600;">${dur}</span>
             </div>`;
@@ -10899,7 +10911,7 @@ function renderizarIncidentesPorAnalista() {
         html += `
           <div class="inc-row">
             <span>${linkInc}</span>
-            <span class="inc-city">${inc.nm_cidade || '-'}${cluster && cluster !== inc.regional ? ` <span class="inc-cluster">${cluster}</span>` : ''}${inc.topologia && inc.topologia.trim() ? ` <span class="inc-topologia">${inc.topologia.trim()}</span>` : ''}</span>
+            <span class="inc-city">${inc.nm_cidade || '-'}${cluster && cluster !== inc.regional ? ` <span class="inc-cluster">${cluster}</span>` : ''}${inc.topologia && inc.topologia.trim() ? ` <span class="inc-topologia">${inc.topologia.trim()}</span>` : ''}${badgeValidacaoTopologia(inc)}</span>
             <span class="inc-status" style="color:${statusCls};">${inc.nm_status || '-'}</span>
             <span class="inc-dur" style="color:${cor};">${dur}</span>
           </div>`;
@@ -11067,6 +11079,124 @@ function calcularHorasOfensor(dhInicio) {
 /**
  * Renderiza a tabela de ofensores
  */
+// ============================================
+// VALIDAÇÃO AUTOMÁTICA DE TOPOLOGIA (via extensão-ponte)
+// A página não alcança os monitores internos por CORS; a extensão
+// "Portal Coprede - Ponte de Topologia" (pasta extensao-ponte-topologia/)
+// consulta newmonitor/outage com a sessão VPN do analista e responde.
+// Ciclo: a cada 1 hora, enquanto o portal estiver aberto.
+// ============================================
+const VALIDACAO_TOPOLOGIA_MS = 60 * 60 * 1000; // 1 hora
+window.validacaoTopologia = { resultados: {}, ultimaExecucao: null, ponte: false, erro: null };
+let validacaoTopologiaTimer = null;
+let validacaoReqSeq = 0;
+
+window.addEventListener('message', (event) => {
+  if (event.source !== window) return;
+  const msg = event.data;
+  if (!msg || msg.source !== 'coprede-ponte') return;
+
+  if (msg.type === 'pong') {
+    if (!window.validacaoTopologia.ponte) {
+      window.validacaoTopologia.ponte = true;
+      console.log('[Topologia] Extensão-ponte detectada v' + (msg.versao || '?'));
+      if (!validacaoTopologiaTimer) {
+        validacaoTopologiaTimer = setInterval(executarValidacaoTopologia, VALIDACAO_TOPOLOGIA_MS);
+      }
+      executarValidacaoTopologia();
+    }
+    return;
+  }
+
+  if (msg.type === 'resultado-validacao') {
+    const v = window.validacaoTopologia;
+    v.ultimaExecucao = msg.testadoEm || Date.now();
+    v.erro = msg.ok ? null : (msg.erro || 'Falha desconhecida');
+    for (const r of (msg.resultados || [])) {
+      v.resultados[normalizarTopologiaKey(r.topologia)] = r;
+    }
+    atualizarInfoValidacaoTopologia();
+    // Re-renderiza os painéis para exibir os badges novos
+    try {
+      const ofs = window.dadosMatrizOfensores?.ofensores || [];
+      if (ofs.length) {
+        renderizarMatrizAreaGrid(ofs);
+        renderizarTabelaOfensores(ofs);
+        renderizarIncidentesPorAnalista();
+      }
+    } catch (e) { console.warn('[Topologia] Falha ao re-renderizar:', e.message); }
+  }
+});
+
+function normalizarTopologiaKey(v) {
+  return String(v || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
+}
+
+/**
+ * Badge de validação para um incidente (vazio se sem topologia ou sem resultado).
+ */
+function badgeValidacaoTopologia(inc) {
+  const topo = inc?.topologia && inc.topologia.trim();
+  if (!topo) return '';
+  const r = window.validacaoTopologia.resultados[normalizarTopologiaKey(topo)];
+  if (!r) return '';
+  const hora = new Date(r.testadoEm).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+  if (r.status === 'confirmado') {
+    return ` <span class="inc-validacao ok" title="Topologia confirmada no ${r.site} às ${hora}">&#10004; ${hora}</span>`;
+  }
+  return ` <span class="inc-validacao falha" title="Topologia não encontrada nos monitores (${(r.sitesConsultados || []).join(', ')}) às ${hora} — possível normalização, conferir">&#10006; ${hora}</span>`;
+}
+
+function executarValidacaoTopologia() {
+  const v = window.validacaoTopologia;
+  if (!v.ponte) return;
+  const ofs = window.dadosMatrizOfensores?.ofensores || [];
+  const vistos = new Set();
+  const itens = [];
+  for (const inc of ofs) {
+    const topo = inc.topologia && inc.topologia.trim();
+    if (!topo) continue;
+    const key = normalizarTopologiaKey(topo);
+    if (vistos.has(key)) continue;
+    vistos.add(key);
+    itens.push({ id: inc.id_mostra || null, topologia: topo });
+  }
+  if (itens.length === 0) return;
+  validacaoReqSeq += 1;
+  console.log(`[Topologia] Validando ${itens.length} topologia(s) via extensão-ponte...`);
+  window.postMessage({ source: 'coprede-portal', type: 'validar-topologias', reqId: validacaoReqSeq, itens }, '*');
+}
+
+/**
+ * Chamado após cada carga da matriz: roda a 1ª validação (ou re-roda se o
+ * último ciclo já passou do intervalo). Evita spam nos monitores internos.
+ */
+function validarTopologiaSeNecessario() {
+  const v = window.validacaoTopologia;
+  if (!v.ponte) return;
+  if (!v.ultimaExecucao || (Date.now() - v.ultimaExecucao) >= VALIDACAO_TOPOLOGIA_MS) {
+    executarValidacaoTopologia();
+  }
+}
+
+function atualizarInfoValidacaoTopologia() {
+  const el = document.getElementById('validacaoTopologiaInfo');
+  if (!el) return;
+  const v = window.validacaoTopologia;
+  if (!v.ultimaExecucao) { el.style.display = 'none'; return; }
+  const rs = Object.values(v.resultados);
+  const conf = rs.filter(r => r.status === 'confirmado').length;
+  const nao = rs.filter(r => r.status === 'nao_encontrado').length;
+  const hora = new Date(v.ultimaExecucao).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+  el.style.display = '';
+  el.innerHTML = v.erro
+    ? `<i class="bi bi-plug me-1"></i>Validação de topologia às ${hora}: <span class="text-danger">${v.erro}</span>`
+    : `<i class="bi bi-broadcast-pin me-1"></i>Topologias validadas às ${hora} (próx. em 1h): <span style="color:#15803d;font-weight:600;">${conf} confirmada${conf !== 1 ? 's' : ''}</span> · <span style="color:#b91c1c;font-weight:600;">${nao} não encontrada${nao !== 1 ? 's' : ''}</span>`;
+}
+
+// Detecta a ponte (ela também se anuncia sozinha ao injetar o content script)
+setTimeout(() => { window.postMessage({ source: 'coprede-portal', type: 'ping' }, '*'); }, 3000);
+
 function renderizarTabelaOfensores(ofensores) {
   const tbody = document.getElementById('tbodyOfensores');
   if (!tbody) return;
@@ -11088,7 +11218,7 @@ function renderizarTabelaOfensores(ofensores) {
           <div style="font-size:0.75rem;font-weight:600;">${inc.nm_cidade || '-'}</div>
           <div style="font-size:0.65rem;color:#888;">${obterClusterIncidente(inc) || '-'}</div>
         </td>
-        <td>${inc.topologia && inc.topologia.trim() ? `<span class="inc-topologia">${inc.topologia.trim()}</span>` : '<span style="color:#888;font-size:0.72rem;">-</span>'}</td>
+        <td>${inc.topologia && inc.topologia.trim() ? `<span class="inc-topologia">${inc.topologia.trim()}</span>${badgeValidacaoTopologia(inc)}` : '<span style="color:#888;font-size:0.72rem;">-</span>'}</td>
         <td><span class="${statusCls}" style="font-size:0.72rem;">${inc.nm_status || '-'}</span></td>
         <td style="text-align:center;font-family:monospace;font-size:0.72rem;">${duracao}</td>
         <td style="text-align:center;">
@@ -11163,6 +11293,10 @@ async function carregarMatrizOfensores(forcar = false) {
     }
 
     console.log('[Ofensores] Matriz carregada:', data.total, 'incidentes');
+
+    // Validação automática de topologia (só roda se a extensão-ponte estiver
+    // instalada e o último ciclo tiver mais de 1h — evita spam nos monitores)
+    validarTopologiaSeNecessario();
   } catch (err) {
     console.error('[Ofensores] Erro:', err.message);
     if (grid) grid.innerHTML = `<p class="text-danger small text-center mb-0"><i class="bi bi-exclamation-triangle me-1"></i>Erro: ${err.message}</p>`;
