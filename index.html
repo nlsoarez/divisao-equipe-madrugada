@@ -2177,6 +2177,15 @@
       color: #888;
       font-size: 0.62rem;
     }
+    .inc-topologia {
+      color: #0d6efd;
+      font-size: 0.6rem;
+      font-weight: 600;
+      background: #e7f1ff;
+      padding: 0 4px;
+      border-radius: 4px;
+      white-space: nowrap;
+    }
     .inc-status {
       white-space: nowrap;
       text-align: right;
@@ -3088,6 +3097,7 @@
             <tr>
               <th>Incidente</th>
               <th>Cidade / Regional</th>
+              <th>Topologia</th>
               <th>Status</th>
               <th style="text-align:center;">Tempo</th>
               <th style="text-align:center;">+24h?</th>
@@ -3095,7 +3105,7 @@
           </thead>
           <tbody id="tbodyOfensores">
             <tr>
-              <td colspan="5" class="text-center text-muted small">Clique em "Ofensores" para carregar</td>
+              <td colspan="6" class="text-center text-muted small">Clique em "Ofensores" para carregar</td>
             </tr>
           </tbody>
         </table>
@@ -9202,7 +9212,7 @@ function mostrarDetalhesDia(dia) {
           secaoHtml += `
             <div class="ofensores-analista-inc">
               <span class="ofensores-analista-id">${inc.id_mostra || '-'}</span>
-              <span class="ofensores-analista-city">${inc.nm_cidade || '-'}${cluster && cluster !== (inc.nm_cidade || '') ? ' <span style="color:#888;font-size:0.65rem;">(' + cluster + ')</span>' : ''}</span>
+              <span class="ofensores-analista-city">${inc.nm_cidade || '-'}${cluster && cluster !== (inc.nm_cidade || '') ? ' <span style="color:#888;font-size:0.65rem;">(' + cluster + ')</span>' : ''}${inc.topologia && inc.topologia.trim() ? ' <span class="inc-topologia">' + inc.topologia.trim() + '</span>' : ''}</span>
               <span class="ofensores-analista-status">${inc.nm_status || '-'}</span>
               <span class="ofensores-analista-dur" style="color:${cor};font-weight:600;">${dur}</span>
             </div>`;
@@ -10889,7 +10899,7 @@ function renderizarIncidentesPorAnalista() {
         html += `
           <div class="inc-row">
             <span>${linkInc}</span>
-            <span class="inc-city">${inc.nm_cidade || '-'}${cluster && cluster !== inc.regional ? ` <span class="inc-cluster">${cluster}</span>` : ''}</span>
+            <span class="inc-city">${inc.nm_cidade || '-'}${cluster && cluster !== inc.regional ? ` <span class="inc-cluster">${cluster}</span>` : ''}${inc.topologia && inc.topologia.trim() ? ` <span class="inc-topologia">${inc.topologia.trim()}</span>` : ''}</span>
             <span class="inc-status" style="color:${statusCls};">${inc.nm_status || '-'}</span>
             <span class="inc-dur" style="color:${cor};">${dur}</span>
           </div>`;
@@ -11062,7 +11072,7 @@ function renderizarTabelaOfensores(ofensores) {
   if (!tbody) return;
 
   if (!ofensores || ofensores.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted small">Nenhum ofensor encontrado</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted small">Nenhum ofensor encontrado</td></tr>';
     return;
   }
 
@@ -11078,6 +11088,7 @@ function renderizarTabelaOfensores(ofensores) {
           <div style="font-size:0.75rem;font-weight:600;">${inc.nm_cidade || '-'}</div>
           <div style="font-size:0.65rem;color:#888;">${obterClusterIncidente(inc) || '-'}</div>
         </td>
+        <td>${inc.topologia && inc.topologia.trim() ? `<span class="inc-topologia">${inc.topologia.trim()}</span>` : '<span style="color:#888;font-size:0.72rem;">-</span>'}</td>
         <td><span class="${statusCls}" style="font-size:0.72rem;">${inc.nm_status || '-'}</span></td>
         <td style="text-align:center;font-family:monospace;font-size:0.72rem;">${duracao}</td>
         <td style="text-align:center;">
