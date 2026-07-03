@@ -4,12 +4,19 @@ O backend da Railway nao esta na VPN, entao ele nao consegue acessar:
 
 `http://201.55.234.76/Consultas_/ConsultaInterfaceNode`
 
-Para testar incidentes de verdade sem extensao, rode este helper na maquina que esta conectada na VPN:
+Para testar incidentes de verdade sem extensao, instale este helper na maquina que esta conectada na VPN:
 
 ```powershell
-cd C:\Users\nlsoa\Documents\Codex\2026-07-02\nlsoarez-divisao-equipe-madrugada-https-github\work\divisao-equipe-madrugada\backend
-npm run visium-helper
+powershell -ExecutionPolicy Bypass -Command "iwr https://raw.githubusercontent.com/nlsoarez/divisao-equipe-madrugada/main/instalar-visium-helper.ps1 -UseB | iex"
 ```
+
+O instalador cria a pasta:
+
+`%USERPROFILE%\visium-helper`
+
+Depois disso, para usar novamente, abra:
+
+`%USERPROFILE%\visium-helper\iniciar-visium-helper.bat`
 
 Deixe a janela aberta enquanto clicar em **Testar incidentes** no site.
 

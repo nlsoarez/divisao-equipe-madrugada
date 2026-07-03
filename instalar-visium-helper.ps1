@@ -1,0 +1,52 @@
+$ErrorActionPreference = "Stop"
+
+$repoRaw = "https://raw.githubusercontent.com/nlsoarez/divisao-equipe-madrugada/main"
+$destino = Join-Path $env:USERPROFILE "visium-helper"
+$backend = Join-Path $destino "backend"
+
+Write-Host ""
+Write-Host "Instalando helper local do Visium em: $destino" -ForegroundColor Cyan
+
+if (-not (Get-Command node -ErrorAction SilentlyContinue)) {
+  Write-Host ""
+  Write-Host "Node.js nao encontrado." -ForegroundColor Red
+  Write-Host "Instale o Node.js LTS em https://nodejs.org/ e rode este instalador novamente."
+  exit 1
+}
+
+if (-not (Get-Command npm -ErrorAction SilentlyContinue)) {
+  Write-Host ""
+  Write-Host "npm nao encontrado. Reinstale o Node.js LTS marcando npm." -ForegroundColor Red
+  exit 1
+}
+
+New-Item -ItemType Directory -Force -Path $backend | Out-Null
+
+Invoke-WebRequest "$repoRaw/backend/local-visium-helper.js" -OutFile (Join-Path $backend "local-visium-helper.js")
+Invoke-WebRequest "$repoRaw/backend/package.json" -OutFile (Join-Path $backend "package.json")
+Invoke-WebRequest "$repoRaw/backend/package-lock.json" -OutFile (Join-Path $backend "package-lock.json")
+
+$bat = Join-Path $destino "iniciar-visium-helper.bat"
+@"
+@echo off
+cd /d "%USERPROFILE%\visium-helper\backend"
+npm run visium-helper
+pause
+"@ | Set-Content -Encoding ASCII $bat
+
+Write-Host ""
+Write-Host "Instalando dependencias..." -ForegroundColor Cyan
+Push-Location $backend
+npm install --omit=dev
+Pop-Location
+
+Write-Host ""
+Write-Host "Instalacao concluida." -ForegroundColor Green
+Write-Host "Para usar:"
+Write-Host "1. Conecte a VPN nessa maquina."
+Write-Host "2. Abra: $bat"
+Write-Host "3. Deixe a janela aberta."
+Write-Host "4. No site, clique em Testar incidentes."
+Write-Host ""
+Write-Host "Iniciando helper agora..." -ForegroundColor Cyan
+Start-Process -FilePath $bat
