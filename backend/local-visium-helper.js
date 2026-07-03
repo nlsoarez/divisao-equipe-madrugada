@@ -11,14 +11,17 @@
 const express = require('express');
 const cors = require('cors');
 const fetch = require('node-fetch');
+const https = require('https');
 
 const PORT = Number(process.env.VISIUM_HELPER_PORT || 4789);
 const HOST = process.env.VISIUM_HELPER_HOST || '127.0.0.1';
 const VISIUM_BASE_URL = process.env.VISIUM_BASE_URL || 'http://201.55.234.76/Consultas_/ConsultaInterfaceNode';
 const VISIUM_TIMEOUT_MS = Number(process.env.VISIUM_TIMEOUT_MS || 25000);
 const BACKEND_URL_DEFAULT = process.env.CENTRAL_BACKEND_URL || 'https://divisao-equipe-madrugada-production.up.railway.app';
+const CENTRAL_BACKEND_TLS_INSEGURO = String(process.env.CENTRAL_BACKEND_TLS_INSEGURO || '1') !== '0';
 const ORIGEM_FRONTEND = 'admin-manual-v6';
 const ORIGEM_REGISTRO = 'local-helper-v1';
+const centralBackendAgent = CENTRAL_BACKEND_TLS_INSEGURO ? new https.Agent({ rejectUnauthorized: false }) : null;
 
 const app = express();
 app.use(cors({ origin: true }));
@@ -421,7 +424,8 @@ async function registrarNoBackendCentral(backendUrl, validacao) {
   const response = await fetch(`${base}/api/topologia-validacao/registrar`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ origem: ORIGEM_REGISTRO, validacao })
+    body: JSON.stringify({ origem: ORIGEM_REGISTRO, validacao }),
+    agent: base.startsWith('https://') ? centralBackendAgent : undefined
   });
   const data = await response.json().catch(() => ({}));
   if (!response.ok || !data.sucesso) {

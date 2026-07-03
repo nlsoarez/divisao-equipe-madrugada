@@ -30,6 +30,7 @@ $bat = Join-Path $destino "iniciar-visium-helper.bat"
 @"
 @echo off
 cd /d "%USERPROFILE%\visium-helper\backend"
+set CENTRAL_BACKEND_TLS_INSEGURO=1
 npm run visium-helper
 pause
 "@ | Set-Content -Encoding ASCII $bat
