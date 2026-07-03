@@ -2965,9 +2965,14 @@
             <i class="bi bi-exclamation-triangle-fill me-1"></i>Incidentes ativos por analista
             <span class="badge bg-danger ms-1" id="badgeOfensores" style="display:none;font-size:0.7rem;"></span>
           </h6>
-          <button class="telegram-btn telegram-btn-primary btn-atualizar-ofensores" onclick="carregarMatrizOfensores(true)" title="Atualizar incidentes">
-            <i class="bi bi-arrow-clockwise"></i>
-          </button>
+          <div class="d-flex gap-2 align-items-center">
+            <button id="btnTestarIncidentes" class="telegram-btn telegram-btn-warning" onclick="executarValidacaoTopologia(true)" title="Testar incidentes nos monitores internos">
+              <i class="bi bi-broadcast-pin me-1"></i>Testar incidentes
+            </button>
+            <button class="telegram-btn telegram-btn-primary btn-atualizar-ofensores" onclick="carregarMatrizOfensores(true)" title="Atualizar incidentes">
+              <i class="bi bi-arrow-clockwise"></i>
+            </button>
+          </div>
         </div>
         <div id="incidentesAtivosContent">
           <p class="text-muted small text-center mb-0">Aguardando dados...</p>
@@ -2975,6 +2980,7 @@
         <div id="incidentesAtivosInfo" class="text-center text-muted small mt-1" style="display:none;">
           <i class="bi bi-clock me-1"></i><span id="incidentesAtivosTs"></span>
         </div>
+        <div id="validacaoTopologiaInfoInline" class="text-center text-muted small mt-1" style="display:none;"></div>
       </div>
 
       <!-- Área vazia quando não há dados -->
@@ -10822,6 +10828,7 @@ function renderizarIncidentesPorAnalista() {
   const content = document.getElementById('incidentesAtivosContent');
   const tsEl = document.getElementById('incidentesAtivosTs');
   const infoEl = document.getElementById('incidentesAtivosInfo');
+  const btnTestar = document.getElementById('btnTestarIncidentes');
   if (!section || !content) return;
 
   const resumoCop = window.resumoAreasCopRede;
@@ -10836,6 +10843,7 @@ function renderizarIncidentesPorAnalista() {
   });
 
   section.style.display = 'block';
+  if (btnTestar) btnTestar.style.display = isAdmin ? 'inline-flex' : 'none';
 
   const numPessoas = window.numPessoasEscala || 4;
   const ofPorArea = calcularOfensoresPorArea(numPessoas);
@@ -11147,9 +11155,37 @@ function badgeValidacaoTopologia(inc) {
   return ` <span class="inc-validacao falha" title="Topologia não encontrada nos monitores (${(r.sitesConsultados || []).join(', ')}) às ${hora} — possível normalização, conferir">&#10006; ${hora}</span>`;
 }
 
-function executarValidacaoTopologia() {
+function atualizarMensagemValidacaoTopologia(html) {
+  ['validacaoTopologiaInfo', 'validacaoTopologiaInfoInline'].forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    if (!html) {
+      el.style.display = 'none';
+      el.innerHTML = '';
+      return;
+    }
+    el.style.display = '';
+    el.innerHTML = html;
+  });
+}
+
+function executarValidacaoTopologia(manual = false) {
+  if (manual && !isAdmin) {
+    showToast('Apenas administradores podem testar incidentes', 'danger');
+    return;
+  }
+
   const v = window.validacaoTopologia;
-  if (!v.ponte) return;
+  if (!v.ponte) {
+    if (manual) {
+      window.postMessage({ source: 'coprede-portal', type: 'ping' }, '*');
+      atualizarMensagemValidacaoTopologia(
+        '<i class="bi bi-plug me-1"></i>Extensão-ponte não detectada. Carregue a pasta <strong>extensao-ponte-topologia</strong> no Chrome/Edge e mantenha VPN/sessão dos monitores ativa.'
+      );
+      showToast('Extensão-ponte não detectada para testar incidentes', 'warning');
+    }
+    return;
+  }
   const ofs = window.dadosMatrizOfensores?.ofensores || [];
   const vistos = new Set();
   const itens = [];
@@ -11161,9 +11197,19 @@ function executarValidacaoTopologia() {
     vistos.add(key);
     itens.push({ id: inc.id_mostra || null, topologia: topo });
   }
-  if (itens.length === 0) return;
+  if (itens.length === 0) {
+    if (manual) {
+      atualizarMensagemValidacaoTopologia('<i class="bi bi-info-circle me-1"></i>Nenhum incidente com topologia disponível para testar.');
+      showToast('Nenhuma topologia disponível para testar', 'info');
+    }
+    return;
+  }
   validacaoReqSeq += 1;
   console.log(`[Topologia] Validando ${itens.length} topologia(s) via extensão-ponte...`);
+  atualizarMensagemValidacaoTopologia(
+    `<i class="bi bi-broadcast-pin me-1"></i>Teste enviado para ${itens.length} topologia${itens.length !== 1 ? 's' : ''}. Aguardando resposta da extensão-ponte...`
+  );
+  if (manual) showToast(`Testando ${itens.length} topologia(s)`, 'info');
   window.postMessage({ source: 'coprede-portal', type: 'validar-topologias', reqId: validacaoReqSeq, itens }, '*');
 }
 
@@ -11183,7 +11229,12 @@ function atualizarInfoValidacaoTopologia() {
   const el = document.getElementById('validacaoTopologiaInfo');
   if (!el) return;
   const v = window.validacaoTopologia;
-  if (!v.ultimaExecucao) { el.style.display = 'none'; return; }
+  if (!v.ultimaExecucao) {
+    el.style.display = 'none';
+    const inlineEl = document.getElementById('validacaoTopologiaInfoInline');
+    if (inlineEl) inlineEl.style.display = 'none';
+    return;
+  }
   const rs = Object.values(v.resultados);
   const conf = rs.filter(r => r.status === 'confirmado').length;
   const nao = rs.filter(r => r.status === 'nao_encontrado').length;
@@ -11196,6 +11247,16 @@ function atualizarInfoValidacaoTopologia() {
 
 // Detecta a ponte (ela também se anuncia sozinha ao injetar o content script)
 setTimeout(() => { window.postMessage({ source: 'coprede-portal', type: 'ping' }, '*'); }, 3000);
+
+const atualizarInfoValidacaoTopologiaBase = atualizarInfoValidacaoTopologia;
+atualizarInfoValidacaoTopologia = function() {
+  atualizarInfoValidacaoTopologiaBase();
+  const origem = document.getElementById('validacaoTopologiaInfo');
+  const inlineEl = document.getElementById('validacaoTopologiaInfoInline');
+  if (!origem || !inlineEl) return;
+  inlineEl.style.display = origem.style.display;
+  inlineEl.innerHTML = origem.innerHTML;
+};
 
 function renderizarTabelaOfensores(ofensores) {
   const tbody = document.getElementById('tbodyOfensores');
