@@ -1203,8 +1203,8 @@ const SUPABASE_URL = 'https://wthzxrgifjtenaujhdbb.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind0aHp4cmdpZmp0ZW5hdWpoZGJiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjkwMjYwODIsImV4cCI6MjA4NDYwMjA4Mn0.MGhDMxfbbKGc69Mut8M7ESmULS8d10VgeIu_vXcorpc';
 
 const TOPOLOGIA_VALIDACAO_CACHE_PATH = path.join(__dirname, 'data', 'topologia-validacao-cache.json');
-const TOPOLOGIA_VALIDACAO_CACHE_VERSION = 4;
-const TOPOLOGIA_VALIDACAO_ORIGEM_MANUAL = 'admin-manual-v3';
+const TOPOLOGIA_VALIDACAO_CACHE_VERSION = 5;
+const TOPOLOGIA_VALIDACAO_ORIGEM_MANUAL = 'admin-manual-v4';
 const TOPOLOGIA_VALIDACAO_TTL_MS = 60 * 60 * 1000;
 const TOPOLOGIA_MONITORES = [
   { id: 'newmonitor', label: 'NewMonitor', url: process.env.TOPOLOGIA_NEWMONITOR_URL || 'https://newmonitor.claro.com.br/user/' },
@@ -1449,42 +1449,26 @@ async function validarTopologiasBackend(itens) {
     return { ok: true, resultados: [], avisos: [], testadoEm };
   }
 
-  const textos = [];
-  const avisos = [];
-  for (const site of TOPOLOGIA_MONITORES) {
-    const resultado = await obterTextoMonitorBackend(site);
-    if (resultado.ok) {
-      textos.push({ site: site.label, id: site.id, texto: resultado.texto, evidencia: resultado.evidencia });
-    } else {
-      avisos.push(`${site.label}: ${resultado.erro}`);
-    }
-  }
-
-  if (textos.length === 0) {
-    return {
-      ok: false,
-      erro: `Backend nao acessou nenhum monitor. Ele precisa estar na VPN/rede interna ou usar um proxy interno. ${avisos.join(' | ')}`,
-      resultados: [],
-      avisos,
-      testadoEm
-    };
-  }
-
   const resultados = validos.map((item) => {
-    const achado = textos.find((texto) => contemTopologiaMonitor(texto.texto, item.topologia));
-    const parcial = textos.length < TOPOLOGIA_MONITORES.length;
+    const nodes = extrairCodigosTopologia(item.topologia);
     return {
       id: item.id || null,
       topologia: item.topologia,
-      status: achado ? 'confirmado' : (parcial ? 'indeterminado' : 'nao_encontrado'),
-      site: achado ? achado.site : null,
-      sitesConsultados: textos.map((texto) => texto.site),
-      avisos,
+      nodes,
+      status: 'indeterminado',
+      site: null,
+      sitesConsultados: ['Pagina - Incidentes ativos por analista'],
+      motivo: 'NAP/node coletado da propria pagina. Motor de diagnostico real ainda nao configurado.',
       testadoEm
     };
   });
 
-  return { ok: true, resultados, avisos, testadoEm };
+  return {
+    ok: true,
+    resultados,
+    avisos: ['NAPs/nodes coletados da propria pagina. Nenhum monitor externo foi consultado.'],
+    testadoEm
+  };
 }
 
 app.get('/api/topologia-validacao/resultados', (req, res) => {
