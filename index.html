@@ -11212,6 +11212,44 @@ async function carregarValidacaoTopologiaCache() {
   }
 }
 
+const TOPOLOGIA_LOCAL_HELPER_URL = 'http://127.0.0.1:4789';
+
+async function helperLocalVisiumDisponivel() {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 1200);
+  try {
+    const resp = await fetch(`${TOPOLOGIA_LOCAL_HELPER_URL}/health?t=${Date.now()}`, {
+      cache: 'no-store',
+      signal: controller.signal
+    });
+    const data = await resp.json().catch(() => ({}));
+    return resp.ok && data.sucesso;
+  } catch (_) {
+    return false;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+async function chamarValidacaoTopologia(itens) {
+  if (await helperLocalVisiumDisponivel()) {
+    atualizarMensagemValidacaoTopologia(
+      `<i class="bi bi-broadcast-pin me-1"></i>Helper local/VPN encontrado. Testando ${itens.length} topologia${itens.length !== 1 ? 's' : ''} no Visium...`
+    );
+    return await fetch(`${TOPOLOGIA_LOCAL_HELPER_URL}/api/topologia-validacao/validar`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ origem: 'admin-manual-v6', backendUrl, itens })
+    });
+  }
+
+  return await fetch(`${backendUrl}/api/topologia-validacao/validar`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ origem: 'admin-manual-v6', itens })
+  });
+}
+
 executarValidacaoTopologia = async function(manual = false) {
   if (!isAdmin) {
     if (!manual) return;
@@ -11244,16 +11282,12 @@ executarValidacaoTopologia = async function(manual = false) {
   }
 
   atualizarMensagemValidacaoTopologia(
-    `<i class="bi bi-broadcast-pin me-1"></i>Testando ${itens.length} topologia${itens.length !== 1 ? 's' : ''} no Visium...`
+    `<i class="bi bi-broadcast-pin me-1"></i>Procurando helper local/VPN para testar ${itens.length} topologia${itens.length !== 1 ? 's' : ''} no Visium...`
   );
   if (manual) showToast(`Testando ${itens.length} topologia(s) no Visium`, 'info');
 
   try {
-    const resp = await fetch(`${backendUrl}/api/topologia-validacao/validar`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ origem: 'admin-manual-v5', itens })
-    });
+    const resp = await chamarValidacaoTopologia(itens);
     const data = await resp.json().catch(() => ({}));
     aplicarResultadosValidacaoTopologiaBackend(data);
 

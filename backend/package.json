@@ -6,6 +6,7 @@
   "scripts": {
     "start": "node server.js",
     "dev": "nodemon server.js",
+    "visium-helper": "node local-visium-helper.js",
     "userbot": "node userbot.js",
     "test": "jest"
   },

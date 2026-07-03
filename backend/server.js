@@ -1203,8 +1203,9 @@ const SUPABASE_URL = 'https://wthzxrgifjtenaujhdbb.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind0aHp4cmdpZmp0ZW5hdWpoZGJiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjkwMjYwODIsImV4cCI6MjA4NDYwMjA4Mn0.MGhDMxfbbKGc69Mut8M7ESmULS8d10VgeIu_vXcorpc';
 
 const TOPOLOGIA_VALIDACAO_CACHE_PATH = path.join(__dirname, 'data', 'topologia-validacao-cache.json');
-const TOPOLOGIA_VALIDACAO_CACHE_VERSION = 6;
-const TOPOLOGIA_VALIDACAO_ORIGEM_MANUAL = 'admin-manual-v5';
+const TOPOLOGIA_VALIDACAO_CACHE_VERSION = 7;
+const TOPOLOGIA_VALIDACAO_ORIGEM_MANUAL = 'admin-manual-v6';
+const TOPOLOGIA_VALIDACAO_ORIGEM_HELPER = 'local-helper-v1';
 const VISIUM_BASE_URL = process.env.VISIUM_BASE_URL || 'http://201.55.234.76/Consultas_/ConsultaInterfaceNode';
 const VISIUM_TIMEOUT_MS = Number(process.env.VISIUM_TIMEOUT_MS || 25000);
 const TOPOLOGIA_VALIDACAO_TTL_MS = 60 * 60 * 1000;
@@ -1718,6 +1719,37 @@ async function validarTopologiasBackend(itens) {
   };
 }
 
+function salvarResultadosValidacaoTopologia(validacao) {
+  const cacheAtual = carregarCacheValidacaoTopologia();
+  const resultados = { ...(cacheAtual.resultados || {}) };
+  const resultadosCiclo = validacao.resultados || validacao.resultadosCiclo || [];
+
+  for (const resultado of resultadosCiclo) {
+    if (!resultado?.topologia) continue;
+    resultados[normalizarTopologiaBackend(resultado.topologia)] = resultado;
+  }
+
+  const cacheNovo = {
+    versao: TOPOLOGIA_VALIDACAO_CACHE_VERSION,
+    resultados,
+    ultimaExecucao: validacao.testadoEm || validacao.ultimaExecucao || Date.now(),
+    erro: validacao.ok === false ? validacao.erro : null,
+    avisos: validacao.avisos || [],
+    atualizadoEm: new Date().toISOString()
+  };
+  salvarCacheValidacaoTopologia(cacheNovo);
+
+  return {
+    sucesso: validacao.ok !== false,
+    erro: cacheNovo.erro,
+    resultados,
+    resultadosCiclo,
+    ultimaExecucao: cacheNovo.ultimaExecucao,
+    avisos: cacheNovo.avisos,
+    timestamp: cacheNovo.atualizadoEm
+  };
+}
+
 app.get('/api/topologia-validacao/resultados', (req, res) => {
   const cache = carregarCacheValidacaoTopologia();
   res.json({
@@ -1741,34 +1773,37 @@ app.post('/api/topologia-validacao/validar', async (req, res) => {
     }
 
     const validacao = await validarTopologiasBackend(req.body?.itens || []);
-    const cacheAtual = carregarCacheValidacaoTopologia();
-    const resultados = { ...(cacheAtual.resultados || {}) };
-
-    for (const resultado of validacao.resultados || []) {
-      resultados[normalizarTopologiaBackend(resultado.topologia)] = resultado;
-    }
-
-    const cacheNovo = {
-      versao: TOPOLOGIA_VALIDACAO_CACHE_VERSION,
-      resultados,
-      ultimaExecucao: validacao.testadoEm || Date.now(),
-      erro: validacao.ok ? null : validacao.erro,
-      avisos: validacao.avisos || [],
-      atualizadoEm: new Date().toISOString()
-    };
-    salvarCacheValidacaoTopologia(cacheNovo);
+    const resposta = salvarResultadosValidacaoTopologia(validacao);
 
     res.status(validacao.ok ? 200 : 503).json({
-      sucesso: validacao.ok,
-      erro: validacao.erro || null,
-      resultados,
-      resultadosCiclo: validacao.resultados || [],
-      ultimaExecucao: cacheNovo.ultimaExecucao,
-      avisos: cacheNovo.avisos,
-      timestamp: cacheNovo.atualizadoEm
+      ...resposta,
+      sucesso: validacao.ok
     });
   } catch (error) {
     console.error('[Topologia] Erro ao validar:', error.message);
+    res.status(500).json({ sucesso: false, erro: error.message });
+  }
+});
+
+app.post('/api/topologia-validacao/registrar', (req, res) => {
+  try {
+    if (req.body?.origem !== TOPOLOGIA_VALIDACAO_ORIGEM_HELPER) {
+      return res.status(400).json({
+        sucesso: false,
+        erro: 'Registro recusado: origem de helper local invalida.'
+      });
+    }
+
+    const validacao = req.body?.validacao || {
+      ok: true,
+      resultados: req.body?.resultadosCiclo || req.body?.resultados || [],
+      avisos: req.body?.avisos || [],
+      testadoEm: req.body?.testadoEm || Date.now()
+    };
+    const resposta = salvarResultadosValidacaoTopologia(validacao);
+    res.json(resposta);
+  } catch (error) {
+    console.error('[Topologia] Erro ao registrar resultado local:', error.message);
     res.status(500).json({ sucesso: false, erro: error.message });
   }
 });
