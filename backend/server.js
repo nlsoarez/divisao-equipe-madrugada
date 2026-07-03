@@ -1203,8 +1203,8 @@ const SUPABASE_URL = 'https://wthzxrgifjtenaujhdbb.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind0aHp4cmdpZmp0ZW5hdWpoZGJiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjkwMjYwODIsImV4cCI6MjA4NDYwMjA4Mn0.MGhDMxfbbKGc69Mut8M7ESmULS8d10VgeIu_vXcorpc';
 
 const TOPOLOGIA_VALIDACAO_CACHE_PATH = path.join(__dirname, 'data', 'topologia-validacao-cache.json');
-const TOPOLOGIA_VALIDACAO_CACHE_VERSION = 3;
-const TOPOLOGIA_VALIDACAO_ORIGEM_MANUAL = 'admin-manual-v2';
+const TOPOLOGIA_VALIDACAO_CACHE_VERSION = 4;
+const TOPOLOGIA_VALIDACAO_ORIGEM_MANUAL = 'admin-manual-v3';
 const TOPOLOGIA_VALIDACAO_TTL_MS = 60 * 60 * 1000;
 const TOPOLOGIA_MONITORES = [
   { id: 'newmonitor', label: 'NewMonitor', url: process.env.TOPOLOGIA_NEWMONITOR_URL || 'https://newmonitor.claro.com.br/user/' },
@@ -1310,16 +1310,75 @@ function htmlParaTextoMonitor(html) {
     .trim();
 }
 
-function pareceLoginMonitor(texto) {
-  const t = normalizarTopologiaBackend(texto);
-  return t.includes('senha') && (t.includes('login') || t.includes('usuario'));
+function decodificarEntidadesMonitor(texto) {
+  return String(texto || '')
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&amp;/gi, '&')
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;/g, "'");
 }
 
-function contemTopologiaMonitor(textoNormalizado, alvoNormalizado) {
-  if (!alvoNormalizado) return false;
-  if (textoNormalizado.includes(alvoNormalizado)) return true;
-  const tokens = alvoNormalizado.split(/[^a-z0-9]+/).filter((t) => t.length >= 3);
-  return tokens.length > 0 && tokens.every((t) => textoNormalizado.includes(t));
+function pareceLoginMonitor(texto) {
+  const t = normalizarTopologiaBackend(texto);
+  return (
+    t.includes('senha') &&
+    (t.includes('login') || t.includes('usuario') || t.includes('autenticacao'))
+  ) || t.includes('sign in');
+}
+
+function compactarCodigoTopologia(valor) {
+  return String(valor || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toUpperCase()
+    .replace(/[^A-Z0-9]/g, '');
+}
+
+function extrairCodigosTopologia(valor) {
+  return String(valor || '')
+    .split(/[,;|\s]+/)
+    .map((parte) => compactarCodigoTopologia(parte))
+    .filter((parte) => parte.length >= 4);
+}
+
+function contemTopologiaMonitor(texto, topologia) {
+  const codigos = extrairCodigosTopologia(topologia);
+  if (codigos.length === 0) return false;
+  const textoCompacto = compactarCodigoTopologia(texto);
+  return codigos.some((codigo) => textoCompacto.includes(codigo));
+}
+
+function extrairEvidenciaMonitor(texto, siteId) {
+  const textoOriginal = decodificarEntidadesMonitor(texto);
+  const normalizado = normalizarTopologiaBackend(textoOriginal);
+  const ticketsSgo = textoOriginal.match(/\b(?:INM|INC)\d{6,}\b/gi) || [];
+  const ticketsNewMonitor = textoOriginal.match(/\b\d{8,}\b/g) || [];
+  const temFilaNewMonitor =
+    normalizado.includes('cop-rede rjo hfc fibra') ||
+    normalizado.includes('outages automaticos') ||
+    normalizado.includes('ticket tipo cidade titulo nivel infra informacoes data inicio previsto status');
+  const temFilaOutage =
+    normalizado.includes('novos') ||
+    normalizado.includes('cop rede fo') ||
+    normalizado.includes('incidente grupo inicio');
+  const vazioExplicito =
+    normalizado.includes('nenhum ticket encontrado') ||
+    normalizado.includes('sem dados disponiveis') ||
+    normalizado.includes('nenhum registro');
+
+  const tickets = siteId === 'newmonitor' ? ticketsNewMonitor : ticketsSgo;
+  const temFila = siteId === 'newmonitor' ? temFilaNewMonitor : temFilaOutage;
+  const confiavel = (temFila && tickets.length > 0) || (temFila && vazioExplicito);
+
+  return {
+    confiavel,
+    tickets: Array.from(new Set(tickets.map((ticket) => ticket.toUpperCase()))),
+    vazioExplicito,
+    temFila,
+    quantidadeTickets: tickets.length
+  };
 }
 
 function carregarCacheValidacaoTopologia() {
@@ -1354,7 +1413,8 @@ async function obterTextoMonitorBackend(site) {
     });
 
     const html = await response.text();
-    const texto = htmlParaTextoMonitor(html);
+    const texto = decodificarEntidadesMonitor(htmlParaTextoMonitor(html));
+    const evidencia = extrairEvidenciaMonitor(texto, site.id);
 
     if (!response.ok) {
       return { ok: false, erro: `HTTP ${response.status}` };
@@ -1365,8 +1425,14 @@ async function obterTextoMonitorBackend(site) {
     if (texto.length < 200) {
       return { ok: false, erro: 'resposta sem conteudo util' };
     }
+    if (!evidencia.confiavel) {
+      return {
+        ok: false,
+        erro: `sem lista de incidentes reconhecivel (${evidencia.temFila ? 'fila sem tickets' : 'fila nao identificada'})`
+      };
+    }
 
-    return { ok: true, texto };
+    return { ok: true, texto, evidencia };
   } catch (error) {
     return { ok: false, erro: error.name === 'AbortError' ? 'timeout' : error.message };
   } finally {
@@ -1388,7 +1454,7 @@ async function validarTopologiasBackend(itens) {
   for (const site of TOPOLOGIA_MONITORES) {
     const resultado = await obterTextoMonitorBackend(site);
     if (resultado.ok) {
-      textos.push({ site: site.label, texto: normalizarTopologiaBackend(resultado.texto) });
+      textos.push({ site: site.label, id: site.id, texto: resultado.texto, evidencia: resultado.evidencia });
     } else {
       avisos.push(`${site.label}: ${resultado.erro}`);
     }
@@ -1405,14 +1471,15 @@ async function validarTopologiasBackend(itens) {
   }
 
   const resultados = validos.map((item) => {
-    const alvo = normalizarTopologiaBackend(item.topologia);
-    const achado = textos.find((texto) => contemTopologiaMonitor(texto.texto, alvo));
+    const achado = textos.find((texto) => contemTopologiaMonitor(texto.texto, item.topologia));
+    const parcial = textos.length < TOPOLOGIA_MONITORES.length;
     return {
       id: item.id || null,
       topologia: item.topologia,
-      status: achado ? 'confirmado' : 'nao_encontrado',
+      status: achado ? 'confirmado' : (parcial ? 'indeterminado' : 'nao_encontrado'),
       site: achado ? achado.site : null,
       sitesConsultados: textos.map((texto) => texto.site),
+      avisos,
       testadoEm
     };
   });

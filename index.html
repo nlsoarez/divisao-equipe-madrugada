@@ -2197,6 +2197,7 @@
     }
     .inc-validacao.ok { color: #15803d; background: #dcfce7; }
     .inc-validacao.falha { color: #b91c1c; background: #fee2e2; }
+    .inc-validacao.pendente { color: #92400e; background: #fef3c7; }
     .inc-status {
       white-space: nowrap;
       text-align: right;
@@ -11114,6 +11115,9 @@ function badgeValidacaoTopologia(inc) {
   if (r.status === 'confirmado') {
     return ` <span class="inc-validacao ok" title="Topologia confirmada no ${r.site} às ${hora}">&#10004; ${hora}</span>`;
   }
+  if (r.status === 'indeterminado') {
+    return ` <span class="inc-validacao pendente" title="Não foi possível validar em todos os monitores (${(r.sitesConsultados || []).join(', ') || 'nenhum'}) às ${hora}">&#63; ${hora}</span>`;
+  }
   return ` <span class="inc-validacao falha" title="Topologia não encontrada nos monitores (${(r.sitesConsultados || []).join(', ')}) às ${hora} — possível normalização, conferir">&#10006; ${hora}</span>`;
 }
 
@@ -11144,11 +11148,12 @@ function atualizarInfoValidacaoTopologia() {
   const rs = Object.values(v.resultados);
   const conf = rs.filter(r => r.status === 'confirmado').length;
   const nao = rs.filter(r => r.status === 'nao_encontrado').length;
+  const ind = rs.filter(r => r.status === 'indeterminado').length;
   const hora = new Date(v.ultimaExecucao).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
   el.style.display = '';
   el.innerHTML = v.erro
     ? `<i class="bi bi-plug me-1"></i>Validação de topologia às ${hora}: <span class="text-danger">${v.erro}</span>`
-    : `<i class="bi bi-broadcast-pin me-1"></i>Topologias validadas às ${hora} (próx. em 1h): <span style="color:#15803d;font-weight:600;">${conf} confirmada${conf !== 1 ? 's' : ''}</span> · <span style="color:#b91c1c;font-weight:600;">${nao} não encontrada${nao !== 1 ? 's' : ''}</span>`;
+    : `<i class="bi bi-broadcast-pin me-1"></i>Topologias validadas às ${hora}: <span style="color:#15803d;font-weight:600;">${conf} confirmada${conf !== 1 ? 's' : ''}</span> · <span style="color:#b91c1c;font-weight:600;">${nao} não encontrada${nao !== 1 ? 's' : ''}</span>${ind ? ` · <span style="color:#92400e;font-weight:600;">${ind} indeterminada${ind !== 1 ? 's' : ''}</span>` : ''}`;
 }
 
 const atualizarInfoValidacaoTopologiaBase = atualizarInfoValidacaoTopologia;
@@ -11241,7 +11246,7 @@ executarValidacaoTopologia = async function(manual = false) {
     const resp = await fetch(`${backendUrl}/api/topologia-validacao/validar`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ origem: 'admin-manual-v2', itens })
+      body: JSON.stringify({ origem: 'admin-manual-v3', itens })
     });
     const data = await resp.json().catch(() => ({}));
     aplicarResultadosValidacaoTopologiaBackend(data);
