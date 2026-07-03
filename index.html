@@ -11112,14 +11112,19 @@ function badgeValidacaoTopologia(inc) {
   const r = window.validacaoTopologia.resultados[normalizarTopologiaKey(topo)];
   if (!r) return '';
   const hora = new Date(r.testadoEm).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-  if (r.status === 'confirmado') {
-    return ` <span class="inc-validacao ok" title="Topologia confirmada no ${r.site} às ${hora}">&#10004; ${hora}</span>`;
+  if (r.status === 'confirmado' || r.status === 'up') {
+    const detalhe = r.status === 'up' ? `Visium UP (${(r.nodes || []).join(', ') || r.topologia || '-'})` : `Topologia confirmada no ${r.site}`;
+    return ` <span class="inc-validacao ok" title="${detalhe} às ${hora}">&#10004; ${hora}</span>`;
+  }
+  if (r.status === 'down') {
+    const detalhe = `Visium DOWN (${(r.nodes || []).join(', ') || r.topologia || '-'})`;
+    return ` <span class="inc-validacao falha" title="${detalhe} às ${hora}">&#10006; ${hora}</span>`;
   }
   if (r.status === 'indeterminado') {
     const detalhe = r.motivo || `NAP/node coletado da página (${(r.nodes || []).join(', ') || r.topologia || '-'})`;
     return ` <span class="inc-validacao pendente" title="${detalhe} às ${hora}">&#63; ${hora}</span>`;
   }
-  return ` <span class="inc-validacao falha" title="Topologia não encontrada nos monitores (${(r.sitesConsultados || []).join(', ')}) às ${hora} — possível normalização, conferir">&#10006; ${hora}</span>`;
+  return ` <span class="inc-validacao falha" title="Topologia não encontrada (${(r.sitesConsultados || []).join(', ')}) às ${hora} — possível normalização, conferir">&#10006; ${hora}</span>`;
 }
 
 function atualizarMensagemValidacaoTopologia(html) {
@@ -11147,14 +11152,14 @@ function atualizarInfoValidacaoTopologia() {
     return;
   }
   const rs = Object.values(v.resultados);
-  const conf = rs.filter(r => r.status === 'confirmado').length;
-  const nao = rs.filter(r => r.status === 'nao_encontrado').length;
+  const conf = rs.filter(r => r.status === 'confirmado' || r.status === 'up').length;
+  const nao = rs.filter(r => r.status === 'nao_encontrado' || r.status === 'down').length;
   const ind = rs.filter(r => r.status === 'indeterminado').length;
   const hora = new Date(v.ultimaExecucao).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
   el.style.display = '';
   el.innerHTML = v.erro
     ? `<i class="bi bi-plug me-1"></i>Validação de topologia às ${hora}: <span class="text-danger">${v.erro}</span>`
-    : `<i class="bi bi-broadcast-pin me-1"></i>NAPs/nodes processados às ${hora}: <span style="color:#15803d;font-weight:600;">${conf} confirmado${conf !== 1 ? 's' : ''}</span> · <span style="color:#b91c1c;font-weight:600;">${nao} não encontrado${nao !== 1 ? 's' : ''}</span>${ind ? ` · <span style="color:#92400e;font-weight:600;">${ind} sem diagnóstico${ind !== 1 ? 's' : ''}</span>` : ''}`;
+    : `<i class="bi bi-broadcast-pin me-1"></i>Visium às ${hora}: <span style="color:#15803d;font-weight:600;">${conf} UP</span> · <span style="color:#b91c1c;font-weight:600;">${nao} DOWN</span>${ind ? ` · <span style="color:#92400e;font-weight:600;">${ind} sem diagnóstico</span>` : ''}`;
 }
 
 const atualizarInfoValidacaoTopologiaBase = atualizarInfoValidacaoTopologia;
@@ -11227,7 +11232,7 @@ executarValidacaoTopologia = async function(manual = false) {
     const key = normalizarTopologiaKey(topo);
     if (vistos.has(key)) continue;
     vistos.add(key);
-    itens.push({ id: inc.id_mostra || null, topologia: topo });
+    itens.push({ id: inc.id_mostra || null, topologia: topo, cidade: inc.nm_cidade || '' });
   }
 
   if (itens.length === 0) {
@@ -11239,15 +11244,15 @@ executarValidacaoTopologia = async function(manual = false) {
   }
 
   atualizarMensagemValidacaoTopologia(
-    `<i class="bi bi-broadcast-pin me-1"></i>Processando ${itens.length} topologia${itens.length !== 1 ? 's' : ''} da página pelo backend central...`
+    `<i class="bi bi-broadcast-pin me-1"></i>Testando ${itens.length} topologia${itens.length !== 1 ? 's' : ''} no Visium...`
   );
-  if (manual) showToast(`Processando ${itens.length} topologia(s) da página`, 'info');
+  if (manual) showToast(`Testando ${itens.length} topologia(s) no Visium`, 'info');
 
   try {
     const resp = await fetch(`${backendUrl}/api/topologia-validacao/validar`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ origem: 'admin-manual-v4', itens })
+      body: JSON.stringify({ origem: 'admin-manual-v5', itens })
     });
     const data = await resp.json().catch(() => ({}));
     aplicarResultadosValidacaoTopologiaBackend(data);
@@ -11260,7 +11265,7 @@ executarValidacaoTopologia = async function(manual = false) {
     }
 
     const total = data.resultadosCiclo?.length || itens.length;
-    if (manual) showToast(`${total} topologia(s) processadas e salvas para todos`, 'success');
+    if (manual) showToast(`${total} topologia(s) testadas no Visium e salvas para todos`, 'success');
   } catch (error) {
     atualizarMensagemValidacaoTopologia(`<i class="bi bi-plug me-1"></i>Erro ao chamar backend de validação: <span class="text-danger">${error.message}</span>`);
     if (manual) showToast('Erro ao testar incidentes: ' + error.message, 'danger');
