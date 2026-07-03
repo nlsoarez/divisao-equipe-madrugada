@@ -11241,7 +11241,7 @@ executarValidacaoTopologia = async function(manual = false) {
     const resp = await fetch(`${backendUrl}/api/topologia-validacao/validar`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ itens })
+      body: JSON.stringify({ origem: 'admin-manual-v2', itens })
     });
     const data = await resp.json().catch(() => ({}));
     aplicarResultadosValidacaoTopologiaBackend(data);
