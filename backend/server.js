@@ -1203,6 +1203,7 @@ const SUPABASE_URL = 'https://wthzxrgifjtenaujhdbb.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind0aHp4cmdpZmp0ZW5hdWpoZGJiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjkwMjYwODIsImV4cCI6MjA4NDYwMjA4Mn0.MGhDMxfbbKGc69Mut8M7ESmULS8d10VgeIu_vXcorpc';
 
 const TOPOLOGIA_VALIDACAO_CACHE_PATH = path.join(__dirname, 'data', 'topologia-validacao-cache.json');
+const TOPOLOGIA_VALIDACAO_CACHE_VERSION = 2;
 const TOPOLOGIA_VALIDACAO_TTL_MS = 60 * 60 * 1000;
 const TOPOLOGIA_MONITORES = [
   { id: 'newmonitor', label: 'NewMonitor', url: process.env.TOPOLOGIA_NEWMONITOR_URL || 'https://newmonitor.claro.com.br/user/' },
@@ -1325,7 +1326,11 @@ function carregarCacheValidacaoTopologia() {
     if (!fs.existsSync(TOPOLOGIA_VALIDACAO_CACHE_PATH)) {
       return { resultados: {}, ultimaExecucao: null, erro: null, avisos: [] };
     }
-    return JSON.parse(fs.readFileSync(TOPOLOGIA_VALIDACAO_CACHE_PATH, 'utf8'));
+    const cache = JSON.parse(fs.readFileSync(TOPOLOGIA_VALIDACAO_CACHE_PATH, 'utf8'));
+    if (cache.versao !== TOPOLOGIA_VALIDACAO_CACHE_VERSION) {
+      return { resultados: {}, ultimaExecucao: null, erro: null, avisos: [] };
+    }
+    return cache;
   } catch (error) {
     console.warn('[Topologia] Erro ao ler cache:', error.message);
     return { resultados: {}, ultimaExecucao: null, erro: null, avisos: [] };
@@ -1438,6 +1443,7 @@ app.post('/api/topologia-validacao/validar', async (req, res) => {
     }
 
     const cacheNovo = {
+      versao: TOPOLOGIA_VALIDACAO_CACHE_VERSION,
       resultados,
       ultimaExecucao: validacao.testadoEm || Date.now(),
       erro: validacao.ok ? null : validacao.erro,

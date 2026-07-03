@@ -11262,11 +11262,7 @@ executarValidacaoTopologia = async function(manual = false) {
 };
 
 validarTopologiaSeNecessario = async function() {
-  const data = await carregarValidacaoTopologiaCache();
-  const ultima = data?.ultimaExecucao ? Number(data.ultimaExecucao) : 0;
-  if (isAdmin && (!ultima || (Date.now() - ultima) >= VALIDACAO_TOPOLOGIA_MS)) {
-    executarValidacaoTopologia(false);
-  }
+  await carregarValidacaoTopologiaCache();
 };
 
 function renderizarTabelaOfensores(ofensores) {
@@ -11366,7 +11362,7 @@ async function carregarMatrizOfensores(forcar = false) {
 
     console.log('[Ofensores] Matriz carregada:', data.total, 'incidentes');
 
-    // Carrega o cache central para todos. Admin dispara novo ciclo se estiver vencido.
+    // Carrega o cache central para todos. Novo teste só roda no clique do admin.
     validarTopologiaSeNecessario();
   } catch (err) {
     console.error('[Ofensores] Erro:', err.message);
