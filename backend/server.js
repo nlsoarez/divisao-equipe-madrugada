@@ -1202,6 +1202,13 @@ app.post('/api/cache/limpar', async (req, res) => {
 const SUPABASE_URL = 'https://wthzxrgifjtenaujhdbb.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind0aHp4cmdpZmp0ZW5hdWpoZGJiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjkwMjYwODIsImV4cCI6MjA4NDYwMjA4Mn0.MGhDMxfbbKGc69Mut8M7ESmULS8d10VgeIu_vXcorpc';
 
+const TOPOLOGIA_VALIDACAO_CACHE_PATH = path.join(__dirname, 'data', 'topologia-validacao-cache.json');
+const TOPOLOGIA_VALIDACAO_TTL_MS = 60 * 60 * 1000;
+const TOPOLOGIA_MONITORES = [
+  { id: 'newmonitor', label: 'NewMonitor', url: process.env.TOPOLOGIA_NEWMONITOR_URL || 'https://newmonitor.claro.com.br/user/' },
+  { id: 'outage', label: 'Outage SGO', url: process.env.TOPOLOGIA_OUTAGE_URL || 'https://outage.claro.com.br/inc/list' }
+];
+
 /**
  * Mapeamento de cidades brasileiras para cluster CopRede (backend).
  * Usado como fallback quando "regional" vem vazio do Supabase.
@@ -1281,6 +1288,178 @@ function calcularHoras(dhInicio) {
     return (Date.now() - new Date(dhInicio).getTime()) / 3600000;
   } catch { return 0; }
 }
+
+function normalizarTopologiaBackend(valor) {
+  return String(valor || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function htmlParaTextoMonitor(html) {
+  return String(html || '')
+    .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+    .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function pareceLoginMonitor(texto) {
+  const t = normalizarTopologiaBackend(texto);
+  return t.includes('senha') && (t.includes('login') || t.includes('usuario'));
+}
+
+function contemTopologiaMonitor(textoNormalizado, alvoNormalizado) {
+  if (!alvoNormalizado) return false;
+  if (textoNormalizado.includes(alvoNormalizado)) return true;
+  const tokens = alvoNormalizado.split(/[^a-z0-9]+/).filter((t) => t.length >= 3);
+  return tokens.length > 0 && tokens.every((t) => textoNormalizado.includes(t));
+}
+
+function carregarCacheValidacaoTopologia() {
+  try {
+    if (!fs.existsSync(TOPOLOGIA_VALIDACAO_CACHE_PATH)) {
+      return { resultados: {}, ultimaExecucao: null, erro: null, avisos: [] };
+    }
+    return JSON.parse(fs.readFileSync(TOPOLOGIA_VALIDACAO_CACHE_PATH, 'utf8'));
+  } catch (error) {
+    console.warn('[Topologia] Erro ao ler cache:', error.message);
+    return { resultados: {}, ultimaExecucao: null, erro: null, avisos: [] };
+  }
+}
+
+function salvarCacheValidacaoTopologia(cache) {
+  fs.mkdirSync(path.dirname(TOPOLOGIA_VALIDACAO_CACHE_PATH), { recursive: true });
+  fs.writeFileSync(TOPOLOGIA_VALIDACAO_CACHE_PATH, JSON.stringify(cache, null, 2));
+}
+
+async function obterTextoMonitorBackend(site) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 20000);
+  try {
+    const response = await fetch(site.url, {
+      method: 'GET',
+      headers: { 'User-Agent': 'coprede-topologia-backend/1.0' },
+      signal: controller.signal
+    });
+
+    const html = await response.text();
+    const texto = htmlParaTextoMonitor(html);
+
+    if (!response.ok) {
+      return { ok: false, erro: `HTTP ${response.status}` };
+    }
+    if (pareceLoginMonitor(texto)) {
+      return { ok: false, erro: 'sessao/login necessario no monitor' };
+    }
+    if (texto.length < 200) {
+      return { ok: false, erro: 'resposta sem conteudo util' };
+    }
+
+    return { ok: true, texto };
+  } catch (error) {
+    return { ok: false, erro: error.name === 'AbortError' ? 'timeout' : error.message };
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+async function validarTopologiasBackend(itens) {
+  const testadoEm = Date.now();
+  const validos = (Array.isArray(itens) ? itens : [])
+    .filter((item) => item && normalizarTopologiaBackend(item.topologia));
+
+  if (validos.length === 0) {
+    return { ok: true, resultados: [], avisos: [], testadoEm };
+  }
+
+  const textos = [];
+  const avisos = [];
+  for (const site of TOPOLOGIA_MONITORES) {
+    const resultado = await obterTextoMonitorBackend(site);
+    if (resultado.ok) {
+      textos.push({ site: site.label, texto: normalizarTopologiaBackend(resultado.texto) });
+    } else {
+      avisos.push(`${site.label}: ${resultado.erro}`);
+    }
+  }
+
+  if (textos.length === 0) {
+    return {
+      ok: false,
+      erro: `Backend nao acessou nenhum monitor. Ele precisa estar na VPN/rede interna ou usar um proxy interno. ${avisos.join(' | ')}`,
+      resultados: [],
+      avisos,
+      testadoEm
+    };
+  }
+
+  const resultados = validos.map((item) => {
+    const alvo = normalizarTopologiaBackend(item.topologia);
+    const achado = textos.find((texto) => contemTopologiaMonitor(texto.texto, alvo));
+    return {
+      id: item.id || null,
+      topologia: item.topologia,
+      status: achado ? 'confirmado' : 'nao_encontrado',
+      site: achado ? achado.site : null,
+      sitesConsultados: textos.map((texto) => texto.site),
+      testadoEm
+    };
+  });
+
+  return { ok: true, resultados, avisos, testadoEm };
+}
+
+app.get('/api/topologia-validacao/resultados', (req, res) => {
+  const cache = carregarCacheValidacaoTopologia();
+  res.json({
+    sucesso: true,
+    resultados: cache.resultados || {},
+    ultimaExecucao: cache.ultimaExecucao || null,
+    erro: cache.erro || null,
+    avisos: cache.avisos || [],
+    ttlMs: TOPOLOGIA_VALIDACAO_TTL_MS,
+    timestamp: new Date().toISOString()
+  });
+});
+
+app.post('/api/topologia-validacao/validar', async (req, res) => {
+  try {
+    const validacao = await validarTopologiasBackend(req.body?.itens || []);
+    const cacheAtual = carregarCacheValidacaoTopologia();
+    const resultados = { ...(cacheAtual.resultados || {}) };
+
+    for (const resultado of validacao.resultados || []) {
+      resultados[normalizarTopologiaBackend(resultado.topologia)] = resultado;
+    }
+
+    const cacheNovo = {
+      resultados,
+      ultimaExecucao: validacao.testadoEm || Date.now(),
+      erro: validacao.ok ? null : validacao.erro,
+      avisos: validacao.avisos || [],
+      atualizadoEm: new Date().toISOString()
+    };
+    salvarCacheValidacaoTopologia(cacheNovo);
+
+    res.status(validacao.ok ? 200 : 503).json({
+      sucesso: validacao.ok,
+      erro: validacao.erro || null,
+      resultados,
+      resultadosCiclo: validacao.resultados || [],
+      ultimaExecucao: cacheNovo.ultimaExecucao,
+      avisos: cacheNovo.avisos,
+      timestamp: cacheNovo.atualizadoEm
+    });
+  } catch (error) {
+    console.error('[Topologia] Erro ao validar:', error.message);
+    res.status(500).json({ sucesso: false, erro: error.message });
+  }
+});
 
 /**
  * Buscar Matriz de Ofensores do portal Coprede (Supabase)
@@ -1444,6 +1623,8 @@ app.listen(SERVER_CONFIG.PORT, async () => {
   console.log('  GET  /api/cop-rede-informa');
   console.log('  GET  /api/alertas');
   console.log('  GET  /api/matriz-ofensores');
+  console.log('  GET  /api/topologia-validacao/resultados');
+  console.log('  POST /api/topologia-validacao/validar');
   console.log('');
   console.log('  Alocação de HUB:');
   console.log('  GET  /api/alocacao-hub/ultima');

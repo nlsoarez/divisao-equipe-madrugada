@@ -2186,7 +2186,7 @@
       border-radius: 4px;
       white-space: nowrap;
     }
-    /* Badge da validação automática de topologia (via extensão-ponte) */
+    /* Badge da validação central de topologia */
     .inc-validacao {
       font-size: 0.6rem;
       font-weight: 700;
@@ -11088,53 +11088,15 @@ function calcularHorasOfensor(dhInicio) {
  * Renderiza a tabela de ofensores
  */
 // ============================================
-// VALIDAÇÃO AUTOMÁTICA DE TOPOLOGIA (via extensão-ponte)
-// A página não alcança os monitores internos por CORS; a extensão
-// "Portal Coprede - Ponte de Topologia" (pasta extensao-ponte-topologia/)
-// consulta newmonitor/outage com a sessão VPN do analista e responde.
+// VALIDAÇÃO CENTRAL DE TOPOLOGIA
+// O navegador não consulta os monitores diretamente. O backend executa o teste,
+// salva o resultado compartilhado e todos os usuários carregam o mesmo cache.
 // Ciclo: a cada 1 hora, enquanto o portal estiver aberto.
 // ============================================
 const VALIDACAO_TOPOLOGIA_MS = 60 * 60 * 1000; // 1 hora
-window.validacaoTopologia = { resultados: {}, ultimaExecucao: null, ponte: false, erro: null };
-let validacaoTopologiaTimer = null;
-let validacaoReqSeq = 0;
-
-window.addEventListener('message', (event) => {
-  if (event.source !== window) return;
-  const msg = event.data;
-  if (!msg || msg.source !== 'coprede-ponte') return;
-
-  if (msg.type === 'pong') {
-    if (!window.validacaoTopologia.ponte) {
-      window.validacaoTopologia.ponte = true;
-      console.log('[Topologia] Extensão-ponte detectada v' + (msg.versao || '?'));
-      if (!validacaoTopologiaTimer) {
-        validacaoTopologiaTimer = setInterval(executarValidacaoTopologia, VALIDACAO_TOPOLOGIA_MS);
-      }
-      executarValidacaoTopologia();
-    }
-    return;
-  }
-
-  if (msg.type === 'resultado-validacao') {
-    const v = window.validacaoTopologia;
-    v.ultimaExecucao = msg.testadoEm || Date.now();
-    v.erro = msg.ok ? null : (msg.erro || 'Falha desconhecida');
-    for (const r of (msg.resultados || [])) {
-      v.resultados[normalizarTopologiaKey(r.topologia)] = r;
-    }
-    atualizarInfoValidacaoTopologia();
-    // Re-renderiza os painéis para exibir os badges novos
-    try {
-      const ofs = window.dadosMatrizOfensores?.ofensores || [];
-      if (ofs.length) {
-        renderizarMatrizAreaGrid(ofs);
-        renderizarTabelaOfensores(ofs);
-        renderizarIncidentesPorAnalista();
-      }
-    } catch (e) { console.warn('[Topologia] Falha ao re-renderizar:', e.message); }
-  }
-});
+window.validacaoTopologia = { resultados: {}, ultimaExecucao: null, backend: false, erro: null, avisos: [] };
+let executarValidacaoTopologia = async function() {};
+let validarTopologiaSeNecessario = async function() {};
 
 function normalizarTopologiaKey(v) {
   return String(v || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
@@ -11169,62 +11131,6 @@ function atualizarMensagemValidacaoTopologia(html) {
   });
 }
 
-function executarValidacaoTopologia(manual = false) {
-  if (manual && !isAdmin) {
-    showToast('Apenas administradores podem testar incidentes', 'danger');
-    return;
-  }
-
-  const v = window.validacaoTopologia;
-  if (!v.ponte) {
-    if (manual) {
-      window.postMessage({ source: 'coprede-portal', type: 'ping' }, '*');
-      atualizarMensagemValidacaoTopologia(
-        '<i class="bi bi-plug me-1"></i>Extensão-ponte não detectada. Carregue a pasta <strong>extensao-ponte-topologia</strong> no Chrome/Edge e mantenha VPN/sessão dos monitores ativa.'
-      );
-      showToast('Extensão-ponte não detectada para testar incidentes', 'warning');
-    }
-    return;
-  }
-  const ofs = window.dadosMatrizOfensores?.ofensores || [];
-  const vistos = new Set();
-  const itens = [];
-  for (const inc of ofs) {
-    const topo = inc.topologia && inc.topologia.trim();
-    if (!topo) continue;
-    const key = normalizarTopologiaKey(topo);
-    if (vistos.has(key)) continue;
-    vistos.add(key);
-    itens.push({ id: inc.id_mostra || null, topologia: topo });
-  }
-  if (itens.length === 0) {
-    if (manual) {
-      atualizarMensagemValidacaoTopologia('<i class="bi bi-info-circle me-1"></i>Nenhum incidente com topologia disponível para testar.');
-      showToast('Nenhuma topologia disponível para testar', 'info');
-    }
-    return;
-  }
-  validacaoReqSeq += 1;
-  console.log(`[Topologia] Validando ${itens.length} topologia(s) via extensão-ponte...`);
-  atualizarMensagemValidacaoTopologia(
-    `<i class="bi bi-broadcast-pin me-1"></i>Teste enviado para ${itens.length} topologia${itens.length !== 1 ? 's' : ''}. Aguardando resposta da extensão-ponte...`
-  );
-  if (manual) showToast(`Testando ${itens.length} topologia(s)`, 'info');
-  window.postMessage({ source: 'coprede-portal', type: 'validar-topologias', reqId: validacaoReqSeq, itens }, '*');
-}
-
-/**
- * Chamado após cada carga da matriz: roda a 1ª validação (ou re-roda se o
- * último ciclo já passou do intervalo). Evita spam nos monitores internos.
- */
-function validarTopologiaSeNecessario() {
-  const v = window.validacaoTopologia;
-  if (!v.ponte) return;
-  if (!v.ultimaExecucao || (Date.now() - v.ultimaExecucao) >= VALIDACAO_TOPOLOGIA_MS) {
-    executarValidacaoTopologia();
-  }
-}
-
 function atualizarInfoValidacaoTopologia() {
   const el = document.getElementById('validacaoTopologiaInfo');
   if (!el) return;
@@ -11245,9 +11151,6 @@ function atualizarInfoValidacaoTopologia() {
     : `<i class="bi bi-broadcast-pin me-1"></i>Topologias validadas às ${hora} (próx. em 1h): <span style="color:#15803d;font-weight:600;">${conf} confirmada${conf !== 1 ? 's' : ''}</span> · <span style="color:#b91c1c;font-weight:600;">${nao} não encontrada${nao !== 1 ? 's' : ''}</span>`;
 }
 
-// Detecta a ponte (ela também se anuncia sozinha ao injetar o content script)
-setTimeout(() => { window.postMessage({ source: 'coprede-portal', type: 'ping' }, '*'); }, 3000);
-
 const atualizarInfoValidacaoTopologiaBase = atualizarInfoValidacaoTopologia;
 atualizarInfoValidacaoTopologia = function() {
   atualizarInfoValidacaoTopologiaBase();
@@ -11256,6 +11159,114 @@ atualizarInfoValidacaoTopologia = function() {
   if (!origem || !inlineEl) return;
   inlineEl.style.display = origem.style.display;
   inlineEl.innerHTML = origem.innerHTML;
+};
+
+function aplicarResultadosValidacaoTopologiaBackend(data) {
+  if (!data) return;
+  const v = window.validacaoTopologia;
+  v.backend = true;
+  v.ultimaExecucao = data.ultimaExecucao || data.timestamp || v.ultimaExecucao;
+  v.erro = data.erro || null;
+  v.avisos = data.avisos || [];
+
+  const resultados = data.resultados || {};
+  Object.keys(resultados).forEach(key => {
+    v.resultados[key] = resultados[key];
+  });
+
+  atualizarInfoValidacaoTopologia();
+  try {
+    const ofs = window.dadosMatrizOfensores?.ofensores || [];
+    if (ofs.length) {
+      renderizarMatrizAreaGrid(ofs);
+      renderizarTabelaOfensores(ofs);
+      renderizarIncidentesPorAnalista();
+    }
+  } catch (e) {
+    console.warn('[Topologia] Falha ao re-renderizar com cache do backend:', e.message);
+  }
+}
+
+async function carregarValidacaoTopologiaCache() {
+  if (!backendUrl) return null;
+  try {
+    const resp = await fetch(`${backendUrl}/api/topologia-validacao/resultados?t=${Date.now()}`, { cache: 'no-store' });
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    const data = await resp.json();
+    if (data.sucesso) aplicarResultadosValidacaoTopologiaBackend(data);
+    return data;
+  } catch (error) {
+    console.warn('[Topologia] Erro ao carregar resultados do backend:', error.message);
+    return null;
+  }
+}
+
+executarValidacaoTopologia = async function(manual = false) {
+  if (!isAdmin) {
+    if (!manual) return;
+    showToast('Apenas administradores podem testar incidentes', 'danger');
+    return;
+  }
+  if (!backendUrl) {
+    atualizarMensagemValidacaoTopologia('<i class="bi bi-plug me-1"></i>Backend não configurado para testar incidentes.');
+    return;
+  }
+
+  const ofs = window.dadosMatrizOfensores?.ofensores || [];
+  const vistos = new Set();
+  const itens = [];
+  for (const inc of ofs) {
+    const topo = inc.topologia && inc.topologia.trim();
+    if (!topo) continue;
+    const key = normalizarTopologiaKey(topo);
+    if (vistos.has(key)) continue;
+    vistos.add(key);
+    itens.push({ id: inc.id_mostra || null, topologia: topo });
+  }
+
+  if (itens.length === 0) {
+    if (manual) {
+      atualizarMensagemValidacaoTopologia('<i class="bi bi-info-circle me-1"></i>Nenhum incidente com topologia disponível para testar.');
+      showToast('Nenhuma topologia disponível para testar', 'info');
+    }
+    return;
+  }
+
+  atualizarMensagemValidacaoTopologia(
+    `<i class="bi bi-broadcast-pin me-1"></i>Testando ${itens.length} topologia${itens.length !== 1 ? 's' : ''} pelo backend central...`
+  );
+  if (manual) showToast(`Testando ${itens.length} topologia(s) pelo backend`, 'info');
+
+  try {
+    const resp = await fetch(`${backendUrl}/api/topologia-validacao/validar`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ itens })
+    });
+    const data = await resp.json().catch(() => ({}));
+    aplicarResultadosValidacaoTopologiaBackend(data);
+
+    if (!resp.ok || !data.sucesso) {
+      const msg = data.erro || `HTTP ${resp.status}`;
+      atualizarMensagemValidacaoTopologia(`<i class="bi bi-plug me-1"></i>Teste central falhou: <span class="text-danger">${msg}</span>`);
+      if (manual) showToast('Teste central falhou: ' + msg, 'warning');
+      return;
+    }
+
+    const total = data.resultadosCiclo?.length || itens.length;
+    if (manual) showToast(`${total} topologia(s) testadas e salvas para todos`, 'success');
+  } catch (error) {
+    atualizarMensagemValidacaoTopologia(`<i class="bi bi-plug me-1"></i>Erro ao chamar backend de validação: <span class="text-danger">${error.message}</span>`);
+    if (manual) showToast('Erro ao testar incidentes: ' + error.message, 'danger');
+  }
+};
+
+validarTopologiaSeNecessario = async function() {
+  const data = await carregarValidacaoTopologiaCache();
+  const ultima = data?.ultimaExecucao ? Number(data.ultimaExecucao) : 0;
+  if (isAdmin && (!ultima || (Date.now() - ultima) >= VALIDACAO_TOPOLOGIA_MS)) {
+    executarValidacaoTopologia(false);
+  }
 };
 
 function renderizarTabelaOfensores(ofensores) {
@@ -11355,8 +11366,7 @@ async function carregarMatrizOfensores(forcar = false) {
 
     console.log('[Ofensores] Matriz carregada:', data.total, 'incidentes');
 
-    // Validação automática de topologia (só roda se a extensão-ponte estiver
-    // instalada e o último ciclo tiver mais de 1h — evita spam nos monitores)
+    // Carrega o cache central para todos. Admin dispara novo ciclo se estiver vencido.
     validarTopologiaSeNecessario();
   } catch (err) {
     console.error('[Ofensores] Erro:', err.message);
