@@ -16,14 +16,17 @@ const fetch = require('node-fetch');
 const https = require('https');
 const path = require('path');
 
-const HELPER_VERSION = '2026-07-04-hfc-gpon-tabs';
+const HELPER_VERSION = '2026-07-04-wait-node-target';
 const PORT = Number(process.env.VISIUM_HELPER_PORT || 4789);
 const HOST = process.env.VISIUM_HELPER_HOST || '127.0.0.1';
 const VISIUM_BASE_URL = process.env.VISIUM_BASE_URL || 'http://201.55.234.76/Consultas_/ConsultaInterfaceNode';
 const VISIUM_LOGIN_URL = process.env.VISIUM_LOGIN_URL || 'http://201.55.234.76/';
 const VISIUM_GPON_LOGIN_URL = process.env.VISIUM_GPON_LOGIN_URL || 'http://201.55.234.76:8080/Login';
-const VISIUM_TIMEOUT_MS = Number(process.env.VISIUM_TIMEOUT_MS || 25000);
+const VISIUM_TIMEOUT_MS = Number(process.env.VISIUM_TIMEOUT_MS || 60000);
 const VISIUM_LOGIN_WAIT_MS = Number(process.env.VISIUM_LOGIN_WAIT_MS || 180000);
+const VISIUM_NODE_OPTION_WAIT_MS = Number(process.env.VISIUM_NODE_OPTION_WAIT_MS || 45000);
+const VISIUM_AFTER_CITY_WAIT_MS = Number(process.env.VISIUM_AFTER_CITY_WAIT_MS || 1800);
+const VISIUM_AFTER_QUERY_WAIT_MS = Number(process.env.VISIUM_AFTER_QUERY_WAIT_MS || 1200);
 const VISIUM_BROWSER_ENABLED = String(process.env.VISIUM_BROWSER_ENABLED || '1') !== '0';
 const VISIUM_BROWSER_PROFILE = process.env.VISIUM_BROWSER_PROFILE ||
   path.join(process.env.USERPROFILE || process.cwd(), 'visium-helper', 'browser-profile');
@@ -486,6 +489,63 @@ async function aguardarOpcoesNode(page) {
   }, null, { timeout: VISIUM_TIMEOUT_MS });
 }
 
+async function aguardarOpcaoNodeAlvo(page, node) {
+  const inicio = Date.now();
+  let ultimo = null;
+
+  while (Date.now() - inicio < VISIUM_NODE_OPTION_WAIT_MS) {
+    ultimo = await page.evaluate((alvo) => {
+      const compactar = (v) => String(v || '')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toUpperCase()
+        .replace(/[^A-Z0-9]/g, '');
+      const normalizar = (v) => String(v || '')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toUpperCase()
+        .replace(/\s+/g, ' ')
+        .trim();
+      const select = Array.from(document.querySelectorAll('select')).find((sel) => {
+        return String(sel.id || '').toLowerCase().includes('ddlnode') ||
+          String(sel.name || '').toLowerCase().includes('ddlnode');
+      });
+      if (!select) return { temSelect: false, count: 0, encontrado: false, amostra: [] };
+
+      const alvoNorm = normalizar(alvo);
+      const alvoCompacto = compactar(alvo);
+      const opcoes = Array.from(select.options)
+        .map((opcao) => ({
+          text: normalizar(opcao.textContent || opcao.value),
+          compact: compactar(opcao.textContent || opcao.value)
+        }))
+        .filter((opcao) => opcao.text && !opcao.text.includes('SELECIONE') && !opcao.text.includes('ESCOLHA'));
+      const encontrado = opcoes.some((opcao) => {
+        return opcao.text === alvoNorm ||
+          opcao.compact === alvoCompacto ||
+          opcao.text.includes(alvoNorm) ||
+          alvoNorm.includes(opcao.text) ||
+          opcao.compact.includes(alvoCompacto) ||
+          alvoCompacto.includes(opcao.compact);
+      });
+      return {
+        temSelect: true,
+        count: opcoes.length,
+        encontrado,
+        amostra: opcoes.slice(0, 5).map((opcao) => opcao.text)
+      };
+    }, node).catch(() => null);
+
+    if (ultimo?.encontrado) return ultimo;
+    await page.waitForLoadState('networkidle', { timeout: 5000 }).catch(() => {});
+    await page.waitForTimeout(1000);
+  }
+
+  const qtd = ultimo?.count || 0;
+  const amostra = ultimo?.amostra?.length ? `; primeiras opcoes: ${ultimo.amostra.join(', ')}` : '';
+  throw new Error(`ddlNode nao encontrou ${node} apos aguardar lista carregar (${qtd} opcoes${amostra})`);
+}
+
 async function consultarVisiumNodeBrowser(cidade, node) {
   const page = await obterPaginaVisium();
   await page.goto(VISIUM_BASE_URL, { waitUntil: 'domcontentloaded', timeout: VISIUM_TIMEOUT_MS });
@@ -497,14 +557,15 @@ async function consultarVisiumNodeBrowser(cidade, node) {
 
   const cidadeOpt = await escolherSelectBrowser(page, 'ddlCidade', cidade);
   await page.waitForLoadState('networkidle', { timeout: VISIUM_TIMEOUT_MS }).catch(() => {});
-  await page.waitForTimeout(800);
+  await page.waitForTimeout(VISIUM_AFTER_CITY_WAIT_MS);
   await aguardarOpcoesNode(page);
 
   let nodeOpt;
   try {
+    await aguardarOpcaoNodeAlvo(page, node);
     nodeOpt = await escolherSelectBrowser(page, 'ddlNode', node);
   } catch (error) {
-    if (/ddlNode nao encontrado/i.test(error.message || '')) {
+    if (/ddlNode nao encontr/i.test(error.message || '')) {
       throw new Error(`node nao encontrado no HFC/ConsultaInterfaceNode: ${node}. Se for GPON, o motor GPON ainda nao esta implementado.`);
     }
     throw error;
@@ -530,7 +591,7 @@ async function consultarVisiumNodeBrowser(cidade, node) {
   let tabela = { found: false, subnodes: [], rows: 0 };
   while (Date.now() - inicio < VISIUM_TIMEOUT_MS) {
     await page.waitForLoadState('networkidle', { timeout: 5000 }).catch(() => {});
-    await page.waitForTimeout(700);
+    await page.waitForTimeout(VISIUM_AFTER_QUERY_WAIT_MS);
     tabela = lerTabelaVisium(await page.content());
     if (tabela.found) break;
   }
@@ -692,6 +753,10 @@ app.get('/health', (req, res) => {
     visiumBaseUrl: VISIUM_BASE_URL,
     visiumLoginUrl: VISIUM_LOGIN_URL,
     visiumGponLoginUrl: VISIUM_GPON_LOGIN_URL,
+    timeoutMs: VISIUM_TIMEOUT_MS,
+    nodeOptionWaitMs: VISIUM_NODE_OPTION_WAIT_MS,
+    afterCityWaitMs: VISIUM_AFTER_CITY_WAIT_MS,
+    afterQueryWaitMs: VISIUM_AFTER_QUERY_WAIT_MS,
     timestamp: new Date().toISOString()
   });
 });
