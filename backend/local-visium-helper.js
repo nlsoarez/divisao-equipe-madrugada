@@ -16,7 +16,7 @@ const fetch = require('node-fetch');
 const https = require('https');
 const path = require('path');
 
-const HELPER_VERSION = '2026-07-04-gpon-consulta-no-413';
+const HELPER_VERSION = '2026-07-04-gpon-engine';
 const PORT = Number(process.env.VISIUM_HELPER_PORT || 4789);
 const HOST = process.env.VISIUM_HELPER_HOST || '127.0.0.1';
 const VISIUM_BASE_URL = process.env.VISIUM_BASE_URL || 'http://201.55.234.76/Consultas_/ConsultaInterfaceNode';
@@ -29,6 +29,9 @@ const VISIUM_NODE_OPTION_WAIT_MS = Number(process.env.VISIUM_NODE_OPTION_WAIT_MS
 const VISIUM_AFTER_CITY_WAIT_MS = Number(process.env.VISIUM_AFTER_CITY_WAIT_MS || 1800);
 const VISIUM_AFTER_QUERY_WAIT_MS = Number(process.env.VISIUM_AFTER_QUERY_WAIT_MS || 1200);
 const VISIUM_NODE_STABLE_MS = Number(process.env.VISIUM_NODE_STABLE_MS || 5000);
+const VISIUM_GPON_QUERY_BASE_MS = Number(process.env.VISIUM_GPON_QUERY_BASE_MS || 45000);
+const VISIUM_GPON_QUERY_PER_NAP_MS = Number(process.env.VISIUM_GPON_QUERY_PER_NAP_MS || 2500);
+const VISIUM_GPON_QUERY_MARGIN_MS = Number(process.env.VISIUM_GPON_QUERY_MARGIN_MS || 120000);
 const VISIUM_BROWSER_ENABLED = String(process.env.VISIUM_BROWSER_ENABLED || '1') !== '0';
 const VISIUM_BROWSER_PROFILE = process.env.VISIUM_BROWSER_PROFILE ||
   path.join(process.env.USERPROFILE || process.cwd(), 'visium-helper', 'browser-profile');
@@ -598,6 +601,202 @@ async function consultarVisiumNode(cidade, node) {
   };
 }
 
+async function obterPaginaGpon() {
+  const context = await obterBrowserContext();
+  const page = await obterOuCriarPagina(context, (pagina) => {
+    return String(pagina.url() || '').toLowerCase().includes(':8080');
+  });
+  page.setDefaultTimeout(VISIUM_TIMEOUT_MS);
+  await page.goto(VISIUM_GPON_CONSULTA_URL, { waitUntil: 'domcontentloaded', timeout: VISIUM_TIMEOUT_MS }).catch(() => {});
+  return page;
+}
+
+async function aguardarGponLogado(page) {
+  const temCidade = async () => await page.locator("#selectCidade, select[id*='cidade' i]").count().catch(() => 0);
+  if (await temCidade()) return;
+
+  const limite = Date.now() + VISIUM_LOGIN_WAIT_MS;
+  while (Date.now() < limite) {
+    if (await temCidade()) return;
+    const html = await page.content().catch(() => '');
+    const urlAtual = String(page.url() || '').toLowerCase();
+    if (!pareceLogin(html) && !urlAtual.includes('/login') && !urlAtual.includes('consultaontlista')) {
+      await page.goto(VISIUM_GPON_CONSULTA_URL, { waitUntil: 'domcontentloaded', timeout: VISIUM_TIMEOUT_MS }).catch(() => {});
+      if (await temCidade()) return;
+    }
+    await page.waitForTimeout(2000);
+  }
+  throw new Error('login no Vision GPON nao concluido dentro do tempo limite');
+}
+
+async function prepararConsultaGpon(page, cidade, naps) {
+  const cidadeOpt = await escolherSelectBrowser(page, 'cidade', cidade);
+  await page.waitForLoadState('networkidle', { timeout: VISIUM_TIMEOUT_MS }).catch(() => {});
+  await page.waitForTimeout(1500);
+
+  const preparado = await page.evaluate((textoNaps) => {
+    const pick = (sels) => {
+      for (const sel of sels) {
+        try {
+          const el = document.querySelector(sel);
+          if (el) return el;
+        } catch (_) {}
+      }
+      return null;
+    };
+    const setNativeValue = (el, value) => {
+      const proto = el.tagName === 'TEXTAREA' ? HTMLTextAreaElement.prototype :
+        el.tagName === 'SELECT' ? HTMLSelectElement.prototype : HTMLInputElement.prototype;
+      const desc = Object.getOwnPropertyDescriptor(proto, 'value');
+      if (desc && desc.set) desc.set.call(el, value);
+      else el.value = value;
+      el.dispatchEvent(new Event('input', { bubbles: true }));
+      el.dispatchEvent(new Event('change', { bubbles: true }));
+    };
+
+    const radioNap = pick(["#ContentWithMenuLeft_MainContent_rdbContrato", "input[value='rdbContrato']"]);
+    if (!radioNap) return { ok: false, erro: 'radio de consulta por NAP nao encontrado' };
+    radioNap.checked = true;
+    radioNap.dispatchEvent(new Event('click', { bubbles: true }));
+    radioNap.dispatchEvent(new Event('change', { bubbles: true }));
+
+    const textarea = pick(["#ContentWithMenuLeft_MainContent_txt_lista_mac", "textarea[name$='txt_lista_mac']", "textarea.form-control"]);
+    if (!textarea) return { ok: false, erro: 'textarea de NAPs nao encontrada' };
+    setNativeValue(textarea, textoNaps || '');
+
+    const btn = pick(["#ContentWithMenuLeft_MainContent_btn_Consultar", "input[name$='btn_Consultar']", "input[type='submit'][value*='Consultar' i]"]);
+    if (!btn) return { ok: false, erro: 'botao Consultar GPON nao encontrado' };
+    btn.click();
+    return { ok: true };
+  }, (naps || []).join('\n'));
+
+  if (!preparado.ok) throw new Error(preparado.erro || 'falha ao preparar consulta GPON');
+  return cidadeOpt;
+}
+
+async function aguardarResultadoGpon(page, quantidadeNaps) {
+  const esperado = VISIUM_GPON_QUERY_BASE_MS + VISIUM_GPON_QUERY_PER_NAP_MS * Math.max(1, quantidadeNaps || 1);
+  const maxWait = esperado + VISIUM_GPON_QUERY_MARGIN_MS;
+  const inicio = Date.now();
+  let estado = 'timeout';
+
+  while (Date.now() - inicio < maxWait) {
+    estado = await page.evaluate(() => {
+      const visivel = (el) => !!(el && el.offsetParent !== null && el.offsetWidth > 0 && el.offsetHeight > 0);
+      const proc = document.querySelector("#tableModemAssinante_processing, .dataTables_processing");
+      if (visivel(proc)) return 'loading';
+      const table = document.querySelector("#tableModemAssinante, table[id*='ModemAssinante'], table.display");
+      if (!table) return 'waiting';
+      const rows = Array.from(table.querySelectorAll('tbody tr'));
+      const dataRows = rows.filter((tr) => tr.querySelectorAll('td').length > 1 && !tr.querySelector('.dataTables_empty'));
+      if (dataRows.length) return 'data';
+      const txt = (table.textContent || '').toLowerCase();
+      if (/no data available|nenhum registro|sem registros/.test(txt)) return 'empty';
+      return 'waiting';
+    }).catch(() => 'waiting');
+
+    if (estado === 'data') break;
+    if (estado === 'empty' && Date.now() - inicio > Math.min(esperado, 40000)) break;
+    await page.waitForTimeout(700);
+  }
+
+  await page.evaluate(() => {
+    try {
+      if (window.jQuery && jQuery.fn && jQuery.fn.dataTable && jQuery.fn.dataTable.isDataTable('#tableModemAssinante')) {
+        jQuery('#tableModemAssinante').DataTable().page.len(-1).draw(false);
+      }
+    } catch (_) {}
+  }).catch(() => {});
+  await page.waitForTimeout(900);
+
+  return { estado, waitMs: Date.now() - inicio, esperado };
+}
+
+async function lerResultadoGpon(page) {
+  return await page.evaluate(() => {
+    const norm = (s) => String(s || '')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .toLowerCase();
+    const pick = (sels) => {
+      for (const sel of sels) {
+        try {
+          const el = document.querySelector(sel);
+          if (el) return el;
+        } catch (_) {}
+      }
+      return null;
+    };
+    const localizar = (headers, nomes) => {
+      const alvos = nomes.map(norm);
+      return headers.findIndex((h) => alvos.some((a) => norm(h) === a || norm(h).includes(a)));
+    };
+    const online = (status) => {
+      const s = norm(status);
+      if (['offline', 'down'].some((v) => s === v || s.includes(v))) return false;
+      if (['online', 'up', 'working'].some((v) => s === v || s.includes(v))) return true;
+      return null;
+    };
+
+    const table = pick(["#tableModemAssinante", "table[id*='ModemAssinante']", "table.display"]);
+    if (!table) return { found: false, naps: [], rows: 0 };
+    const headRow = table.querySelector('thead tr') || table.querySelector('tr');
+    const headers = headRow ? Array.from(headRow.querySelectorAll('th,td')).map((c) => c.textContent || '') : [];
+    const napIdx = localizar(headers, ['NAP']);
+    const statusIdx = localizar(headers, ['STATUS']);
+    if (napIdx < 0 || statusIdx < 0) return { found: false, naps: [], rows: 0, erro: 'colunas NAP/STATUS nao encontradas' };
+
+    const groups = {};
+    let rows = 0;
+    for (const tr of Array.from(table.querySelectorAll('tbody tr'))) {
+      const cells = Array.from(tr.querySelectorAll('td'));
+      if (cells.length <= Math.max(napIdx, statusIdx)) continue;
+      const nap = (cells[napIdx].textContent || '').trim();
+      if (!nap) continue;
+      const state = online(cells[statusIdx].textContent || '');
+      rows += 1;
+      const g = groups[nap] = groups[nap] || { nap, total: 0, online: 0, offline: 0, unknown: 0 };
+      g.total += 1;
+      if (state === true) g.online += 1;
+      else if (state === false) g.offline += 1;
+      else g.unknown += 1;
+    }
+
+    const naps = Object.keys(groups).sort().map((nap) => {
+      const g = groups[nap];
+      const ratio = g.total ? g.online / g.total : 0;
+      return { ...g, ratio, up: g.total > 0 && ratio >= 0.5 };
+    });
+    return { found: naps.length > 0, naps, rows };
+  });
+}
+
+async function consultarGponNaps(cidade, naps) {
+  const lista = Array.from(new Set((naps || []).map((nap) => String(nap || '').trim()).filter(Boolean)));
+  if (!lista.length) return { cidade, naps: [], rows: 0, sourceUrl: VISIUM_GPON_CONSULTA_URL, modo: 'browser-gpon' };
+
+  const page = await obterPaginaGpon();
+  await aguardarGponLogado(page);
+  const cidadeOpt = await prepararConsultaGpon(page, cidade, lista);
+  const espera = await aguardarResultadoGpon(page, lista.length);
+  const resultado = await lerResultadoGpon(page);
+  if (!resultado.found) {
+    throw new Error(resultado.erro || `consulta GPON sem dados (${espera.estado}, ${Math.round(espera.waitMs / 1000)}s)`);
+  }
+
+  return {
+    cidade: cidadeOpt.text || cidade,
+    naps: resultado.naps,
+    rows: resultado.rows,
+    sourceUrl: VISIUM_GPON_CONSULTA_URL,
+    modo: 'browser-gpon',
+    waitMs: espera.waitMs,
+    settled: espera.estado
+  };
+}
+
 async function validarTopologias(itens) {
   // Ciclo compartilhado com o backend central: mesmo filtro GPON e mesma
   // regra de status (qualquer node DOWN => down).
@@ -611,6 +810,7 @@ async function validarTopologias(itens) {
 
   return await validarTopologiasCompartilhado(itens, {
     consultarNode: consultarVisiumNode,
+    consultarGpon: consultarGponNaps,
     site: 'Visium Local',
     sitesConsultados: ['Visium Live via helper local'],
     onGponPendente: async () => {

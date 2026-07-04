@@ -270,6 +270,7 @@ function classificarStatusConsultas(consultas) {
 async function validarTopologias(itens, opcoes) {
   const {
     consultarNode,
+    consultarGpon,
     site = 'Visium',
     sitesConsultados = ['Visium Live'],
     onGponPendente
@@ -303,32 +304,75 @@ async function validarTopologias(itens, opcoes) {
       continue;
     }
 
-    for (const node of nodes) {
-      if (!ehNodeHfcConsultaNode(node)) {
-        let retornoGpon = null;
-        let erroGpon = null;
-        if (typeof onGponPendente === 'function') {
-          try {
-            retornoGpon = await onGponPendente({ item, node, cidade });
-          } catch (error) {
-            erroGpon = error.message || 'erro ao preparar GPON';
+    const hfcNodes = nodes.filter((node) => ehNodeHfcConsultaNode(node));
+    const gponNodes = nodes.filter((node) => !ehNodeHfcConsultaNode(node));
+
+    if (gponNodes.length) {
+      if (typeof consultarGpon === 'function') {
+        try {
+          const retorno = await consultarGpon(cidade, gponNodes, item);
+          const porNap = {};
+          for (const nap of retorno?.naps || []) porNap[compactarCodigo(nap.nap)] = nap;
+          for (const node of gponNodes) {
+            const encontrado = porNap[compactarCodigo(node)];
+            if (!encontrado) {
+              const mensagem = `NAP nao retornada na consulta GPON: ${node}`;
+              consultas.push({ node, cidade, status: 'indeterminado', erro: mensagem, tipo: 'gpon' });
+              avisos.push(`${cidade}/${node}: ${mensagem}`);
+              continue;
+            }
+            consultas.push({
+              node,
+              cidade,
+              status: encontrado.up ? 'up' : 'down',
+              tipo: 'gpon',
+              nap: encontrado.nap,
+              total: encontrado.total,
+              online: encontrado.online,
+              offline: encontrado.offline,
+              unknown: encontrado.unknown,
+              ratio: encontrado.ratio,
+              rows: retorno.rows,
+              sourceUrl: retorno.sourceUrl,
+              modo: retorno.modo
+            });
+          }
+        } catch (error) {
+          const mensagem = error.message || 'erro desconhecido no GPON';
+          for (const node of gponNodes) {
+            consultas.push({ node, cidade, status: 'indeterminado', erro: mensagem, tipo: 'gpon' });
+            avisos.push(`${cidade}/${node}: ${mensagem}`);
           }
         }
-        const complemento = retornoGpon?.mensagem
-          ? ` ${retornoGpon.mensagem}`
-          : (erroGpon ? ` Falha ao preparar GPON: ${erroGpon}.` : '');
-        const mensagem = `${motivoGponPendente(node)}${complemento}`;
-        consultas.push({
-          node,
-          cidade,
-          status: 'indeterminado',
-          erro: mensagem,
-          tipo: 'gpon-pendente',
-          ...(retornoGpon?.consulta || {})
-        });
-        avisos.push(`${cidade}/${node}: ${mensagem}`);
-        continue;
+      } else {
+        for (const node of gponNodes) {
+          let retornoGpon = null;
+          let erroGpon = null;
+          if (typeof onGponPendente === 'function') {
+            try {
+              retornoGpon = await onGponPendente({ item, node, cidade });
+            } catch (error) {
+              erroGpon = error.message || 'erro ao preparar GPON';
+            }
+          }
+          const complemento = retornoGpon?.mensagem
+            ? ` ${retornoGpon.mensagem}`
+            : (erroGpon ? ` Falha ao preparar GPON: ${erroGpon}.` : '');
+          const mensagem = `${motivoGponPendente(node)}${complemento}`;
+          consultas.push({
+            node,
+            cidade,
+            status: 'indeterminado',
+            erro: mensagem,
+            tipo: 'gpon-pendente',
+            ...(retornoGpon?.consulta || {})
+          });
+          avisos.push(`${cidade}/${node}: ${mensagem}`);
+        }
       }
+    }
+
+    for (const node of hfcNodes) {
       if (falhaGlobalVisium) {
         consultas.push({ node, cidade, status: 'indeterminado', erro: falhaGlobalVisium });
         continue;

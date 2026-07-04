@@ -290,6 +290,33 @@ describe('validarTopologias() — ciclo compartilhado', () => {
     expect(avisos[0]).toMatch(/GPON pendente/);
   });
 
+  test('consulta GPON quando motor GPON é fornecido', async () => {
+    const consultarNode = jest.fn();
+    const consultarGpon = jest.fn().mockResolvedValue({
+      naps: [
+        { nap: 'CNTAA09200010', total: 4, online: 3, offline: 1, unknown: 0, ratio: 0.75, up: true },
+        { nap: 'CNTAA09200020', total: 4, online: 1, offline: 3, unknown: 0, ratio: 0.25, up: false }
+      ],
+      rows: 8,
+      sourceUrl: 'http://201.55.234.76:8080/ConsultasGPON_/ConsultaOntLista',
+      modo: 'browser-gpon'
+    });
+
+    const { resultados, avisos } = await validarTopologias(
+      [{ topologia: 'CNT.AA.092.00.010, CNT.AA.092.00.020', cidade: 'VILA VELHA' }],
+      { consultarNode, consultarGpon }
+    );
+
+    expect(consultarNode).not.toHaveBeenCalled();
+    expect(consultarGpon).toHaveBeenCalledWith('VILA VELHA', ['CNT.AA.092.00.010', 'CNT.AA.092.00.020'], expect.any(Object));
+    expect(resultados[0].status).toBe('down');
+    expect(resultados[0].consultas).toEqual(expect.arrayContaining([
+      expect.objectContaining({ node: 'CNT.AA.092.00.010', status: 'up', tipo: 'gpon', online: 3, total: 4 }),
+      expect.objectContaining({ node: 'CNT.AA.092.00.020', status: 'down', tipo: 'gpon', online: 1, total: 4 })
+    ]));
+    expect(avisos).toEqual([]);
+  });
+
   test('falha global (timeout/VPN) interrompe o ciclo e é reportada', async () => {
     const consultarNode = jest.fn().mockRejectedValue(new Error('timeout ao acessar Visium (25000ms)'));
 
