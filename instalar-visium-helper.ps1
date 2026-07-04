@@ -33,6 +33,7 @@ Get-CimInstance Win32_Process |
   }
 
 Invoke-WebRequest "$repoRaw/backend/local-visium-helper.js?v=$cacheBust" -OutFile (Join-Path $backend "local-visium-helper.js")
+Invoke-WebRequest "$repoRaw/backend/topologia.js?v=$cacheBust" -OutFile (Join-Path $backend "topologia.js")
 Invoke-WebRequest "$repoRaw/backend/package.json?v=$cacheBust" -OutFile (Join-Path $backend "package.json")
 Invoke-WebRequest "$repoRaw/backend/package-lock.json?v=$cacheBust" -OutFile (Join-Path $backend "package-lock.json")
 
