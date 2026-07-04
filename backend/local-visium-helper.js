@@ -16,7 +16,7 @@ const fetch = require('node-fetch');
 const https = require('https');
 const path = require('path');
 
-const HELPER_VERSION = '2026-07-04-browser-reopen';
+const HELPER_VERSION = '2026-07-04-hfc-gpon-tabs';
 const PORT = Number(process.env.VISIUM_HELPER_PORT || 4789);
 const HOST = process.env.VISIUM_HELPER_HOST || '127.0.0.1';
 const VISIUM_BASE_URL = process.env.VISIUM_BASE_URL || 'http://201.55.234.76/Consultas_/ConsultaInterfaceNode';
@@ -366,7 +366,10 @@ async function obterPaginaVisium() {
     const context = await obterBrowserContext();
     try {
       const paginas = context.pages().filter((pagina) => !pagina.isClosed());
-      const page = paginas[0] || await context.newPage();
+      const page = paginas.find((pagina) => {
+        const url = String(pagina.url() || '').toLowerCase();
+        return url.includes('consultainterfacenode') || (url.includes('201.55.234.76') && !url.includes(':8080'));
+      }) || paginas[0] || await context.newPage();
       page.setDefaultTimeout(VISIUM_TIMEOUT_MS);
       return page;
     } catch (error) {
@@ -377,17 +380,29 @@ async function obterPaginaVisium() {
   throw new Error('nao foi possivel abrir pagina do navegador local');
 }
 
+async function garantirAbasLoginVisium(context, hfcPage) {
+  const paginas = context.pages().filter((pagina) => !pagina.isClosed());
+  const temGpon = paginas.some((pagina) => String(pagina.url() || '').toLowerCase().includes(':8080'));
+  if (!temGpon && VISIUM_GPON_LOGIN_URL) {
+    const gponPage = await context.newPage();
+    gponPage.setDefaultTimeout(VISIUM_TIMEOUT_MS);
+    await gponPage.goto(VISIUM_GPON_LOGIN_URL, { waitUntil: 'domcontentloaded', timeout: VISIUM_TIMEOUT_MS }).catch(() => {});
+  }
+
+  const urlHfc = String(hfcPage.url() || '').toLowerCase();
+  if (!urlHfc.includes('201.55.234.76') || urlHfc.includes(':8080')) {
+    await hfcPage.goto(VISIUM_LOGIN_URL, { waitUntil: 'domcontentloaded', timeout: VISIUM_TIMEOUT_MS }).catch(() => {});
+  }
+}
+
 async function aguardarVisiumLogado(page) {
   const temCidade = async () => await page.locator("select[id*='ddlCidade'], select[name*='ddlCidade']").count().catch(() => 0);
   if (await temCidade()) return;
 
   console.log(`[Visium Helper] Abrindo login HFC: ${VISIUM_LOGIN_URL}`);
   console.log(`[Visium Helper] Login GPON informado: ${VISIUM_GPON_LOGIN_URL}`);
-  console.log('[Visium Helper] Faca login no navegador aberto. Depois do login, o helper vai abrir a tela Consulta Interface Node automaticamente.');
-  const urlAtualInicial = String(page.url() || '').toLowerCase();
-  if (!urlAtualInicial.includes('201.55.234.76')) {
-    await page.goto(VISIUM_LOGIN_URL, { waitUntil: 'domcontentloaded', timeout: VISIUM_TIMEOUT_MS }).catch(() => {});
-  }
+  console.log('[Visium Helper] Faca login nas abas HFC e GPON se necessario. A validacao automatica atual consulta HFC/Consulta Interface Node.');
+  await garantirAbasLoginVisium(page.context(), page);
 
   const limite = Date.now() + VISIUM_LOGIN_WAIT_MS;
   while (Date.now() < limite) {
@@ -485,7 +500,15 @@ async function consultarVisiumNodeBrowser(cidade, node) {
   await page.waitForTimeout(800);
   await aguardarOpcoesNode(page);
 
-  const nodeOpt = await escolherSelectBrowser(page, 'ddlNode', node);
+  let nodeOpt;
+  try {
+    nodeOpt = await escolherSelectBrowser(page, 'ddlNode', node);
+  } catch (error) {
+    if (/ddlNode nao encontrado/i.test(error.message || '')) {
+      throw new Error(`node nao encontrado no HFC/ConsultaInterfaceNode: ${node}. Se for GPON, o motor GPON ainda nao esta implementado.`);
+    }
+    throw error;
+  }
   await page.evaluate(() => {
     const chk = document.querySelector("input[id*='ckbPontual'], input[name*='ckbPontual']");
     if (chk && chk.checked) {
@@ -548,7 +571,9 @@ async function consultarVisiumNode(cidade, node) {
 
   const campoNode = encontrarNomeCampo(cidadeResp.text, 'ddlNode') || campoNodeInicial;
   const nodeOpt = escolherOpcao(extrairOpcoesSelect(cidadeResp.text, 'ddlNode'), node);
-  if (!campoNode || !nodeOpt) throw new Error(`node nao encontrado no dropdown do Visium: ${node}`);
+  if (!campoNode || !nodeOpt) {
+    throw new Error(`node nao encontrado no HFC/ConsultaInterfaceNode: ${node}. Se for GPON, o motor GPON ainda nao esta implementado.`);
+  }
 
   const campoConsultar = encontrarNomeCampo(cidadeResp.text, 'btn_consultar') ||
     encontrarNomeCampo(cidadeResp.text, 'consultar');

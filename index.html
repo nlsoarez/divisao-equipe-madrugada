@@ -11155,11 +11155,16 @@ function atualizarInfoValidacaoTopologia() {
   const conf = rs.filter(r => r.status === 'confirmado' || r.status === 'up').length;
   const nao = rs.filter(r => r.status === 'nao_encontrado' || r.status === 'down').length;
   const ind = rs.filter(r => r.status === 'indeterminado').length;
+  const avisos = Array.isArray(v.avisos) ? v.avisos : [];
+  const hfcNaoEncontrado = avisos.filter(a => /node nao encontrado no HFC\/ConsultaInterfaceNode/i.test(a)).length;
+  const detalheInd = hfcNaoEncontrado
+    ? ` · <span style="color:#92400e;font-weight:600;" title="${escapeHtml(avisos.slice(0, 8).join(' | '))}">${hfcNaoEncontrado} não encontrados no HFC/GPON pendente</span>`
+    : (ind ? ` · <span style="color:#92400e;font-weight:600;">${ind} sem diagnóstico</span>` : '');
   const hora = new Date(v.ultimaExecucao).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
   el.style.display = '';
   el.innerHTML = v.erro
     ? `<i class="bi bi-plug me-1"></i>Validação de topologia às ${hora}: <span class="text-danger">${v.erro}</span>`
-    : `<i class="bi bi-broadcast-pin me-1"></i>Visium às ${hora}: <span style="color:#15803d;font-weight:600;">${conf} UP</span> · <span style="color:#b91c1c;font-weight:600;">${nao} DOWN</span>${ind ? ` · <span style="color:#92400e;font-weight:600;">${ind} sem diagnóstico</span>` : ''}`;
+    : `<i class="bi bi-broadcast-pin me-1"></i>Visium às ${hora}: <span style="color:#15803d;font-weight:600;">${conf} UP</span> · <span style="color:#b91c1c;font-weight:600;">${nao} DOWN</span>${detalheInd}`;
 }
 
 const atualizarInfoValidacaoTopologiaBase = atualizarInfoValidacaoTopologia;
