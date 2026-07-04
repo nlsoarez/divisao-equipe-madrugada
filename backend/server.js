@@ -1290,64 +1290,18 @@ function calcularHoras(dhInicio) {
   } catch { return 0; }
 }
 
-function normalizarTopologiaBackend(valor) {
-  return String(valor || '')
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toLowerCase()
-    .replace(/\s+/g, ' ')
-    .trim();
-}
-
-function decodificarEntidadesMonitor(texto) {
-  return String(texto || '')
-    .replace(/&nbsp;/gi, ' ')
-    .replace(/&amp;/gi, '&')
-    .replace(/&lt;/gi, '<')
-    .replace(/&gt;/gi, '>')
-    .replace(/&quot;/gi, '"')
-    .replace(/&#39;/g, "'");
-}
-
-function pareceLoginMonitor(texto) {
-  const t = normalizarTopologiaBackend(texto);
-  return (
-    t.includes('senha') &&
-    (t.includes('login') || t.includes('usuario') || t.includes('autenticacao'))
-  ) || t.includes('sign in');
-}
-
-function compactarCodigoTopologia(valor) {
-  return String(valor || '')
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toUpperCase()
-    .replace(/[^A-Z0-9]/g, '');
-}
-
-function normalizarOpcaoVisium(valor) {
-  return String(valor || '')
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toUpperCase()
-    .replace(/\s+/g, ' ')
-    .trim();
-}
-
-function extrairNodesTopologia(valor) {
-  const partes = String(valor || '')
-    .split(/[,;|]+/)
-    .map((parte) => parte.trim())
-    .filter(Boolean);
-  const origem = partes.length ? partes : [String(valor || '').trim()];
-  return Array.from(new Set(origem
-    .map((parte) => ({
-      original: parte,
-      compacto: compactarCodigoTopologia(parte)
-    }))
-    .filter((node) => node.compacto.length >= 4)
-    .map((node) => node.original)));
-}
+// Normaliza\u00e7\u00e3o/parsing compartilhados com o helper local (backend/topologia.js)
+const {
+  normalizarTopologia: normalizarTopologiaBackend,
+  pareceLogin: pareceLoginMonitor,
+  extrairFormulario: extrairFormularioVisium,
+  encontrarNomeCampo: encontrarNomeCampoVisium,
+  extrairOpcoesSelect: extrairOpcoesSelectVisium,
+  escolherOpcao: escolherOpcaoVisium,
+  extrairActionFormulario,
+  lerTabelaVisium,
+  validarTopologias
+} = require('./topologia');
 
 function carregarCacheValidacaoTopologia() {
   try {
@@ -1368,86 +1322,6 @@ function carregarCacheValidacaoTopologia() {
 function salvarCacheValidacaoTopologia(cache) {
   fs.mkdirSync(path.dirname(TOPOLOGIA_VALIDACAO_CACHE_PATH), { recursive: true });
   fs.writeFileSync(TOPOLOGIA_VALIDACAO_CACHE_PATH, JSON.stringify(cache, null, 2));
-}
-
-function extrairAtributoHtml(tag, nome) {
-  const re = new RegExp(`${nome}\\s*=\\s*("([^"]*)"|'([^']*)'|([^\\s>]+))`, 'i');
-  const match = String(tag || '').match(re);
-  return match ? decodificarEntidadesMonitor(match[2] || match[3] || match[4] || '') : '';
-}
-
-function extrairFormularioVisium(html) {
-  const campos = {};
-  const formMatch = String(html || '').match(/<form\b[\s\S]*?<\/form>/i);
-  const formHtml = formMatch ? formMatch[0] : String(html || '');
-
-  for (const match of formHtml.matchAll(/<input\b[^>]*>/gi)) {
-    const tag = match[0];
-    const name = extrairAtributoHtml(tag, 'name');
-    if (!name) continue;
-    const type = extrairAtributoHtml(tag, 'type').toLowerCase();
-    if ((type === 'checkbox' || type === 'radio') && !/\schecked\b/i.test(tag)) continue;
-    campos[name] = extrairAtributoHtml(tag, 'value');
-  }
-
-  for (const match of formHtml.matchAll(/<select\b[^>]*>[\s\S]*?<\/select>/gi)) {
-    const selectHtml = match[0];
-    const name = extrairAtributoHtml(selectHtml, 'name');
-    if (!name) continue;
-    const selected = selectHtml.match(/<option\b[^>]*selected[^>]*>/i);
-    const first = selected ? selected[0] : (selectHtml.match(/<option\b[^>]*>/i) || [''])[0];
-    campos[name] = extrairAtributoHtml(first, 'value');
-  }
-
-  return campos;
-}
-
-function encontrarNomeCampoVisium(html, fragmento) {
-  const normalizado = fragmento.toLowerCase();
-  for (const match of String(html || '').matchAll(/<(?:select|input|button)\b[^>]*>/gi)) {
-    const tag = match[0];
-    const id = extrairAtributoHtml(tag, 'id').toLowerCase();
-    const name = extrairAtributoHtml(tag, 'name');
-    if (id.includes(normalizado) || name.toLowerCase().includes(normalizado)) return name || id;
-  }
-  return '';
-}
-
-function extrairOpcoesSelectVisium(html, fragmento) {
-  const normalizado = fragmento.toLowerCase();
-  for (const match of String(html || '').matchAll(/<select\b[^>]*>[\s\S]*?<\/select>/gi)) {
-    const selectHtml = match[0];
-    const id = extrairAtributoHtml(selectHtml, 'id').toLowerCase();
-    const name = extrairAtributoHtml(selectHtml, 'name').toLowerCase();
-    if (!id.includes(normalizado) && !name.includes(normalizado)) continue;
-    return Array.from(selectHtml.matchAll(/<option\b[^>]*>[\s\S]*?<\/option>/gi)).map((optionMatch) => {
-      const tag = optionMatch[0];
-      const value = extrairAtributoHtml(tag, 'value');
-      const text = decodificarEntidadesMonitor(tag.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim());
-      return { value, text };
-    }).filter((option) => option.value || option.text);
-  }
-  return [];
-}
-
-function escolherOpcaoVisium(opcoes, alvo) {
-  const alvoNorm = normalizarOpcaoVisium(alvo);
-  const alvoCompacto = compactarCodigoTopologia(alvo);
-  const candidatas = (opcoes || []).filter((opcao) => {
-    const texto = normalizarOpcaoVisium(opcao.text || opcao.value);
-    return texto && !texto.includes('SELECIONE') && !texto.includes('ESCOLHA');
-  });
-  return candidatas.find((opcao) => normalizarOpcaoVisium(opcao.text) === alvoNorm) ||
-    candidatas.find((opcao) => compactarCodigoTopologia(opcao.text) === alvoCompacto) ||
-    candidatas.find((opcao) => {
-      const texto = normalizarOpcaoVisium(opcao.text);
-      return texto.includes(alvoNorm) || alvoNorm.includes(texto);
-    }) ||
-    candidatas.find((opcao) => {
-      const texto = compactarCodigoTopologia(opcao.text);
-      return texto.includes(alvoCompacto) || alvoCompacto.includes(texto);
-    }) ||
-    null;
 }
 
 function criarClienteVisium() {
@@ -1509,11 +1383,6 @@ function montarUrlVisium(action) {
   }
 }
 
-function extrairActionFormulario(html) {
-  const form = String(html || '').match(/<form\b[^>]*>/i);
-  return form ? extrairAtributoHtml(form[0], 'action') : '';
-}
-
 async function postarFormularioVisium(cliente, html, camposExtras) {
   const campos = { ...extrairFormularioVisium(html), ...(camposExtras || {}) };
   const body = new URLSearchParams();
@@ -1526,70 +1395,6 @@ async function postarFormularioVisium(cliente, html, camposExtras) {
     },
     body: body.toString()
   });
-}
-
-function textoCelulaHtml(celula) {
-  return decodificarEntidadesMonitor(String(celula || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim());
-}
-
-function parseCmrVisium(valor) {
-  let texto = String(valor || '').trim();
-  if (!texto || texto === '-' || texto === '—') return null;
-  texto = texto.replace(/\./g, '').replace(/,.*/, '').replace(/[^\d-]/g, '');
-  if (!texto || texto === '-') return null;
-  const numero = parseInt(texto, 10);
-  return Number.isNaN(numero) ? null : numero;
-}
-
-function localizarIndiceCabecalho(celulas, nomes) {
-  const alvos = (nomes || []).map((nome) => normalizarTopologiaBackend(nome));
-  return celulas.findIndex((celula) => {
-    const texto = normalizarTopologiaBackend(celula);
-    return alvos.some((alvo) => texto === alvo || texto.includes(alvo));
-  });
-}
-
-function lerTabelaVisium(html) {
-  for (const tableMatch of String(html || '').matchAll(/<table\b[\s\S]*?<\/table>/gi)) {
-    const table = tableMatch[0];
-    const rows = Array.from(table.matchAll(/<tr\b[\s\S]*?<\/tr>/gi)).map((rowMatch) => rowMatch[0]);
-    if (!rows.length) continue;
-
-    const headerCells = Array.from(rows[0].matchAll(/<t[hd]\b[\s\S]*?<\/t[hd]>/gi)).map((m) => textoCelulaHtml(m[0]));
-    let nodeIdx = localizarIndiceCabecalho(headerCells, ['NODE']);
-    let cmrIdx = localizarIndiceCabecalho(headerCells, ['CM-R', 'CMR', 'CM R', 'CM-REG', 'CM REG']);
-    if (nodeIdx < 0 || cmrIdx < 0) {
-      nodeIdx = 3;
-      cmrIdx = 9;
-    }
-
-    const grupos = {};
-    let linhasDados = 0;
-    for (const row of rows.slice(1)) {
-      const cells = Array.from(row.matchAll(/<td\b[\s\S]*?<\/td>/gi)).map((m) => textoCelulaHtml(m[0]));
-      if (cells.length <= Math.max(nodeIdx, cmrIdx)) continue;
-      const nodeName = cells[nodeIdx];
-      const cmr = parseCmrVisium(cells[cmrIdx]);
-      if (!nodeName || cmr == null) continue;
-      linhasDados += 1;
-      if (!grupos[nodeName]) grupos[nodeName] = [];
-      grupos[nodeName].push(cmr);
-    }
-
-    const subnodes = Object.keys(grupos).sort().map((name) => {
-      const cmrs = grupos[name];
-      const up = cmrs.length > 0 && cmrs.every((cmr) => cmr !== 0);
-      return {
-        name,
-        up,
-        rows: cmrs.length,
-        downRows: cmrs.filter((cmr) => cmr === 0).length,
-        cmrs
-      };
-    });
-    if (subnodes.length) return { found: true, subnodes, rows: linhasDados };
-  }
-  return { found: false, subnodes: [], rows: 0 };
 }
 
 async function consultarVisiumNode(cidade, node) {
@@ -1643,80 +1448,13 @@ async function consultarVisiumNode(cidade, node) {
 }
 
 async function validarTopologiasBackend(itens) {
-  const testadoEm = Date.now();
-  const validos = (Array.isArray(itens) ? itens : [])
-    .filter((item) => item && normalizarTopologiaBackend(item.topologia));
-
-  if (validos.length === 0) {
-    return { ok: true, resultados: [], avisos: [], testadoEm };
-  }
-
-  const resultados = [];
-  const avisos = [];
-  let falhaGlobalVisium = null;
-
-  for (const item of validos) {
-    const nodes = extrairNodesTopologia(item.topologia);
-    const cidade = item.cidade || item.nm_cidade || '';
-    const consultas = [];
-
-    if (!cidade) {
-      resultados.push({
-        id: item.id || null,
-        topologia: item.topologia,
-        nodes,
-        status: 'indeterminado',
-        site: 'Visium',
-        sitesConsultados: ['Visium Live'],
-        motivo: 'cidade ausente para consultar o Visium',
-        testadoEm
-      });
-      continue;
-    }
-
-    for (const node of nodes) {
-      if (falhaGlobalVisium) {
-        consultas.push({ node, cidade, status: 'indeterminado', erro: falhaGlobalVisium });
-        continue;
-      }
-      try {
-        consultas.push(await consultarVisiumNode(cidade, node));
-      } catch (error) {
-        const mensagem = error.message || 'erro desconhecido no Visium';
-        consultas.push({ node, cidade, status: 'indeterminado', erro: mensagem });
-        avisos.push(`${cidade}/${node}: ${mensagem}`);
-        if (/timeout|ENOTFOUND|ECONN|EHOST|Visium HTTP|campo de cidade|exigiu login/i.test(mensagem)) {
-          falhaGlobalVisium = mensagem;
-        }
-      }
-    }
-
-    const consultasValidas = consultas.filter((consulta) => consulta.status === 'up' || consulta.status === 'down');
-    let status = 'indeterminado';
-    if (consultasValidas.length > 0 && consultasValidas.length === consultas.length) {
-      status = consultasValidas.every((consulta) => consulta.status === 'up') ? 'up' : 'down';
-    }
-
-    resultados.push({
-      id: item.id || null,
-      topologia: item.topologia,
-      cidade,
-      nodes: nodes.map((node) => compactarCodigoTopologia(node)),
-      status,
-      site: 'Visium',
-      sitesConsultados: ['Visium Live'],
-      motivo: status === 'indeterminado' ? 'Visium nao retornou diagnostico completo para todos os nodes' : null,
-      consultas,
-      testadoEm
-    });
-  }
-
-  return {
-    ok: true,
-    resultados,
-    avisos,
-    testadoEm
-  };
+  // Ciclo compartilhado com o helper local: mesmo filtro GPON e mesma
+  // regra de status (qualquer node DOWN => down).
+  return await validarTopologias(itens, {
+    consultarNode: consultarVisiumNode,
+    site: 'Visium',
+    sitesConsultados: ['Visium Live']
+  });
 }
 
 function salvarResultadosValidacaoTopologia(validacao) {
@@ -1777,7 +1515,8 @@ app.post('/api/topologia-validacao/validar', async (req, res) => {
 
     res.status(validacao.ok ? 200 : 503).json({
       ...resposta,
-      sucesso: validacao.ok
+      sucesso: validacao.ok,
+      falhaGlobalVisium: validacao.falhaGlobalVisium || null
     });
   } catch (error) {
     console.error('[Topologia] Erro ao validar:', error.message);

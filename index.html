@@ -11241,18 +11241,23 @@ async function chamarValidacaoTopologia(itens) {
     atualizarMensagemValidacaoTopologia(
       `<i class="bi bi-broadcast-pin me-1"></i>Helper local/VPN encontrado. Testando ${itens.length} topologia${itens.length !== 1 ? 's' : ''} no Visium...`
     );
-    return await fetch(`${TOPOLOGIA_LOCAL_HELPER_URL}/api/topologia-validacao/validar`, {
+    const resp = await fetch(`${TOPOLOGIA_LOCAL_HELPER_URL}/api/topologia-validacao/validar`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ origem: 'admin-manual-v6', backendUrl, itens })
     });
+    return { resp, viaHelper: true };
   }
 
-  return await fetch(`${backendUrl}/api/topologia-validacao/validar`, {
+  atualizarMensagemValidacaoTopologia(
+    `<i class="bi bi-broadcast-pin me-1"></i>Helper local não encontrado — testando ${itens.length} topologia${itens.length !== 1 ? 's' : ''} pelo backend central (sem VPN o Visium pode ficar inacessível)...`
+  );
+  const resp = await fetch(`${backendUrl}/api/topologia-validacao/validar`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ origem: 'admin-manual-v6', itens })
   });
+  return { resp, viaHelper: false };
 }
 
 executarValidacaoTopologia = async function(manual = false) {
@@ -11292,7 +11297,7 @@ executarValidacaoTopologia = async function(manual = false) {
   if (manual) showToast(`Testando ${itens.length} topologia(s) no Visium`, 'info');
 
   try {
-    const resp = await chamarValidacaoTopologia(itens);
+    const { resp, viaHelper } = await chamarValidacaoTopologia(itens);
     const data = await resp.json().catch(() => ({}));
     aplicarResultadosValidacaoTopologiaBackend(data);
 
@@ -11303,8 +11308,23 @@ executarValidacaoTopologia = async function(manual = false) {
       return;
     }
 
-    const total = data.resultadosCiclo?.length || itens.length;
-    if (manual) showToast(`${total} topologia(s) testadas no Visium e salvas para todos`, 'success');
+    // Falha global do Visium (VPN/login/timeout): nada foi realmente testado.
+    // Não anunciar sucesso — orientar a ligar o helper local.
+    const ciclo = data.resultadosCiclo || [];
+    const todosIndeterminados = ciclo.length > 0 && ciclo.every(r => r.status === 'indeterminado');
+    if (data.falhaGlobalVisium || (!viaHelper && todosIndeterminados)) {
+      const origemTxt = viaHelper ? 'pelo helper local' : 'pelo backend central (Railway não está na VPN)';
+      const detalhe = data.falhaGlobalVisium || 'sem diagnóstico para nenhum node';
+      atualizarMensagemValidacaoTopologia(
+        `<i class="bi bi-plug me-1"></i>Visium inacessível ${origemTxt}: <span class="text-danger">${escapeHtml(detalhe)}</span> — inicie o helper local na máquina com VPN e clique em Testar novamente.`
+      );
+      if (manual) showToast('Visium inacessível — nenhum incidente foi realmente testado. Inicie o helper local (VPN).', 'warning');
+      return;
+    }
+
+    const total = ciclo.length || itens.length;
+    const origemOk = viaHelper ? 'via helper local/VPN' : 'pelo backend central';
+    if (manual) showToast(`${total} topologia(s) testadas no Visium ${origemOk} e salvas para todos`, 'success');
   } catch (error) {
     atualizarMensagemValidacaoTopologia(`<i class="bi bi-plug me-1"></i>Erro ao chamar backend de validação: <span class="text-danger">${error.message}</span>`);
     if (manual) showToast('Erro ao testar incidentes: ' + error.message, 'danger');
