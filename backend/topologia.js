@@ -268,7 +268,12 @@ function classificarStatusConsultas(consultas) {
  * falso sucesso.
  */
 async function validarTopologias(itens, opcoes) {
-  const { consultarNode, site = 'Visium', sitesConsultados = ['Visium Live'] } = opcoes || {};
+  const {
+    consultarNode,
+    site = 'Visium',
+    sitesConsultados = ['Visium Live'],
+    onGponPendente
+  } = opcoes || {};
   if (typeof consultarNode !== 'function') throw new Error('consultarNode obrigatorio para validar topologias');
 
   const testadoEm = Date.now();
@@ -300,8 +305,27 @@ async function validarTopologias(itens, opcoes) {
 
     for (const node of nodes) {
       if (!ehNodeHfcConsultaNode(node)) {
-        const mensagem = motivoGponPendente(node);
-        consultas.push({ node, cidade, status: 'indeterminado', erro: mensagem, tipo: 'gpon-pendente' });
+        let retornoGpon = null;
+        let erroGpon = null;
+        if (typeof onGponPendente === 'function') {
+          try {
+            retornoGpon = await onGponPendente({ item, node, cidade });
+          } catch (error) {
+            erroGpon = error.message || 'erro ao preparar GPON';
+          }
+        }
+        const complemento = retornoGpon?.mensagem
+          ? ` ${retornoGpon.mensagem}`
+          : (erroGpon ? ` Falha ao preparar GPON: ${erroGpon}.` : '');
+        const mensagem = `${motivoGponPendente(node)}${complemento}`;
+        consultas.push({
+          node,
+          cidade,
+          status: 'indeterminado',
+          erro: mensagem,
+          tipo: 'gpon-pendente',
+          ...(retornoGpon?.consulta || {})
+        });
         avisos.push(`${cidade}/${node}: ${mensagem}`);
         continue;
       }

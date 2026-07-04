@@ -16,7 +16,7 @@ const fetch = require('node-fetch');
 const https = require('https');
 const path = require('path');
 
-const HELPER_VERSION = '2026-07-04-topologia-compartilhada';
+const HELPER_VERSION = '2026-07-04-open-gpon-pending';
 const PORT = Number(process.env.VISIUM_HELPER_PORT || 4789);
 const HOST = process.env.VISIUM_HELPER_HOST || '127.0.0.1';
 const VISIUM_BASE_URL = process.env.VISIUM_BASE_URL || 'http://201.55.234.76/Consultas_/ConsultaInterfaceNode';
@@ -211,6 +211,25 @@ async function garantirAbasLoginVisium(context, hfcPage) {
   if (!urlHfc.includes('201.55.234.76') || urlHfc.includes(':8080')) {
     await hfcPage.goto(VISIUM_LOGIN_URL, { waitUntil: 'domcontentloaded', timeout: VISIUM_TIMEOUT_MS }).catch(() => {});
   }
+}
+
+async function abrirAbaGponParaLogin() {
+  const context = await obterBrowserContext();
+  let page = context.pages().find((pagina) => {
+    return !pagina.isClosed() && String(pagina.url() || '').toLowerCase().includes(':8080');
+  });
+  if (!page) page = await context.newPage();
+  page.setDefaultTimeout(VISIUM_TIMEOUT_MS);
+
+  const urlAtual = String(page.url() || '').toLowerCase();
+  if (!urlAtual.includes(':8080')) {
+    await page.goto(VISIUM_GPON_LOGIN_URL, { waitUntil: 'domcontentloaded', timeout: VISIUM_TIMEOUT_MS }).catch(() => {});
+  }
+
+  return {
+    url: page.url(),
+    title: await page.title().catch(() => '')
+  };
 }
 
 async function aguardarVisiumLogado(page) {
@@ -518,10 +537,31 @@ async function consultarVisiumNode(cidade, node) {
 async function validarTopologias(itens) {
   // Ciclo compartilhado com o backend central: mesmo filtro GPON e mesma
   // regra de status (qualquer node DOWN => down).
+  let gponAba = null;
+  let gponAbaErro = null;
+
   return await validarTopologiasCompartilhado(itens, {
     consultarNode: consultarVisiumNode,
     site: 'Visium Local',
-    sitesConsultados: ['Visium Live via helper local']
+    sitesConsultados: ['Visium Live via helper local'],
+    onGponPendente: async () => {
+      if (!gponAba && !gponAbaErro) {
+        try {
+          gponAba = await abrirAbaGponParaLogin();
+        } catch (error) {
+          gponAbaErro = error.message || 'erro ao abrir aba GPON';
+        }
+      }
+      if (gponAba) {
+        return {
+          mensagem: `Aba GPON aberta: ${gponAba.url || VISIUM_GPON_LOGIN_URL}.`,
+          consulta: { gponAba }
+        };
+      }
+      return {
+        mensagem: `Falha ao abrir aba GPON: ${gponAbaErro || 'erro desconhecido'}.`
+      };
+    }
   });
 }
 
