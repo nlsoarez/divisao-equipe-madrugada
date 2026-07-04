@@ -16,12 +16,13 @@ const fetch = require('node-fetch');
 const https = require('https');
 const path = require('path');
 
-const HELPER_VERSION = '2026-07-04-open-gpon-pending';
+const HELPER_VERSION = '2026-07-04-prepare-tabs-no-blank';
 const PORT = Number(process.env.VISIUM_HELPER_PORT || 4789);
 const HOST = process.env.VISIUM_HELPER_HOST || '127.0.0.1';
 const VISIUM_BASE_URL = process.env.VISIUM_BASE_URL || 'http://201.55.234.76/Consultas_/ConsultaInterfaceNode';
 const VISIUM_LOGIN_URL = process.env.VISIUM_LOGIN_URL || 'http://201.55.234.76/';
 const VISIUM_GPON_LOGIN_URL = process.env.VISIUM_GPON_LOGIN_URL || 'http://201.55.234.76:8080/Login';
+const VISIUM_GPON_CONSULTA_URL = process.env.VISIUM_GPON_CONSULTA_URL || '';
 const VISIUM_TIMEOUT_MS = Number(process.env.VISIUM_TIMEOUT_MS || 60000);
 const VISIUM_LOGIN_WAIT_MS = Number(process.env.VISIUM_LOGIN_WAIT_MS || 180000);
 const VISIUM_NODE_OPTION_WAIT_MS = Number(process.env.VISIUM_NODE_OPTION_WAIT_MS || 30000);
@@ -198,6 +199,77 @@ async function obterPaginaVisium() {
   throw new Error('nao foi possivel abrir pagina do navegador local');
 }
 
+function paginaEmBranco(pagina) {
+  const url = String(pagina?.url?.() || '').toLowerCase();
+  return !url || url === 'about:blank';
+}
+
+async function obterOuCriarPagina(context, predicado, paginasReservadas = new Set()) {
+  const paginas = context.pages().filter((pagina) => !pagina.isClosed() && !paginasReservadas.has(pagina));
+  return paginas.find(predicado) ||
+    paginas.find((pagina) => paginaEmBranco(pagina)) ||
+    await context.newPage();
+}
+
+async function resumoPagina(page) {
+  return {
+    url: page.url(),
+    title: await page.title().catch(() => ''),
+    links: await page.evaluate(() => Array.from(document.querySelectorAll('a'))
+      .slice(0, 30)
+      .map((a) => ({ text: (a.textContent || '').trim(), href: a.href || '' }))
+      .filter((a) => a.text || a.href)).catch(() => []),
+    forms: await page.evaluate(() => Array.from(document.querySelectorAll('form'))
+      .slice(0, 10)
+      .map((form) => ({
+        action: form.action || '',
+        inputs: Array.from(form.querySelectorAll('input, select, button'))
+          .slice(0, 30)
+          .map((el) => ({
+            tag: el.tagName,
+            type: el.getAttribute('type') || '',
+            id: el.id || '',
+            name: el.getAttribute('name') || '',
+            text: (el.textContent || el.getAttribute('value') || '').trim()
+          }))
+      }))).catch(() => [])
+  };
+}
+
+async function prepararAbasVisium() {
+  const context = await obterBrowserContext();
+  const reservadas = new Set();
+  const hfcPage = await obterOuCriarPagina(context, (pagina) => {
+    const url = String(pagina.url() || '').toLowerCase();
+    return url.includes('consultainterfacenode') || (url.includes('201.55.234.76') && !url.includes(':8080'));
+  }, reservadas);
+  reservadas.add(hfcPage);
+  hfcPage.setDefaultTimeout(VISIUM_TIMEOUT_MS);
+  await hfcPage.goto(VISIUM_BASE_URL, { waitUntil: 'domcontentloaded', timeout: VISIUM_TIMEOUT_MS }).catch(() => {});
+
+  const gponPage = await obterOuCriarPagina(context, (pagina) => {
+    return String(pagina.url() || '').toLowerCase().includes(':8080');
+  }, reservadas);
+  reservadas.add(gponPage);
+  gponPage.setDefaultTimeout(VISIUM_TIMEOUT_MS);
+  const destinoGpon = VISIUM_GPON_CONSULTA_URL || VISIUM_GPON_LOGIN_URL;
+  const urlGponAtual = String(gponPage.url() || '').toLowerCase();
+  if (!urlGponAtual.includes(':8080') || (VISIUM_GPON_CONSULTA_URL && gponPage.url() !== VISIUM_GPON_CONSULTA_URL)) {
+    await gponPage.goto(destinoGpon, { waitUntil: 'domcontentloaded', timeout: VISIUM_TIMEOUT_MS }).catch(() => {});
+  }
+
+  for (const pagina of context.pages()) {
+    if (!pagina.isClosed() && !reservadas.has(pagina) && paginaEmBranco(pagina)) {
+      await pagina.close().catch(() => {});
+    }
+  }
+
+  return {
+    hfc: await resumoPagina(hfcPage),
+    gpon: await resumoPagina(gponPage)
+  };
+}
+
 async function garantirAbasLoginVisium(context, hfcPage) {
   const paginas = context.pages().filter((pagina) => !pagina.isClosed());
   const temGpon = paginas.some((pagina) => String(pagina.url() || '').toLowerCase().includes(':8080'));
@@ -214,22 +286,7 @@ async function garantirAbasLoginVisium(context, hfcPage) {
 }
 
 async function abrirAbaGponParaLogin() {
-  const context = await obterBrowserContext();
-  let page = context.pages().find((pagina) => {
-    return !pagina.isClosed() && String(pagina.url() || '').toLowerCase().includes(':8080');
-  });
-  if (!page) page = await context.newPage();
-  page.setDefaultTimeout(VISIUM_TIMEOUT_MS);
-
-  const urlAtual = String(page.url() || '').toLowerCase();
-  if (!urlAtual.includes(':8080')) {
-    await page.goto(VISIUM_GPON_LOGIN_URL, { waitUntil: 'domcontentloaded', timeout: VISIUM_TIMEOUT_MS }).catch(() => {});
-  }
-
-  return {
-    url: page.url(),
-    title: await page.title().catch(() => '')
-  };
+  return (await prepararAbasVisium()).gpon;
 }
 
 async function aguardarVisiumLogado(page) {
@@ -537,29 +594,34 @@ async function consultarVisiumNode(cidade, node) {
 async function validarTopologias(itens) {
   // Ciclo compartilhado com o backend central: mesmo filtro GPON e mesma
   // regra de status (qualquer node DOWN => down).
-  let gponAba = null;
-  let gponAbaErro = null;
+  let abas = null;
+  let abasErro = null;
+  try {
+    abas = await prepararAbasVisium();
+  } catch (error) {
+    abasErro = error.message || 'erro ao preparar abas Visium';
+  }
 
   return await validarTopologiasCompartilhado(itens, {
     consultarNode: consultarVisiumNode,
     site: 'Visium Local',
     sitesConsultados: ['Visium Live via helper local'],
     onGponPendente: async () => {
-      if (!gponAba && !gponAbaErro) {
+      if (!abas && !abasErro) {
         try {
-          gponAba = await abrirAbaGponParaLogin();
+          abas = await prepararAbasVisium();
         } catch (error) {
-          gponAbaErro = error.message || 'erro ao abrir aba GPON';
+          abasErro = error.message || 'erro ao preparar abas Visium';
         }
       }
-      if (gponAba) {
+      if (abas?.gpon) {
         return {
-          mensagem: `Aba GPON aberta: ${gponAba.url || VISIUM_GPON_LOGIN_URL}.`,
-          consulta: { gponAba }
+          mensagem: `Aba GPON aberta: ${abas.gpon.url || VISIUM_GPON_LOGIN_URL}.`,
+          consulta: { gponAba: abas.gpon, hfcAba: abas.hfc }
         };
       }
       return {
-        mensagem: `Falha ao abrir aba GPON: ${gponAbaErro || 'erro desconhecido'}.`
+        mensagem: `Falha ao preparar abas Visium: ${abasErro || 'erro desconhecido'}.`
       };
     }
   });
@@ -588,6 +650,7 @@ app.get('/health', (req, res) => {
     visiumBaseUrl: VISIUM_BASE_URL,
     visiumLoginUrl: VISIUM_LOGIN_URL,
     visiumGponLoginUrl: VISIUM_GPON_LOGIN_URL,
+    visiumGponConsultaUrl: VISIUM_GPON_CONSULTA_URL || null,
     timeoutMs: VISIUM_TIMEOUT_MS,
     nodeOptionWaitMs: VISIUM_NODE_OPTION_WAIT_MS,
     nodeStableMs: VISIUM_NODE_STABLE_MS,
