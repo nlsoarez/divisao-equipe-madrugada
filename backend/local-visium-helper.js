@@ -16,7 +16,7 @@ const fetch = require('node-fetch');
 const https = require('https');
 const path = require('path');
 
-const HELPER_VERSION = '2026-07-04-stable-wait';
+const HELPER_VERSION = '2026-07-04-gpon-controls';
 const PORT = Number(process.env.VISIUM_HELPER_PORT || 4789);
 const HOST = process.env.VISIUM_HELPER_HOST || '127.0.0.1';
 const VISIUM_BASE_URL = process.env.VISIUM_BASE_URL || 'http://201.55.234.76/Consultas_/ConsultaInterfaceNode';
@@ -249,7 +249,7 @@ async function detalhesPagina(page) {
       .slice(0, 10)
       .map((form) => ({
         action: form.action || '',
-        inputs: Array.from(form.querySelectorAll('input, select, button'))
+        inputs: Array.from(form.querySelectorAll('input, select, textarea, button'))
           .slice(0, 30)
           .map((el) => ({
             tag: el.tagName,
@@ -705,14 +705,69 @@ async function prepararConsultaGpon(page, cidade, naps) {
   const assinaturaAnterior = await assinaturaTabelaGpon(page);
 
   const preparado = await page.evaluate((textoNaps) => {
+    const visivel = (el) => !!(el && el.offsetParent !== null && el.offsetWidth > 0 && el.offsetHeight > 0);
+    const norm = (s) => String(s || '')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .toLowerCase();
     const pick = (sels) => {
       for (const sel of sels) {
         try {
           const el = document.querySelector(sel);
-          if (el) return el;
+          if (el && visivel(el)) return el;
         } catch (_) {}
       }
       return null;
+    };
+    const cssEscape = (v) => (window.CSS && CSS.escape) ? CSS.escape(v) : String(v).replace(/["\\]/g, '\\$&');
+    const textoProprio = (el) => norm([el.id, el.name, el.value, el.getAttribute('aria-label'), el.getAttribute('title')]
+      .filter(Boolean)
+      .join(' '));
+    const textoAssociado = (el) => {
+      const partes = [el.id, el.name, el.value, el.getAttribute('aria-label'), el.getAttribute('title')];
+      if (el.id) {
+        const label = document.querySelector(`label[for="${cssEscape(el.id)}"]`);
+        if (label) partes.push(label.textContent);
+      }
+      const labelPai = el.closest('label');
+      if (labelPai) partes.push(labelPai.textContent);
+      if (el.nextSibling && el.nextSibling.nodeType === Node.TEXT_NODE) partes.push(el.nextSibling.textContent);
+      return norm(partes.filter(Boolean).join(' '));
+    };
+    const escolherRadioNap = () => {
+      const candidatos = Array.from(document.querySelectorAll("input[type='radio']")).filter(visivel);
+      const avaliados = candidatos.map((radio) => {
+        const proprio = textoProprio(radio);
+        const associado = textoAssociado(radio);
+        let score = 0;
+        if (/\bnap\b/.test(proprio) || proprio.includes('rdbcontrato') || proprio.includes('contrato')) score += 100;
+        if (/\bnap\b/.test(associado) || associado.includes('rdbcontrato') || associado.includes('contrato')) score += 80;
+        if (/imovel|imóvel|mac|address/.test(proprio)) score -= 100;
+        if (/codigo imovel|codigo imóvel|mac-address|mac address/.test(associado)) score -= 80;
+        return { radio, score };
+      }).sort((a, b) => b.score - a.score);
+      if (avaliados[0]?.score > 0) return avaliados[0].radio;
+      return pick(["#ContentWithMenuLeft_MainContent_rdbContrato", "input[value='rdbContrato']", "input[value*='nap' i]", "input[id*='nap' i]", "input[name*='nap' i]"]);
+    };
+    const escolherTextareaAssinante = () => {
+      const seletores = [
+        "#ContentWithMenuLeft_MainContent_txt_lista_mac",
+        "textarea[name$='txt_lista_mac']",
+        "textarea[id*='lista' i]",
+        "textarea[name*='lista' i]",
+        "textarea[id*='assinante' i]",
+        "textarea[name*='assinante' i]",
+        "textarea.form-control"
+      ];
+      const direto = pick(seletores);
+      if (direto) return direto;
+      const textareas = Array.from(document.querySelectorAll('textarea')).filter(visivel);
+      return textareas.find((textarea) => textoAssociado(textarea).includes('assinante')) ||
+        textareas.find((textarea) => textarea.clientWidth > 120 && textarea.clientHeight > 80) ||
+        textareas[0] ||
+        null;
     };
     const setNativeValue = (el, value) => {
       const proto = el.tagName === 'TEXTAREA' ? HTMLTextAreaElement.prototype :
@@ -720,24 +775,45 @@ async function prepararConsultaGpon(page, cidade, naps) {
       const desc = Object.getOwnPropertyDescriptor(proto, 'value');
       if (desc && desc.set) desc.set.call(el, value);
       else el.value = value;
+      el.focus();
       el.dispatchEvent(new Event('input', { bubbles: true }));
       el.dispatchEvent(new Event('change', { bubbles: true }));
+      el.dispatchEvent(new KeyboardEvent('keyup', { bubbles: true }));
     };
 
-    const radioNap = pick(["#ContentWithMenuLeft_MainContent_rdbContrato", "input[value='rdbContrato']"]);
+    const radioNap = escolherRadioNap();
     if (!radioNap) return { ok: false, erro: 'radio de consulta por NAP nao encontrado' };
+    if (!radioNap.checked) radioNap.click();
     radioNap.checked = true;
-    radioNap.dispatchEvent(new Event('click', { bubbles: true }));
+    const labelNap = radioNap.id ? document.querySelector(`label[for="${cssEscape(radioNap.id)}"]`) : null;
+    if (labelNap) labelNap.click();
+    if (!radioNap.checked) radioNap.checked = true;
     radioNap.dispatchEvent(new Event('change', { bubbles: true }));
 
-    const textarea = pick(["#ContentWithMenuLeft_MainContent_txt_lista_mac", "textarea[name$='txt_lista_mac']", "textarea.form-control"]);
-    if (!textarea) return { ok: false, erro: 'textarea de NAPs nao encontrada' };
+    const textarea = escolherTextareaAssinante();
+    if (!textarea) return { ok: false, erro: 'campo Assinante/textarea de NAPs nao encontrado' };
     setNativeValue(textarea, textoNaps || '');
+    const textoAplicado = String(textarea.value || '').trim();
+    if (!textoAplicado) return { ok: false, erro: 'campo Assinante ficou vazio apos preencher NAPs' };
+    const primeiraNap = String(textoNaps || '').split(/\r?\n/).map((v) => v.trim()).filter(Boolean)[0] || '';
+    if (primeiraNap && !textoAplicado.includes(primeiraNap)) {
+      return { ok: false, erro: `campo Assinante nao recebeu a primeira NAP (${primeiraNap})` };
+    }
+    if (!radioNap.checked) return { ok: false, erro: 'radio Nap nao ficou selecionado' };
 
-    const btn = pick(["#ContentWithMenuLeft_MainContent_btn_Consultar", "input[name$='btn_Consultar']", "input[type='submit'][value*='Consultar' i]"]);
+    const btn = pick(["#ContentWithMenuLeft_MainContent_btn_Consultar", "input[name$='btn_Consultar']", "input[type='submit'][value*='Consultar' i]"]) ||
+      Array.from(document.querySelectorAll('button,input[type=button],input[type=submit]'))
+        .filter(visivel)
+        .find((item) => /consultar/i.test(item.textContent || item.value || ''));
     if (!btn) return { ok: false, erro: 'botao Consultar GPON nao encontrado' };
     btn.click();
-    return { ok: true };
+    return {
+      ok: true,
+      radio: textoAssociado(radioNap),
+      textareaId: textarea.id || '',
+      textareaName: textarea.name || '',
+      linhas: textoAplicado.split(/\r?\n/).filter((v) => v.trim()).length
+    };
   }, (naps || []).join('\n'));
 
   if (!preparado.ok) throw new Error(preparado.erro || 'falha ao preparar consulta GPON');
