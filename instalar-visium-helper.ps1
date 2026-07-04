@@ -46,8 +46,7 @@ set NODE_TLS_REJECT_UNAUTHORIZED=0
 set VISIUM_LOGIN_URL=http://201.55.234.76/
 set VISIUM_BASE_URL=http://201.55.234.76/Consultas_/ConsultaInterfaceNode
 set VISIUM_GPON_LOGIN_URL=http://201.55.234.76:8080/Login
-rem Se descobrir a URL direta da consulta GPON, preencha abaixo:
-rem set VISIUM_GPON_CONSULTA_URL=http://201.55.234.76:8080/...
+set VISIUM_GPON_CONSULTA_URL=http://201.55.234.76:8080/ConsultasGPON_/ConsultaOntLista
 npm run visium-helper
 pause
 "@ | Set-Content -Encoding ASCII $bat
