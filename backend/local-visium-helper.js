@@ -16,7 +16,7 @@ const fetch = require('node-fetch');
 const https = require('https');
 const path = require('path');
 
-const HELPER_VERSION = '2026-07-04-gpon-controls';
+const HELPER_VERSION = '2026-07-04-gpon-nap-format';
 const PORT = Number(process.env.VISIUM_HELPER_PORT || 4789);
 const HOST = process.env.VISIUM_HELPER_HOST || '127.0.0.1';
 const VISIUM_BASE_URL = process.env.VISIUM_BASE_URL || 'http://201.55.234.76/Consultas_/ConsultaInterfaceNode';
@@ -59,6 +59,7 @@ const {
   decodificarEntidades,
   pareceLogin,
   compactarCodigo,
+  normalizarNapGponConsulta,
   extrairNodesTopologia,
   ehNodeHfcConsultaNode,
   motivoGponPendente,
@@ -959,7 +960,9 @@ async function lerResultadoGpon(page) {
 }
 
 async function consultarGponNaps(cidade, naps) {
-  const lista = Array.from(new Set((naps || []).map((nap) => String(nap || '').trim()).filter(Boolean)));
+  const lista = Array.from(new Set((naps || [])
+    .map((nap) => normalizarNapGponConsulta(nap))
+    .filter(Boolean)));
   if (!lista.length) return { cidade, naps: [], rows: 0, sourceUrl: VISIUM_GPON_CONSULTA_URL, modo: 'browser-gpon' };
 
   const page = await obterPaginaGpon();

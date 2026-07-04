@@ -42,6 +42,21 @@ function compactarCodigo(valor) {
     .replace(/[^A-Z0-9]/g, '');
 }
 
+function normalizarNapGponConsulta(valor) {
+  const texto = String(valor || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toUpperCase()
+    .trim();
+  const matchSeparado = texto.match(/^([A-Z]{2,3})[^A-Z0-9]*([A-Z]{2})[^A-Z0-9]*(\d{3})[^A-Z0-9]*00[^A-Z0-9]*(\d{2,3})$/);
+  if (matchSeparado) return `${matchSeparado[1]}${matchSeparado[2]}${matchSeparado[3]}M${matchSeparado[4]}`;
+
+  const compacto = compactarCodigo(texto);
+  const matchCompacto = compacto.match(/^([A-Z]{4,5}\d{3})00(\d{2,3})$/);
+  if (matchCompacto) return `${matchCompacto[1]}M${matchCompacto[2]}`;
+  return compacto;
+}
+
 function normalizarOpcao(valor) {
   return String(valor || '')
     .normalize('NFD')
@@ -52,7 +67,8 @@ function normalizarOpcao(valor) {
 }
 
 function extrairNodesTopologia(valor) {
-  const partes = String(valor || '')
+  const texto = String(valor || '').replace(/([A-Z]{2,3}\s*[^A-Z0-9]\s*[A-Z]{2}\s*[^A-Z0-9]\s*\d{3}\s*[^A-Z0-9]\s*00)\s*,\s*(\d{2,3})(?=$|[\s,;|])/gi, '$1.$2');
+  const partes = texto
     .split(/[,;|]+/)
     .map((parte) => parte.trim())
     .filter(Boolean);
@@ -312,9 +328,12 @@ async function validarTopologias(itens, opcoes) {
         try {
           const retorno = await consultarGpon(cidade, gponNodes, item);
           const porNap = {};
-          for (const nap of retorno?.naps || []) porNap[compactarCodigo(nap.nap)] = nap;
+          for (const nap of retorno?.naps || []) {
+            porNap[compactarCodigo(nap.nap)] = nap;
+            porNap[normalizarNapGponConsulta(nap.nap)] = nap;
+          }
           for (const node of gponNodes) {
-            const encontrado = porNap[compactarCodigo(node)];
+            const encontrado = porNap[compactarCodigo(node)] || porNap[normalizarNapGponConsulta(node)];
             if (!encontrado) {
               const mensagem = `NAP nao retornada na consulta GPON: ${node}`;
               consultas.push({ node, cidade, status: 'indeterminado', erro: mensagem, tipo: 'gpon' });
@@ -410,6 +429,7 @@ module.exports = {
   decodificarEntidades,
   pareceLogin,
   compactarCodigo,
+  normalizarNapGponConsulta,
   normalizarOpcao,
   extrairNodesTopologia,
   ehNodeHfcConsultaNode,

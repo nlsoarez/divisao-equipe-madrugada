@@ -11,6 +11,7 @@ const {
   decodificarEntidades,
   pareceLogin,
   compactarCodigo,
+  normalizarNapGponConsulta,
   extrairNodesTopologia,
   ehNodeHfcConsultaNode,
   motivoGponPendente,
@@ -52,6 +53,15 @@ describe('compactarCodigo()', () => {
   });
 });
 
+describe('normalizarNapGponConsulta()', () => {
+  test('troca o segmento 00 por M e remove separadores para consulta GPON', () => {
+    expect(normalizarNapGponConsulta('ABC.DE.123.00.456')).toBe('ABCDE123M456');
+    expect(normalizarNapGponConsulta('BC.DE.123.00.45')).toBe('BCDE123M45');
+    expect(normalizarNapGponConsulta('ABC.DE.123.00,456')).toBe('ABCDE123M456');
+    expect(normalizarNapGponConsulta('ABCDE12300456')).toBe('ABCDE123M456');
+  });
+});
+
 describe('extrairNodesTopologia()', () => {
   test('separa por vírgula, ponto-e-vírgula e pipe', () => {
     expect(extrairNodesTopologia('NO123, AB456; CD789 | EF012')).toEqual(['NO123', 'AB456', 'CD789', 'EF012']);
@@ -67,6 +77,13 @@ describe('extrairNodesTopologia()', () => {
 
   test('valor único sem separador vira um node', () => {
     expect(extrairNodesTopologia('NO123')).toEqual(['NO123']);
+  });
+
+  test('nao separa virgula usada no sufixo GPON apos 00', () => {
+    expect(extrairNodesTopologia('ABC.DE.123.00,456, BC.DE.123.00,45')).toEqual([
+      'ABC.DE.123.00.456',
+      'BC.DE.123.00.45'
+    ]);
   });
 
   test('vazio retorna lista vazia', () => {
