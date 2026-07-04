@@ -14,17 +14,23 @@ const express = require('express');
 const cors = require('cors');
 const fetch = require('node-fetch');
 const https = require('https');
+const path = require('path');
 
-const HELPER_VERSION = '2026-07-03-tls-global';
+const HELPER_VERSION = '2026-07-04-browser-session';
 const PORT = Number(process.env.VISIUM_HELPER_PORT || 4789);
 const HOST = process.env.VISIUM_HELPER_HOST || '127.0.0.1';
 const VISIUM_BASE_URL = process.env.VISIUM_BASE_URL || 'http://201.55.234.76/Consultas_/ConsultaInterfaceNode';
 const VISIUM_TIMEOUT_MS = Number(process.env.VISIUM_TIMEOUT_MS || 25000);
+const VISIUM_LOGIN_WAIT_MS = Number(process.env.VISIUM_LOGIN_WAIT_MS || 180000);
+const VISIUM_BROWSER_ENABLED = String(process.env.VISIUM_BROWSER_ENABLED || '1') !== '0';
+const VISIUM_BROWSER_PROFILE = process.env.VISIUM_BROWSER_PROFILE ||
+  path.join(process.env.USERPROFILE || process.cwd(), 'visium-helper', 'browser-profile');
 const BACKEND_URL_DEFAULT = process.env.CENTRAL_BACKEND_URL || 'https://divisao-equipe-madrugada-production.up.railway.app';
 const CENTRAL_BACKEND_TLS_INSEGURO = String(process.env.CENTRAL_BACKEND_TLS_INSEGURO || '1') !== '0';
 const ORIGEM_FRONTEND = 'admin-manual-v6';
 const ORIGEM_REGISTRO = 'local-helper-v1';
 const centralBackendAgent = CENTRAL_BACKEND_TLS_INSEGURO ? new https.Agent({ rejectUnauthorized: false }) : null;
+let browserContextPromise = null;
 
 const app = express();
 app.use(cors({ origin: true }));
@@ -304,11 +310,182 @@ function lerTabelaVisium(html) {
   return { found: false, subnodes: [], rows: 0 };
 }
 
+async function obterBrowserContext() {
+  if (!VISIUM_BROWSER_ENABLED) throw new Error('modo navegador do helper esta desativado');
+  if (browserContextPromise) return browserContextPromise;
+
+  browserContextPromise = (async () => {
+    let chromium;
+    try {
+      ({ chromium } = require('playwright-core'));
+    } catch (error) {
+      throw new Error('playwright-core nao instalado. Rode o instalador do helper novamente.');
+    }
+
+    const canais = [
+      process.env.VISIUM_BROWSER_CHANNEL,
+      'msedge',
+      'chrome'
+    ].filter(Boolean);
+    let ultimoErro = null;
+    for (const channel of canais) {
+      try {
+        return await chromium.launchPersistentContext(VISIUM_BROWSER_PROFILE, {
+          channel,
+          headless: false,
+          viewport: null,
+          ignoreHTTPSErrors: true,
+          args: ['--start-maximized']
+        });
+      } catch (error) {
+        ultimoErro = error;
+      }
+    }
+    throw new Error(`nao foi possivel abrir Edge/Chrome via Playwright: ${ultimoErro?.message || 'erro desconhecido'}`);
+  })();
+
+  return browserContextPromise;
+}
+
+async function obterPaginaVisium() {
+  const context = await obterBrowserContext();
+  const paginas = context.pages();
+  const page = paginas[0] || await context.newPage();
+  page.setDefaultTimeout(VISIUM_TIMEOUT_MS);
+  return page;
+}
+
+async function aguardarVisiumLogado(page) {
+  const temCidade = async () => await page.locator("select[id*='ddlCidade'], select[name*='ddlCidade']").count().catch(() => 0);
+  if (await temCidade()) return;
+
+  console.log('[Visium Helper] Visium abriu tela de login. Faça login no navegador aberto; o helper aguardara a tela Consulta Interface Node.');
+  await page.waitForFunction(() => {
+    return !!document.querySelector("select[id*='ddlCidade'], select[name*='ddlCidade']");
+  }, null, { timeout: VISIUM_LOGIN_WAIT_MS });
+}
+
+async function escolherSelectBrowser(page, fragmento, alvo) {
+  const resultado = await page.evaluate(({ fragmento, alvo }) => {
+    const compactar = (v) => String(v || '')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toUpperCase()
+      .replace(/[^A-Z0-9]/g, '');
+    const normalizar = (v) => String(v || '')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toUpperCase()
+      .replace(/\s+/g, ' ')
+      .trim();
+    const frag = String(fragmento || '').toLowerCase();
+    const select = Array.from(document.querySelectorAll('select')).find((sel) => {
+      return String(sel.id || '').toLowerCase().includes(frag) ||
+        String(sel.name || '').toLowerCase().includes(frag);
+    });
+    if (!select) return { ok: false, erro: `select ${fragmento} nao encontrado` };
+
+    const alvoNorm = normalizar(alvo);
+    const alvoCompacto = compactar(alvo);
+    const opcoes = Array.from(select.options).filter((opcao) => {
+      const texto = normalizar(opcao.textContent || opcao.value);
+      return texto && !texto.includes('SELECIONE') && !texto.includes('ESCOLHA');
+    });
+    const opt = opcoes.find((opcao) => normalizar(opcao.textContent) === alvoNorm) ||
+      opcoes.find((opcao) => compactar(opcao.textContent) === alvoCompacto) ||
+      opcoes.find((opcao) => {
+        const texto = normalizar(opcao.textContent);
+        return texto.includes(alvoNorm) || alvoNorm.includes(texto);
+      }) ||
+      opcoes.find((opcao) => {
+        const texto = compactar(opcao.textContent);
+        return texto.includes(alvoCompacto) || alvoCompacto.includes(texto);
+      });
+    if (!opt) return { ok: false, erro: `${fragmento} nao encontrado: ${alvo}` };
+
+    select.value = opt.value;
+    select.dispatchEvent(new Event('input', { bubbles: true }));
+    select.dispatchEvent(new Event('change', { bubbles: true }));
+    try {
+      if (typeof select.onchange === 'function') select.onchange();
+    } catch (_) {}
+
+    return { ok: true, value: opt.value, text: (opt.textContent || opt.value).trim() };
+  }, { fragmento, alvo });
+
+  if (!resultado.ok) throw new Error(resultado.erro);
+  return resultado;
+}
+
+async function aguardarOpcoesNode(page) {
+  await page.waitForFunction(() => {
+    const sel = Array.from(document.querySelectorAll('select')).find((item) => {
+      return String(item.id || '').toLowerCase().includes('ddlnode') ||
+        String(item.name || '').toLowerCase().includes('ddlnode');
+    });
+    return !!sel && Array.from(sel.options).some((opcao) => {
+      const texto = String(opcao.textContent || opcao.value || '').trim().toUpperCase();
+      return texto && !texto.includes('SELECIONE') && !texto.includes('ESCOLHA');
+    });
+  }, null, { timeout: VISIUM_TIMEOUT_MS });
+}
+
+async function consultarVisiumNodeBrowser(cidade, node) {
+  const page = await obterPaginaVisium();
+  await page.goto(VISIUM_BASE_URL, { waitUntil: 'domcontentloaded', timeout: VISIUM_TIMEOUT_MS });
+  await aguardarVisiumLogado(page);
+
+  const cidadeOpt = await escolherSelectBrowser(page, 'ddlCidade', cidade);
+  await page.waitForLoadState('networkidle', { timeout: VISIUM_TIMEOUT_MS }).catch(() => {});
+  await page.waitForTimeout(800);
+  await aguardarOpcoesNode(page);
+
+  const nodeOpt = await escolherSelectBrowser(page, 'ddlNode', node);
+  await page.evaluate(() => {
+    const chk = document.querySelector("input[id*='ckbPontual'], input[name*='ckbPontual']");
+    if (chk && chk.checked) {
+      chk.checked = false;
+      chk.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+  });
+
+  const consultou = await page.evaluate(() => {
+    const btn = document.querySelector("input[id*='btn_consultar'], button[id*='btn_consultar'], input[name*='btn_consultar'], button[name*='btn_consultar']") ||
+      Array.from(document.querySelectorAll('input[type=submit], button')).find((item) => /consultar/i.test(item.value || item.textContent || ''));
+    if (!btn) return false;
+    btn.click();
+    return true;
+  });
+  if (!consultou) throw new Error('botao Consultar do Visium nao encontrado');
+
+  const inicio = Date.now();
+  let tabela = { found: false, subnodes: [], rows: 0 };
+  while (Date.now() - inicio < VISIUM_TIMEOUT_MS) {
+    await page.waitForLoadState('networkidle', { timeout: 5000 }).catch(() => {});
+    await page.waitForTimeout(700);
+    tabela = lerTabelaVisium(await page.content());
+    if (tabela.found) break;
+  }
+  if (!tabela.found) throw new Error('tabela de resultado do Visium vazia ou nao encontrada');
+
+  const allUp = tabela.subnodes.every((subnode) => subnode.up);
+  return {
+    cidade: cidadeOpt.text || cidade,
+    node: nodeOpt.text || node,
+    status: allUp ? 'up' : 'down',
+    up: allUp,
+    subnodes: tabela.subnodes,
+    rows: tabela.rows,
+    sourceUrl: VISIUM_BASE_URL,
+    modo: 'browser'
+  };
+}
+
 async function consultarVisiumNode(cidade, node) {
   const cliente = criarClienteVisium();
   const inicial = await cliente.requisitar(VISIUM_BASE_URL);
   if (!inicial.response.ok) throw new Error(`Visium HTTP ${inicial.response.status}`);
-  if (pareceLogin(inicial.text)) throw new Error('Visium exigiu login/sessao');
+  if (pareceLogin(inicial.text)) return await consultarVisiumNodeBrowser(cidade, node);
 
   const campoCidade = encontrarNomeCampo(inicial.text, 'ddlCidade');
   const campoNodeInicial = encontrarNomeCampo(inicial.text, 'ddlNode');
