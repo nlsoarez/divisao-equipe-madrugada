@@ -11156,9 +11156,9 @@ function atualizarInfoValidacaoTopologia() {
   const nao = rs.filter(r => r.status === 'nao_encontrado' || r.status === 'down').length;
   const ind = rs.filter(r => r.status === 'indeterminado').length;
   const avisos = Array.isArray(v.avisos) ? v.avisos : [];
-  const hfcNaoEncontrado = avisos.filter(a => /node nao encontrado no HFC\/ConsultaInterfaceNode/i.test(a)).length;
-  const detalheInd = hfcNaoEncontrado
-    ? ` · <span style="color:#92400e;font-weight:600;" title="${escapeHtml(avisos.slice(0, 8).join(' | '))}">${hfcNaoEncontrado} não encontrados no HFC/GPON pendente</span>`
+  const gponPendente = avisos.filter(a => /NAP\/GPON pendente|node nao encontrado no HFC\/ConsultaInterfaceNode/i.test(a)).length;
+  const detalheInd = gponPendente
+    ? ` · <span style="color:#92400e;font-weight:600;" title="${escapeHtml(avisos.slice(0, 8).join(' | '))}">${gponPendente} GPON pendente</span>`
     : (ind ? ` · <span style="color:#92400e;font-weight:600;">${ind} sem diagnóstico</span>` : '');
   const hora = new Date(v.ultimaExecucao).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
   el.style.display = '';

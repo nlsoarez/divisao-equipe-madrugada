@@ -16,7 +16,7 @@ const fetch = require('node-fetch');
 const https = require('https');
 const path = require('path');
 
-const HELPER_VERSION = '2026-07-04-browser-retry-stable';
+const HELPER_VERSION = '2026-07-04-skip-gpon-in-hfc';
 const PORT = Number(process.env.VISIUM_HELPER_PORT || 4789);
 const HOST = process.env.VISIUM_HELPER_HOST || '127.0.0.1';
 const VISIUM_BASE_URL = process.env.VISIUM_BASE_URL || 'http://201.55.234.76/Consultas_/ConsultaInterfaceNode';
@@ -100,6 +100,19 @@ function extrairNodesTopologia(valor) {
     .map((parte) => ({ original: parte, compacto: compactarCodigo(parte) }))
     .filter((node) => node.compacto.length >= 4)
     .map((node) => node.original)));
+}
+
+function ehNodeHfcConsultaNode(valor) {
+  const bruto = String(valor || '').trim();
+  const compacto = compactarCodigo(bruto);
+  return compacto.length >= 4 &&
+    compacto.length <= 8 &&
+    /^[A-Z0-9]+$/.test(compacto) &&
+    !/[.\-_/\\]/.test(bruto);
+}
+
+function motivoGponPendente(node) {
+  return `NAP/GPON pendente: ${node} nao deve ser pesquisado na tela HFC ConsultaInterfaceNode. Motor GPON ainda nao implementado.`;
 }
 
 function extrairAtributoHtml(tag, nome) {
@@ -406,7 +419,10 @@ async function garantirAbasLoginVisium(context, hfcPage) {
 
 async function aguardarVisiumLogado(page) {
   const temCidade = async () => await page.locator("select[id*='ddlCidade'], select[name*='ddlCidade']").count().catch(() => 0);
-  if (await temCidade()) return;
+  if (await temCidade()) {
+    await garantirAbasLoginVisium(page.context(), page);
+    return;
+  }
 
   console.log(`[Visium Helper] Abrindo login HFC: ${VISIUM_LOGIN_URL}`);
   console.log(`[Visium Helper] Login GPON informado: ${VISIUM_GPON_LOGIN_URL}`);
@@ -415,13 +431,19 @@ async function aguardarVisiumLogado(page) {
 
   const limite = Date.now() + VISIUM_LOGIN_WAIT_MS;
   while (Date.now() < limite) {
-    if (await temCidade()) return;
+    if (await temCidade()) {
+      await garantirAbasLoginVisium(page.context(), page);
+      return;
+    }
 
     const html = await page.content().catch(() => '');
     const urlAtual = String(page.url() || '').toLowerCase();
     if (!pareceLogin(html) && !urlAtual.includes('/login')) {
       await page.goto(VISIUM_BASE_URL, { waitUntil: 'domcontentloaded', timeout: VISIUM_TIMEOUT_MS }).catch(() => {});
-      if (await temCidade()) return;
+      if (await temCidade()) {
+        await garantirAbasLoginVisium(page.context(), page);
+        return;
+      }
     }
 
     await page.waitForTimeout(2000);
@@ -727,6 +749,12 @@ async function validarTopologias(itens) {
     }
 
     for (const node of nodes) {
+      if (!ehNodeHfcConsultaNode(node)) {
+        const mensagem = motivoGponPendente(node);
+        consultas.push({ node, cidade, status: 'indeterminado', erro: mensagem, tipo: 'gpon-pendente' });
+        avisos.push(`${cidade}/${node}: ${mensagem}`);
+        continue;
+      }
       if (falhaGlobalVisium) {
         consultas.push({ node, cidade, status: 'indeterminado', erro: falhaGlobalVisium });
         continue;
@@ -744,9 +772,12 @@ async function validarTopologias(itens) {
     }
 
     const consultasValidas = consultas.filter((consulta) => consulta.status === 'up' || consulta.status === 'down');
+    const consultasGponPendentes = consultas.filter((consulta) => consulta.tipo === 'gpon-pendente');
     let status = 'indeterminado';
-    if (consultasValidas.length > 0 && consultasValidas.length === consultas.length) {
-      status = consultasValidas.every((consulta) => consulta.status === 'up') ? 'up' : 'down';
+    if (consultasValidas.some((consulta) => consulta.status === 'down')) {
+      status = 'down';
+    } else if (consultasValidas.length > 0 && consultasValidas.length === consultas.length) {
+      status = 'up';
     }
 
     resultados.push({
@@ -757,7 +788,9 @@ async function validarTopologias(itens) {
       status,
       site: 'Visium Local',
       sitesConsultados: ['Visium Live via helper local'],
-      motivo: status === 'indeterminado' ? 'Visium local nao retornou diagnostico completo para todos os nodes' : null,
+      motivo: status === 'indeterminado'
+        ? (consultasGponPendentes.length ? 'NAP/GPON nao foi consultado no HFC; motor GPON pendente' : 'Visium local nao retornou diagnostico completo para todos os nodes')
+        : null,
       consultas,
       testadoEm
     });
