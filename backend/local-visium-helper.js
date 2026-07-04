@@ -16,7 +16,7 @@ const fetch = require('node-fetch');
 const https = require('https');
 const path = require('path');
 
-const HELPER_VERSION = '2026-07-04-cookie-isolation';
+const HELPER_VERSION = '2026-07-04-stable-wait';
 const PORT = Number(process.env.VISIUM_HELPER_PORT || 4789);
 const HOST = process.env.VISIUM_HELPER_HOST || '127.0.0.1';
 const VISIUM_BASE_URL = process.env.VISIUM_BASE_URL || 'http://201.55.234.76/Consultas_/ConsultaInterfaceNode';
@@ -489,6 +489,16 @@ async function aguardarOpcaoNodeAlvo(page, node) {
   throw new Error(`ddlNode nao encontrou ${node} apos aguardar lista carregar (${qtd} opcoes${amostra})`);
 }
 
+async function assinaturaTabelaHfc(page) {
+  return await page.evaluate(() => {
+    const table = Array.from(document.querySelectorAll('table')).find((item) => {
+      const texto = (item.textContent || '').toLowerCase();
+      return texto.includes('cm-r') || texto.includes('cmr') || texto.includes('node');
+    });
+    return table ? String(table.textContent || '').replace(/\s+/g, ' ').trim().slice(0, 4000) : '';
+  }).catch(() => '');
+}
+
 async function consultarVisiumNodeBrowserUmaVez(cidade, node) {
   const page = await obterPaginaVisium();
   await page.goto(VISIUM_BASE_URL, { waitUntil: 'domcontentloaded', timeout: VISIUM_TIMEOUT_MS });
@@ -509,7 +519,7 @@ async function consultarVisiumNodeBrowserUmaVez(cidade, node) {
     nodeOpt = await escolherSelectBrowser(page, 'ddlNode', node);
   } catch (error) {
     if (/ddlNode nao encontr/i.test(error.message || '')) {
-      throw new Error(`node nao encontrado no HFC/ConsultaInterfaceNode: ${node}. Se for GPON, o motor GPON ainda nao esta implementado.`);
+      throw new Error(`node nao encontrado no HFC/ConsultaInterfaceNode: ${node}. Se for NAP/GPON, ele deve ser consultado no motor GPON.`);
     }
     throw error;
   }
@@ -521,6 +531,7 @@ async function consultarVisiumNodeBrowserUmaVez(cidade, node) {
     }
   });
 
+  const assinaturaAnterior = await assinaturaTabelaHfc(page);
   const consultou = await page.evaluate(() => {
     const btn = document.querySelector("input[id*='btn_consultar'], button[id*='btn_consultar'], input[name*='btn_consultar'], button[name*='btn_consultar']") ||
       Array.from(document.querySelectorAll('input[type=submit], button')).find((item) => /consultar/i.test(item.value || item.textContent || ''));
@@ -535,8 +546,10 @@ async function consultarVisiumNodeBrowserUmaVez(cidade, node) {
   while (Date.now() - inicio < VISIUM_TIMEOUT_MS) {
     await page.waitForLoadState('networkidle', { timeout: 5000 }).catch(() => {});
     await page.waitForTimeout(VISIUM_AFTER_QUERY_WAIT_MS);
-    tabela = lerTabelaVisium(await page.content());
-    if (tabela.found) break;
+    const html = await page.content();
+    const assinaturaAtual = await assinaturaTabelaHfc(page);
+    tabela = lerTabelaVisium(html);
+    if (tabela.found && (assinaturaAtual !== assinaturaAnterior || Date.now() - inicio > 5000)) break;
   }
   if (!tabela.found) throw new Error('tabela de resultado do Visium vazia ou nao encontrada');
 
@@ -593,7 +606,7 @@ async function consultarVisiumNode(cidade, node) {
   const campoNode = encontrarNomeCampo(cidadeResp.text, 'ddlNode') || campoNodeInicial;
   const nodeOpt = escolherOpcao(extrairOpcoesSelect(cidadeResp.text, 'ddlNode'), node);
   if (!campoNode || !nodeOpt) {
-    throw new Error(`node nao encontrado no HFC/ConsultaInterfaceNode: ${node}. Se for GPON, o motor GPON ainda nao esta implementado.`);
+    throw new Error(`node nao encontrado no HFC/ConsultaInterfaceNode: ${node}. Se for NAP/GPON, ele deve ser consultado no motor GPON.`);
   }
 
   const campoConsultar = encontrarNomeCampo(cidadeResp.text, 'btn_consultar') ||
@@ -650,10 +663,46 @@ async function aguardarGponLogado(page) {
   throw new Error('login no Vision GPON nao concluido dentro do tempo limite');
 }
 
+async function assinaturaTabelaGpon(page) {
+  return await page.evaluate(() => {
+    const table = document.querySelector("#tableModemAssinante, table[id*='ModemAssinante'], table.display");
+    if (!table) return '';
+    return String(table.textContent || '').replace(/\s+/g, ' ').trim().slice(0, 6000);
+  }).catch(() => '');
+}
+
+async function aguardarLoadingGponSumir(page, timeoutMs = 20000) {
+  const inicio = Date.now();
+  await page.waitForTimeout(300);
+  while (Date.now() - inicio < timeoutMs) {
+    const carregando = await page.evaluate(() => {
+      const visivel = (el) => !!(el && el.offsetParent !== null && el.offsetWidth > 0 && el.offsetHeight > 0);
+      const proc = document.querySelector("#tableModemAssinante_processing, .dataTables_processing");
+      if (visivel(proc)) return true;
+      let nodes = document.querySelectorAll("[id*='UpdateProgress' i],[id*='Progress' i],[id*='loading' i],[class*='loading' i]");
+      for (const el of nodes) {
+        if (visivel(el) && /carregando|loading|processando|processing|aguarde/i.test(el.textContent || '')) return true;
+      }
+      nodes = document.querySelectorAll('div,span,p,td,b,h4');
+      for (const el of nodes) {
+        if (el.children.length) continue;
+        const texto = (el.textContent || '').trim().toLowerCase();
+        if ((texto === 'carregando' || texto === 'carregando...' || texto === 'processando' || texto === 'processando...' || texto === 'aguarde...') && visivel(el)) return true;
+      }
+      return false;
+    }).catch(() => false);
+    if (!carregando) return true;
+    await page.waitForTimeout(250);
+  }
+  return false;
+}
+
 async function prepararConsultaGpon(page, cidade, naps) {
   const cidadeOpt = await escolherSelectBrowser(page, 'cidade', cidade);
   await page.waitForLoadState('networkidle', { timeout: VISIUM_TIMEOUT_MS }).catch(() => {});
   await page.waitForTimeout(1500);
+  await aguardarLoadingGponSumir(page, 15000);
+  const assinaturaAnterior = await assinaturaTabelaGpon(page);
 
   const preparado = await page.evaluate((textoNaps) => {
     const pick = (sels) => {
@@ -692,33 +741,72 @@ async function prepararConsultaGpon(page, cidade, naps) {
   }, (naps || []).join('\n'));
 
   if (!preparado.ok) throw new Error(preparado.erro || 'falha ao preparar consulta GPON');
-  return cidadeOpt;
+  return { cidadeOpt, assinaturaAnterior };
 }
 
-async function aguardarResultadoGpon(page, quantidadeNaps) {
-  const esperado = VISIUM_GPON_QUERY_BASE_MS + VISIUM_GPON_QUERY_PER_NAP_MS * Math.max(1, quantidadeNaps || 1);
+async function aguardarResultadoGpon(page, naps, assinaturaAnterior = '') {
+  const lista = Array.from(new Set((naps || []).map((nap) => compactarCodigo(nap)).filter(Boolean)));
+  const quantidadeNaps = lista.length || 1;
+  const esperado = VISIUM_GPON_QUERY_BASE_MS + VISIUM_GPON_QUERY_PER_NAP_MS * Math.max(1, quantidadeNaps);
   const maxWait = esperado + VISIUM_GPON_QUERY_MARGIN_MS;
+  const minEmpty = Math.min(esperado, 40000);
+  const loadingApareceu = await page.waitForFunction(() => {
+    const visivel = (el) => !!(el && el.offsetParent !== null && el.offsetWidth > 0 && el.offsetHeight > 0);
+    const proc = document.querySelector("#tableModemAssinante_processing, .dataTables_processing");
+    if (visivel(proc)) return true;
+    const nodes = document.querySelectorAll("[id*='UpdateProgress' i],[id*='Progress' i],[id*='loading' i],[class*='loading' i]");
+    for (const el of nodes) {
+      if (visivel(el) && /carregando|loading|processando|processing|aguarde/i.test(el.textContent || '')) return true;
+    }
+    return false;
+  }, null, { timeout: 15000 }).then(() => true).catch(() => false);
   const inicio = Date.now();
   let estado = 'timeout';
 
   while (Date.now() - inicio < maxWait) {
-    estado = await page.evaluate(() => {
+    const leitura = await page.evaluate(({ esperados, assinaturaAnteriorEval }) => {
+      const compactar = (v) => String(v || '')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toUpperCase()
+        .replace(/[^A-Z0-9]/g, '');
       const visivel = (el) => !!(el && el.offsetParent !== null && el.offsetWidth > 0 && el.offsetHeight > 0);
       const proc = document.querySelector("#tableModemAssinante_processing, .dataTables_processing");
-      if (visivel(proc)) return 'loading';
+      if (visivel(proc)) return { estado: 'loading', assinatura: '' };
+      let nodes = document.querySelectorAll("[id*='UpdateProgress' i],[id*='Progress' i],[id*='loading' i],[class*='loading' i]");
+      for (const el of nodes) {
+        if (visivel(el) && /carregando|loading|processando|processing|aguarde/i.test(el.textContent || '')) {
+          return { estado: 'loading', assinatura: '' };
+        }
+      }
       const table = document.querySelector("#tableModemAssinante, table[id*='ModemAssinante'], table.display");
-      if (!table) return 'waiting';
+      if (!table) return { estado: 'waiting', assinatura: '' };
+      const assinatura = String(table.textContent || '').replace(/\s+/g, ' ').trim().slice(0, 6000);
       const rows = Array.from(table.querySelectorAll('tbody tr'));
       const dataRows = rows.filter((tr) => tr.querySelectorAll('td').length > 1 && !tr.querySelector('.dataTables_empty'));
-      if (dataRows.length) return 'data';
+      if (dataRows.length) {
+        const texto = compactar(dataRows.map((tr) => tr.textContent || '').join(' '));
+        const temEsperado = esperados.length === 0 || esperados.some((nap) => texto.includes(nap));
+        const mudou = assinatura && assinatura !== assinaturaAnteriorEval;
+        return {
+          estado: temEsperado || mudou ? 'data' : 'stale',
+          assinatura,
+          rows: dataRows.length,
+          temEsperado,
+          mudou
+        };
+      }
       const txt = (table.textContent || '').toLowerCase();
-      if (/no data available|nenhum registro|sem registros/.test(txt)) return 'empty';
-      return 'waiting';
-    }).catch(() => 'waiting');
+      if (/no data available|nenhum registro|sem registros/.test(txt)) return { estado: 'empty', assinatura };
+      return { estado: 'waiting', assinatura };
+    }, { esperados: lista, assinaturaAnteriorEval: assinaturaAnterior }).catch(() => ({ estado: 'waiting', assinatura: '' }));
+
+    estado = leitura.estado;
 
     if (estado === 'data') break;
-    if (estado === 'empty' && Date.now() - inicio > Math.min(esperado, 40000)) break;
-    await page.waitForTimeout(700);
+    if (estado === 'empty' && Date.now() - inicio > minEmpty) break;
+    if (estado === 'stale' && loadingApareceu && Date.now() - inicio > Math.min(esperado, 30000)) break;
+    await page.waitForTimeout(600);
   }
 
   await page.evaluate(() => {
@@ -730,7 +818,7 @@ async function aguardarResultadoGpon(page, quantidadeNaps) {
   }).catch(() => {});
   await page.waitForTimeout(900);
 
-  return { estado, waitMs: Date.now() - inicio, esperado };
+  return { estado, waitMs: Date.now() - inicio, esperado, loadingApareceu };
 }
 
 async function lerResultadoGpon(page) {
@@ -800,8 +888,8 @@ async function consultarGponNaps(cidade, naps) {
 
   const page = await obterPaginaGpon();
   await aguardarGponLogado(page);
-  const cidadeOpt = await prepararConsultaGpon(page, cidade, lista);
-  const espera = await aguardarResultadoGpon(page, lista.length);
+  const { cidadeOpt, assinaturaAnterior } = await prepararConsultaGpon(page, cidade, lista);
+  const espera = await aguardarResultadoGpon(page, lista, assinaturaAnterior);
   const resultado = await lerResultadoGpon(page);
   if (!resultado.found) {
     throw new Error(resultado.erro || `consulta GPON sem dados (${espera.estado}, ${Math.round(espera.waitMs / 1000)}s)`);

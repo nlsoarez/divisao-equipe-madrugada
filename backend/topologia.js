@@ -78,7 +78,7 @@ function ehNodeHfcConsultaNode(valor) {
 }
 
 function motivoGponPendente(node) {
-  return `NAP/GPON pendente: ${node} nao deve ser pesquisado na tela HFC ConsultaInterfaceNode. Motor GPON ainda nao implementado.`;
+  return `NAP/GPON pendente: ${node} nao deve ser pesquisado na tela HFC ConsultaInterfaceNode.`;
 }
 
 /**
