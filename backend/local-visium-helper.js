@@ -16,7 +16,7 @@ const fetch = require('node-fetch');
 const https = require('https');
 const path = require('path');
 
-const HELPER_VERSION = '2026-07-04-gpon-engine';
+const HELPER_VERSION = '2026-07-04-cookie-isolation';
 const PORT = Number(process.env.VISIUM_HELPER_PORT || 4789);
 const HOST = process.env.VISIUM_HELPER_HOST || '127.0.0.1';
 const VISIUM_BASE_URL = process.env.VISIUM_BASE_URL || 'http://201.55.234.76/Consultas_/ConsultaInterfaceNode';
@@ -33,14 +33,21 @@ const VISIUM_GPON_QUERY_BASE_MS = Number(process.env.VISIUM_GPON_QUERY_BASE_MS |
 const VISIUM_GPON_QUERY_PER_NAP_MS = Number(process.env.VISIUM_GPON_QUERY_PER_NAP_MS || 2500);
 const VISIUM_GPON_QUERY_MARGIN_MS = Number(process.env.VISIUM_GPON_QUERY_MARGIN_MS || 120000);
 const VISIUM_BROWSER_ENABLED = String(process.env.VISIUM_BROWSER_ENABLED || '1') !== '0';
-const VISIUM_BROWSER_PROFILE = process.env.VISIUM_BROWSER_PROFILE ||
+const VISIUM_BROWSER_PROFILE_BASE = process.env.VISIUM_BROWSER_PROFILE ||
   path.join(process.env.USERPROFILE || process.cwd(), 'visium-helper', 'browser-profile');
+const VISIUM_BROWSER_PROFILE_HFC = process.env.VISIUM_BROWSER_PROFILE_HFC ||
+  `${VISIUM_BROWSER_PROFILE_BASE}-hfc`;
+const VISIUM_BROWSER_PROFILE_GPON = process.env.VISIUM_BROWSER_PROFILE_GPON ||
+  `${VISIUM_BROWSER_PROFILE_BASE}-gpon`;
 const BACKEND_URL_DEFAULT = process.env.CENTRAL_BACKEND_URL || 'https://divisao-equipe-madrugada-production.up.railway.app';
 const CENTRAL_BACKEND_TLS_INSEGURO = String(process.env.CENTRAL_BACKEND_TLS_INSEGURO || '1') !== '0';
 const ORIGEM_FRONTEND = 'admin-manual-v6';
 const ORIGEM_REGISTRO = 'local-helper-v1';
 const centralBackendAgent = CENTRAL_BACKEND_TLS_INSEGURO ? new https.Agent({ rejectUnauthorized: false }) : null;
-let browserContextPromise = null;
+const browserContextPromises = {
+  hfc: null,
+  gpon: null
+};
 
 const app = express();
 app.use(cors({ origin: true }));
@@ -134,19 +141,28 @@ async function postarFormulario(cliente, html, camposExtras) {
   });
 }
 
-async function obterBrowserContext() {
+function normalizarTipoVisium(tipo) {
+  return tipo === 'gpon' ? 'gpon' : 'hfc';
+}
+
+function perfilBrowserVisium(tipo) {
+  return normalizarTipoVisium(tipo) === 'gpon' ? VISIUM_BROWSER_PROFILE_GPON : VISIUM_BROWSER_PROFILE_HFC;
+}
+
+async function obterBrowserContext(tipo = 'hfc') {
+  const chave = normalizarTipoVisium(tipo);
   if (!VISIUM_BROWSER_ENABLED) throw new Error('modo navegador do helper esta desativado');
-  if (browserContextPromise) {
+  if (browserContextPromises[chave]) {
     try {
-      const context = await browserContextPromise;
+      const context = await browserContextPromises[chave];
       context.pages();
       return context;
     } catch (_) {
-      browserContextPromise = null;
+      browserContextPromises[chave] = null;
     }
   }
 
-  browserContextPromise = (async () => {
+  browserContextPromises[chave] = (async () => {
     let chromium;
     try {
       ({ chromium } = require('playwright-core'));
@@ -162,7 +178,7 @@ async function obterBrowserContext() {
     let ultimoErro = null;
     for (const channel of canais) {
       try {
-        const context = await chromium.launchPersistentContext(VISIUM_BROWSER_PROFILE, {
+        const context = await chromium.launchPersistentContext(perfilBrowserVisium(chave), {
           channel,
           headless: false,
           viewport: { width: 1200, height: 800 },
@@ -170,7 +186,7 @@ async function obterBrowserContext() {
           args: ['--window-size=1200,800']
         });
         context.on('close', () => {
-          browserContextPromise = null;
+          browserContextPromises[chave] = null;
         });
         return context;
       } catch (error) {
@@ -180,12 +196,12 @@ async function obterBrowserContext() {
     throw new Error(`nao foi possivel abrir Edge/Chrome via Playwright: ${ultimoErro?.message || 'erro desconhecido'}`);
   })();
 
-  return browserContextPromise;
+  return browserContextPromises[chave];
 }
 
 async function obterPaginaVisium() {
   for (let tentativa = 0; tentativa < 2; tentativa += 1) {
-    const context = await obterBrowserContext();
+    const context = await obterBrowserContext('hfc');
     try {
       const paginas = context.pages().filter((pagina) => !pagina.isClosed());
       const page = paginas.find((pagina) => {
@@ -195,7 +211,7 @@ async function obterPaginaVisium() {
       page.setDefaultTimeout(VISIUM_TIMEOUT_MS);
       return page;
     } catch (error) {
-      browserContextPromise = null;
+      browserContextPromises.hfc = null;
       if (tentativa === 1) throw error;
     }
   }
@@ -247,20 +263,23 @@ async function detalhesPagina(page) {
 }
 
 async function prepararAbasVisium() {
-  const context = await obterBrowserContext();
-  const reservadas = new Set();
-  const hfcPage = await obterOuCriarPagina(context, (pagina) => {
+  const hfcContext = await obterBrowserContext('hfc');
+  const gponContext = await obterBrowserContext('gpon');
+  const hfcReservadas = new Set();
+  const gponReservadas = new Set();
+
+  const hfcPage = await obterOuCriarPagina(hfcContext, (pagina) => {
     const url = String(pagina.url() || '').toLowerCase();
     return url.includes('consultainterfacenode') || (url.includes('201.55.234.76') && !url.includes(':8080'));
-  }, reservadas);
-  reservadas.add(hfcPage);
+  }, hfcReservadas);
+  hfcReservadas.add(hfcPage);
   hfcPage.setDefaultTimeout(VISIUM_TIMEOUT_MS);
   await hfcPage.goto(VISIUM_BASE_URL, { waitUntil: 'domcontentloaded', timeout: VISIUM_TIMEOUT_MS }).catch(() => {});
 
-  const gponPage = await obterOuCriarPagina(context, (pagina) => {
+  const gponPage = await obterOuCriarPagina(gponContext, (pagina) => {
     return String(pagina.url() || '').toLowerCase().includes(':8080');
-  }, reservadas);
-  reservadas.add(gponPage);
+  }, gponReservadas);
+  gponReservadas.add(gponPage);
   gponPage.setDefaultTimeout(VISIUM_TIMEOUT_MS);
   const destinoGpon = VISIUM_GPON_CONSULTA_URL || VISIUM_GPON_LOGIN_URL;
   const urlGponAtual = String(gponPage.url() || '').toLowerCase();
@@ -268,8 +287,14 @@ async function prepararAbasVisium() {
     await gponPage.goto(destinoGpon, { waitUntil: 'domcontentloaded', timeout: VISIUM_TIMEOUT_MS }).catch(() => {});
   }
 
-  for (const pagina of context.pages()) {
-    if (!pagina.isClosed() && !reservadas.has(pagina) && paginaEmBranco(pagina)) {
+  for (const pagina of hfcContext.pages()) {
+    if (!pagina.isClosed() && !hfcReservadas.has(pagina) && paginaEmBranco(pagina)) {
+      await pagina.close().catch(() => {});
+    }
+  }
+
+  for (const pagina of gponContext.pages()) {
+    if (!pagina.isClosed() && !gponReservadas.has(pagina) && paginaEmBranco(pagina)) {
       await pagina.close().catch(() => {});
     }
   }
@@ -280,15 +305,7 @@ async function prepararAbasVisium() {
   };
 }
 
-async function garantirAbasLoginVisium(context, hfcPage) {
-  const paginas = context.pages().filter((pagina) => !pagina.isClosed());
-  const temGpon = paginas.some((pagina) => String(pagina.url() || '').toLowerCase().includes(':8080'));
-  if (!temGpon && VISIUM_GPON_LOGIN_URL) {
-    const gponPage = await context.newPage();
-    gponPage.setDefaultTimeout(VISIUM_TIMEOUT_MS);
-    await gponPage.goto(VISIUM_GPON_LOGIN_URL, { waitUntil: 'domcontentloaded', timeout: VISIUM_TIMEOUT_MS }).catch(() => {});
-  }
-
+async function garantirLoginHfcVisium(hfcPage) {
   const urlHfc = String(hfcPage.url() || '').toLowerCase();
   if (!urlHfc.includes('201.55.234.76') || urlHfc.includes(':8080')) {
     await hfcPage.goto(VISIUM_LOGIN_URL, { waitUntil: 'domcontentloaded', timeout: VISIUM_TIMEOUT_MS }).catch(() => {});
@@ -296,25 +313,29 @@ async function garantirAbasLoginVisium(context, hfcPage) {
 }
 
 async function abrirAbaGponParaLogin() {
-  return (await prepararAbasVisium()).gpon;
+  const context = await obterBrowserContext('gpon');
+  const page = await obterOuCriarPagina(context, (pagina) => String(pagina.url() || '').toLowerCase().includes(':8080'));
+  page.setDefaultTimeout(VISIUM_TIMEOUT_MS);
+  await page.goto(VISIUM_GPON_LOGIN_URL, { waitUntil: 'domcontentloaded', timeout: VISIUM_TIMEOUT_MS }).catch(() => {});
+  return await resumoPagina(page);
 }
 
 async function aguardarVisiumLogado(page) {
   const temCidade = async () => await page.locator("select[id*='ddlCidade'], select[name*='ddlCidade']").count().catch(() => 0);
   if (await temCidade()) {
-    await garantirAbasLoginVisium(page.context(), page);
+    await garantirLoginHfcVisium(page);
     return;
   }
 
   console.log(`[Visium Helper] Abrindo login HFC: ${VISIUM_LOGIN_URL}`);
   console.log(`[Visium Helper] Login GPON informado: ${VISIUM_GPON_LOGIN_URL}`);
-  console.log('[Visium Helper] Faca login nas abas HFC e GPON se necessario. A validacao automatica atual consulta HFC/Consulta Interface Node.');
-  await garantirAbasLoginVisium(page.context(), page);
+  console.log('[Visium Helper] HFC e GPON usam perfis separados para isolar cookies, igual ao comportamento esperado da extensao.');
+  await garantirLoginHfcVisium(page);
 
   const limite = Date.now() + VISIUM_LOGIN_WAIT_MS;
   while (Date.now() < limite) {
     if (await temCidade()) {
-      await garantirAbasLoginVisium(page.context(), page);
+      await garantirLoginHfcVisium(page);
       return;
     }
 
@@ -323,7 +344,7 @@ async function aguardarVisiumLogado(page) {
     if (!pareceLogin(html) && !urlAtual.includes('/login')) {
       await page.goto(VISIUM_BASE_URL, { waitUntil: 'domcontentloaded', timeout: VISIUM_TIMEOUT_MS }).catch(() => {});
       if (await temCidade()) {
-        await garantirAbasLoginVisium(page.context(), page);
+        await garantirLoginHfcVisium(page);
         return;
       }
     }
@@ -543,7 +564,7 @@ async function consultarVisiumNodeBrowser(cidade, node) {
       if (!/Target page|context or browser has been closed|browser has been closed|crashed/i.test(mensagem)) {
         throw error;
       }
-      browserContextPromise = null;
+      browserContextPromises.hfc = null;
     }
   }
   throw ultimoErro;
@@ -602,7 +623,7 @@ async function consultarVisiumNode(cidade, node) {
 }
 
 async function obterPaginaGpon() {
-  const context = await obterBrowserContext();
+  const context = await obterBrowserContext('gpon');
   const page = await obterOuCriarPagina(context, (pagina) => {
     return String(pagina.url() || '').toLowerCase().includes(':8080');
   });
@@ -858,6 +879,10 @@ app.get('/health', (req, res) => {
     visiumLoginUrl: VISIUM_LOGIN_URL,
     visiumGponLoginUrl: VISIUM_GPON_LOGIN_URL,
     visiumGponConsultaUrl: VISIUM_GPON_CONSULTA_URL || null,
+    browserProfiles: {
+      hfc: VISIUM_BROWSER_PROFILE_HFC,
+      gpon: VISIUM_BROWSER_PROFILE_GPON
+    },
     timeoutMs: VISIUM_TIMEOUT_MS,
     nodeOptionWaitMs: VISIUM_NODE_OPTION_WAIT_MS,
     nodeStableMs: VISIUM_NODE_STABLE_MS,
@@ -870,12 +895,17 @@ app.get('/health', (req, res) => {
 app.get('/debug/visium-pages', async (req, res) => {
   try {
     const abas = await prepararAbasVisium();
-    const context = await obterBrowserContext();
-    const hfcPage = context.pages().find((pagina) => !pagina.isClosed() && pagina.url() === abas.hfc.url);
-    const gponPage = context.pages().find((pagina) => !pagina.isClosed() && pagina.url() === abas.gpon.url);
+    const hfcContext = await obterBrowserContext('hfc');
+    const gponContext = await obterBrowserContext('gpon');
+    const hfcPage = hfcContext.pages().find((pagina) => !pagina.isClosed() && pagina.url() === abas.hfc.url);
+    const gponPage = gponContext.pages().find((pagina) => !pagina.isClosed() && pagina.url() === abas.gpon.url);
     res.json({
       sucesso: true,
       version: HELPER_VERSION,
+      browserProfiles: {
+        hfc: VISIUM_BROWSER_PROFILE_HFC,
+        gpon: VISIUM_BROWSER_PROFILE_GPON
+      },
       hfc: hfcPage ? await detalhesPagina(hfcPage) : abas.hfc,
       gpon: gponPage ? await detalhesPagina(gponPage) : abas.gpon
     });
@@ -902,6 +932,8 @@ app.listen(PORT, HOST, () => {
   console.log(`[Visium Helper] Online em http://${HOST}:${PORT}`);
   console.log(`[Visium Helper] HFC: ${VISIUM_BASE_URL}`);
   console.log(`[Visium Helper] GPON login: ${VISIUM_GPON_LOGIN_URL}`);
+  console.log(`[Visium Helper] Perfil HFC: ${VISIUM_BROWSER_PROFILE_HFC}`);
+  console.log(`[Visium Helper] Perfil GPON: ${VISIUM_BROWSER_PROFILE_GPON}`);
   console.log(`[Visium Helper] Backend central: ${BACKEND_URL_DEFAULT}`);
   console.log('[Visium Helper] TLS do backend central: modo compativel com certificado corporativo');
 });
