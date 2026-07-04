@@ -16,10 +16,12 @@ const fetch = require('node-fetch');
 const https = require('https');
 const path = require('path');
 
-const HELPER_VERSION = '2026-07-04-browser-session';
+const HELPER_VERSION = '2026-07-04-browser-reopen';
 const PORT = Number(process.env.VISIUM_HELPER_PORT || 4789);
 const HOST = process.env.VISIUM_HELPER_HOST || '127.0.0.1';
 const VISIUM_BASE_URL = process.env.VISIUM_BASE_URL || 'http://201.55.234.76/Consultas_/ConsultaInterfaceNode';
+const VISIUM_LOGIN_URL = process.env.VISIUM_LOGIN_URL || 'http://201.55.234.76/';
+const VISIUM_GPON_LOGIN_URL = process.env.VISIUM_GPON_LOGIN_URL || 'http://201.55.234.76:8080/Login';
 const VISIUM_TIMEOUT_MS = Number(process.env.VISIUM_TIMEOUT_MS || 25000);
 const VISIUM_LOGIN_WAIT_MS = Number(process.env.VISIUM_LOGIN_WAIT_MS || 180000);
 const VISIUM_BROWSER_ENABLED = String(process.env.VISIUM_BROWSER_ENABLED || '1') !== '0';
@@ -312,7 +314,15 @@ function lerTabelaVisium(html) {
 
 async function obterBrowserContext() {
   if (!VISIUM_BROWSER_ENABLED) throw new Error('modo navegador do helper esta desativado');
-  if (browserContextPromise) return browserContextPromise;
+  if (browserContextPromise) {
+    try {
+      const context = await browserContextPromise;
+      context.pages();
+      return context;
+    } catch (_) {
+      browserContextPromise = null;
+    }
+  }
 
   browserContextPromise = (async () => {
     let chromium;
@@ -330,13 +340,17 @@ async function obterBrowserContext() {
     let ultimoErro = null;
     for (const channel of canais) {
       try {
-        return await chromium.launchPersistentContext(VISIUM_BROWSER_PROFILE, {
+        const context = await chromium.launchPersistentContext(VISIUM_BROWSER_PROFILE, {
           channel,
           headless: false,
           viewport: null,
           ignoreHTTPSErrors: true,
           args: ['--start-maximized']
         });
+        context.on('close', () => {
+          browserContextPromise = null;
+        });
+        return context;
       } catch (error) {
         ultimoErro = error;
       }
@@ -348,21 +362,48 @@ async function obterBrowserContext() {
 }
 
 async function obterPaginaVisium() {
-  const context = await obterBrowserContext();
-  const paginas = context.pages();
-  const page = paginas[0] || await context.newPage();
-  page.setDefaultTimeout(VISIUM_TIMEOUT_MS);
-  return page;
+  for (let tentativa = 0; tentativa < 2; tentativa += 1) {
+    const context = await obterBrowserContext();
+    try {
+      const paginas = context.pages().filter((pagina) => !pagina.isClosed());
+      const page = paginas[0] || await context.newPage();
+      page.setDefaultTimeout(VISIUM_TIMEOUT_MS);
+      return page;
+    } catch (error) {
+      browserContextPromise = null;
+      if (tentativa === 1) throw error;
+    }
+  }
+  throw new Error('nao foi possivel abrir pagina do navegador local');
 }
 
 async function aguardarVisiumLogado(page) {
   const temCidade = async () => await page.locator("select[id*='ddlCidade'], select[name*='ddlCidade']").count().catch(() => 0);
   if (await temCidade()) return;
 
-  console.log('[Visium Helper] Visium abriu tela de login. Faça login no navegador aberto; o helper aguardara a tela Consulta Interface Node.');
-  await page.waitForFunction(() => {
-    return !!document.querySelector("select[id*='ddlCidade'], select[name*='ddlCidade']");
-  }, null, { timeout: VISIUM_LOGIN_WAIT_MS });
+  console.log(`[Visium Helper] Abrindo login HFC: ${VISIUM_LOGIN_URL}`);
+  console.log(`[Visium Helper] Login GPON informado: ${VISIUM_GPON_LOGIN_URL}`);
+  console.log('[Visium Helper] Faca login no navegador aberto. Depois do login, o helper vai abrir a tela Consulta Interface Node automaticamente.');
+  const urlAtualInicial = String(page.url() || '').toLowerCase();
+  if (!urlAtualInicial.includes('201.55.234.76')) {
+    await page.goto(VISIUM_LOGIN_URL, { waitUntil: 'domcontentloaded', timeout: VISIUM_TIMEOUT_MS }).catch(() => {});
+  }
+
+  const limite = Date.now() + VISIUM_LOGIN_WAIT_MS;
+  while (Date.now() < limite) {
+    if (await temCidade()) return;
+
+    const html = await page.content().catch(() => '');
+    const urlAtual = String(page.url() || '').toLowerCase();
+    if (!pareceLogin(html) && !urlAtual.includes('/login')) {
+      await page.goto(VISIUM_BASE_URL, { waitUntil: 'domcontentloaded', timeout: VISIUM_TIMEOUT_MS }).catch(() => {});
+      if (await temCidade()) return;
+    }
+
+    await page.waitForTimeout(2000);
+  }
+
+  throw new Error('login no Vision HFC nao concluido dentro do tempo limite');
 }
 
 async function escolherSelectBrowser(page, fragmento, alvo) {
@@ -434,6 +475,10 @@ async function consultarVisiumNodeBrowser(cidade, node) {
   const page = await obterPaginaVisium();
   await page.goto(VISIUM_BASE_URL, { waitUntil: 'domcontentloaded', timeout: VISIUM_TIMEOUT_MS });
   await aguardarVisiumLogado(page);
+  if (!(await page.locator("select[id*='ddlCidade'], select[name*='ddlCidade']").count().catch(() => 0))) {
+    await page.goto(VISIUM_BASE_URL, { waitUntil: 'domcontentloaded', timeout: VISIUM_TIMEOUT_MS });
+    await aguardarVisiumLogado(page);
+  }
 
   const cidadeOpt = await escolherSelectBrowser(page, 'ddlCidade', cidade);
   await page.waitForLoadState('networkidle', { timeout: VISIUM_TIMEOUT_MS }).catch(() => {});
@@ -620,6 +665,8 @@ app.get('/health', (req, res) => {
     helper: 'visium-local',
     version: HELPER_VERSION,
     visiumBaseUrl: VISIUM_BASE_URL,
+    visiumLoginUrl: VISIUM_LOGIN_URL,
+    visiumGponLoginUrl: VISIUM_GPON_LOGIN_URL,
     timestamp: new Date().toISOString()
   });
 });
@@ -640,7 +687,8 @@ app.post('/api/topologia-validacao/validar', async (req, res) => {
 app.listen(PORT, HOST, () => {
   console.log(`[Visium Helper] Versao: ${HELPER_VERSION}`);
   console.log(`[Visium Helper] Online em http://${HOST}:${PORT}`);
-  console.log(`[Visium Helper] Visium: ${VISIUM_BASE_URL}`);
+  console.log(`[Visium Helper] HFC: ${VISIUM_BASE_URL}`);
+  console.log(`[Visium Helper] GPON login: ${VISIUM_GPON_LOGIN_URL}`);
   console.log(`[Visium Helper] Backend central: ${BACKEND_URL_DEFAULT}`);
   console.log('[Visium Helper] TLS do backend central: modo compativel com certificado corporativo');
 });

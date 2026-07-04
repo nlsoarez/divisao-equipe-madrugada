@@ -40,6 +40,9 @@ $bat = Join-Path $destino "iniciar-visium-helper.bat"
 cd /d "%USERPROFILE%\visium-helper\backend"
 set CENTRAL_BACKEND_TLS_INSEGURO=1
 set NODE_TLS_REJECT_UNAUTHORIZED=0
+set VISIUM_LOGIN_URL=http://201.55.234.76/
+set VISIUM_BASE_URL=http://201.55.234.76/Consultas_/ConsultaInterfaceNode
+set VISIUM_GPON_LOGIN_URL=http://201.55.234.76:8080/Login
 npm run visium-helper
 pause
 "@ | Set-Content -Encoding ASCII $bat
