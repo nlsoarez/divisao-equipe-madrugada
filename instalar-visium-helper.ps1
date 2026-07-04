@@ -1,12 +1,14 @@
 $ErrorActionPreference = "Stop"
 
-$repoRaw = "https://raw.githubusercontent.com/nlsoarez/divisao-equipe-madrugada/main"
+$repoRef = if ($env:VISIUM_HELPER_REF) { $env:VISIUM_HELPER_REF } else { "main" }
+$repoRaw = "https://raw.githubusercontent.com/nlsoarez/divisao-equipe-madrugada/$repoRef"
 $cacheBust = [DateTimeOffset]::UtcNow.ToUnixTimeSeconds()
 $destino = Join-Path $env:USERPROFILE "visium-helper"
 $backend = Join-Path $destino "backend"
 
 Write-Host ""
 Write-Host "Instalando helper local do Visium em: $destino" -ForegroundColor Cyan
+Write-Host "Origem: $repoRef" -ForegroundColor DarkGray
 
 if (-not (Get-Command node -ErrorAction SilentlyContinue)) {
   Write-Host ""
