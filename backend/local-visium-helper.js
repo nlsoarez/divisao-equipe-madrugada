@@ -16,7 +16,7 @@ const fetch = require('node-fetch');
 const https = require('https');
 const path = require('path');
 
-const HELPER_VERSION = '2026-07-04-skip-gpon-in-hfc';
+const HELPER_VERSION = '2026-07-04-no-focus-steal';
 const PORT = Number(process.env.VISIUM_HELPER_PORT || 4789);
 const HOST = process.env.VISIUM_HELPER_HOST || '127.0.0.1';
 const VISIUM_BASE_URL = process.env.VISIUM_BASE_URL || 'http://201.55.234.76/Consultas_/ConsultaInterfaceNode';
@@ -364,9 +364,9 @@ async function obterBrowserContext() {
         const context = await chromium.launchPersistentContext(VISIUM_BROWSER_PROFILE, {
           channel,
           headless: false,
-          viewport: null,
+          viewport: { width: 1200, height: 800 },
           ignoreHTTPSErrors: true,
-          args: ['--start-maximized']
+          args: ['--window-size=1200,800']
         });
         context.on('close', () => {
           browserContextPromise = null;
@@ -414,7 +414,6 @@ async function garantirAbasLoginVisium(context, hfcPage) {
   if (!urlHfc.includes('201.55.234.76') || urlHfc.includes(':8080')) {
     await hfcPage.goto(VISIUM_LOGIN_URL, { waitUntil: 'domcontentloaded', timeout: VISIUM_TIMEOUT_MS }).catch(() => {});
   }
-  await hfcPage.bringToFront().catch(() => {});
 }
 
 async function aguardarVisiumLogado(page) {
@@ -588,7 +587,6 @@ async function aguardarOpcaoNodeAlvo(page, node) {
 
 async function consultarVisiumNodeBrowserUmaVez(cidade, node) {
   const page = await obterPaginaVisium();
-  await page.bringToFront().catch(() => {});
   await page.goto(VISIUM_BASE_URL, { waitUntil: 'domcontentloaded', timeout: VISIUM_TIMEOUT_MS });
   await aguardarVisiumLogado(page);
   if (!(await page.locator("select[id*='ddlCidade'], select[name*='ddlCidade']").count().catch(() => 0))) {
