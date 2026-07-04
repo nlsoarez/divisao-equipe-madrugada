@@ -11308,23 +11308,34 @@ executarValidacaoTopologia = async function(manual = false) {
       return;
     }
 
-    // Falha global do Visium (VPN/login/timeout): nada foi realmente testado.
-    // Não anunciar sucesso — orientar a ligar o helper local.
+    // Nenhum diagnóstico UP/DOWN no ciclo => nada foi realmente testado,
+    // independente do caminho (helper local ou backend central).
+    // Não anunciar sucesso — mostrar o motivo real.
     const ciclo = data.resultadosCiclo || [];
-    const todosIndeterminados = ciclo.length > 0 && ciclo.every(r => r.status === 'indeterminado');
-    if (data.falhaGlobalVisium || (!viaHelper && todosIndeterminados)) {
+    const comDiagnostico = ciclo.filter(r => r.status === 'up' || r.status === 'down').length;
+    const indeterminados = ciclo.length - comDiagnostico;
+    if (data.falhaGlobalVisium || (ciclo.length > 0 && comDiagnostico === 0)) {
+      const soGpon = !data.falhaGlobalVisium && ciclo.every(r => /GPON/i.test(r.motivo || ''));
+      if (soGpon) {
+        atualizarMensagemValidacaoTopologia(
+          `<i class="bi bi-info-circle me-1"></i>Somente NAPs GPON no ciclo — a consulta GPON ainda não foi implementada, nenhum node HFC para testar.`
+        );
+        if (manual) showToast('Somente NAPs GPON — motor GPON pendente, nada foi testado no HFC.', 'info');
+        return;
+      }
       const origemTxt = viaHelper ? 'pelo helper local' : 'pelo backend central (Railway não está na VPN)';
-      const detalhe = data.falhaGlobalVisium || 'sem diagnóstico para nenhum node';
+      const detalhe = data.falhaGlobalVisium || (data.avisos && data.avisos[0]) || 'sem diagnóstico para nenhum node';
       atualizarMensagemValidacaoTopologia(
-        `<i class="bi bi-plug me-1"></i>Visium inacessível ${origemTxt}: <span class="text-danger">${escapeHtml(detalhe)}</span> — inicie o helper local na máquina com VPN e clique em Testar novamente.`
+        `<i class="bi bi-plug me-1"></i>Visium inacessível ${origemTxt}: <span class="text-danger">${escapeHtml(detalhe)}</span> — ${viaHelper ? 'confira o login/VPN na janela do helper (ou reinstale o helper para atualizar)' : 'inicie o helper local na máquina com VPN'} e clique em Testar novamente.`
       );
-      if (manual) showToast('Visium inacessível — nenhum incidente foi realmente testado. Inicie o helper local (VPN).', 'warning');
+      if (manual) showToast('Visium inacessível — nenhum incidente foi realmente testado. ' + (viaHelper ? 'Confira o helper local (login/VPN).' : 'Inicie o helper local (VPN).'), 'warning');
       return;
     }
 
     const total = ciclo.length || itens.length;
     const origemOk = viaHelper ? 'via helper local/VPN' : 'pelo backend central';
-    if (manual) showToast(`${total} topologia(s) testadas no Visium ${origemOk} e salvas para todos`, 'success');
+    const resumoParcial = indeterminados > 0 ? ` (${indeterminados} sem diagnóstico)` : '';
+    if (manual) showToast(`${comDiagnostico || total} topologia(s) testadas no Visium ${origemOk}${resumoParcial} e salvas para todos`, 'success');
   } catch (error) {
     atualizarMensagemValidacaoTopologia(`<i class="bi bi-plug me-1"></i>Erro ao chamar backend de validação: <span class="text-danger">${error.message}</span>`);
     if (manual) showToast('Erro ao testar incidentes: ' + error.message, 'danger');
