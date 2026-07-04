@@ -1,6 +1,7 @@
 $ErrorActionPreference = "Stop"
 
 $repoRaw = "https://raw.githubusercontent.com/nlsoarez/divisao-equipe-madrugada/main"
+$cacheBust = [DateTimeOffset]::UtcNow.ToUnixTimeSeconds()
 $destino = Join-Path $env:USERPROFILE "visium-helper"
 $backend = Join-Path $destino "backend"
 
@@ -22,15 +23,23 @@ if (-not (Get-Command npm -ErrorAction SilentlyContinue)) {
 
 New-Item -ItemType Directory -Force -Path $backend | Out-Null
 
-Invoke-WebRequest "$repoRaw/backend/local-visium-helper.js" -OutFile (Join-Path $backend "local-visium-helper.js")
-Invoke-WebRequest "$repoRaw/backend/package.json" -OutFile (Join-Path $backend "package.json")
-Invoke-WebRequest "$repoRaw/backend/package-lock.json" -OutFile (Join-Path $backend "package-lock.json")
+Get-CimInstance Win32_Process |
+  Where-Object { $_.CommandLine -like "*local-visium-helper.js*" } |
+  ForEach-Object {
+    Write-Host "Encerrando helper antigo (PID $($_.ProcessId))..." -ForegroundColor Yellow
+    Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue
+  }
+
+Invoke-WebRequest "$repoRaw/backend/local-visium-helper.js?v=$cacheBust" -OutFile (Join-Path $backend "local-visium-helper.js")
+Invoke-WebRequest "$repoRaw/backend/package.json?v=$cacheBust" -OutFile (Join-Path $backend "package.json")
+Invoke-WebRequest "$repoRaw/backend/package-lock.json?v=$cacheBust" -OutFile (Join-Path $backend "package-lock.json")
 
 $bat = Join-Path $destino "iniciar-visium-helper.bat"
 @"
 @echo off
 cd /d "%USERPROFILE%\visium-helper\backend"
 set CENTRAL_BACKEND_TLS_INSEGURO=1
+set NODE_TLS_REJECT_UNAUTHORIZED=0
 npm run visium-helper
 pause
 "@ | Set-Content -Encoding ASCII $bat

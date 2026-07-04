@@ -8,11 +8,14 @@
  * pela VPN local e registra o resultado no backend central para todos.
  */
 
+process.env.NODE_TLS_REJECT_UNAUTHORIZED = process.env.NODE_TLS_REJECT_UNAUTHORIZED || '0';
+
 const express = require('express');
 const cors = require('cors');
 const fetch = require('node-fetch');
 const https = require('https');
 
+const HELPER_VERSION = '2026-07-03-tls-global';
 const PORT = Number(process.env.VISIUM_HELPER_PORT || 4789);
 const HOST = process.env.VISIUM_HELPER_HOST || '127.0.0.1';
 const VISIUM_BASE_URL = process.env.VISIUM_BASE_URL || 'http://201.55.234.76/Consultas_/ConsultaInterfaceNode';
@@ -438,6 +441,7 @@ app.get('/health', (req, res) => {
   res.json({
     sucesso: true,
     helper: 'visium-local',
+    version: HELPER_VERSION,
     visiumBaseUrl: VISIUM_BASE_URL,
     timestamp: new Date().toISOString()
   });
@@ -457,7 +461,9 @@ app.post('/api/topologia-validacao/validar', async (req, res) => {
 });
 
 app.listen(PORT, HOST, () => {
+  console.log(`[Visium Helper] Versao: ${HELPER_VERSION}`);
   console.log(`[Visium Helper] Online em http://${HOST}:${PORT}`);
   console.log(`[Visium Helper] Visium: ${VISIUM_BASE_URL}`);
   console.log(`[Visium Helper] Backend central: ${BACKEND_URL_DEFAULT}`);
+  console.log('[Visium Helper] TLS do backend central: modo compativel com certificado corporativo');
 });
