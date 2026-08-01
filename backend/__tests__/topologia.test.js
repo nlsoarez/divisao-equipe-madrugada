@@ -14,6 +14,8 @@ const {
   normalizarNapGponConsulta,
   extrairNodesTopologia,
   ehNodeHfcConsultaNode,
+  reduzirNodesHfcRedundantes,
+  tabelaCorrespondeNode,
   motivoGponPendente,
   erroGlobalVisium,
   escolherOpcao,
@@ -93,9 +95,10 @@ describe('extrairNodesTopologia()', () => {
 });
 
 describe('ehNodeHfcConsultaNode()', () => {
-  test('aceita node curto alfanumérico (4-8 chars)', () => {
+  test('aceita node alfanumérico HFC inclusive acima de 8 caracteres', () => {
     expect(ehNodeHfcConsultaNode('AB12')).toBe(true);
     expect(ehNodeHfcConsultaNode('NO123456')).toBe(true);
+    expect(ehNodeHfcConsultaNode('GRTABB1RP')).toBe(true);
   });
 
   test('rejeita NAP GPON com separadores', () => {
@@ -105,11 +108,39 @@ describe('ehNodeHfcConsultaNode()', () => {
 
   test('rejeita códigos muito curtos ou muito longos', () => {
     expect(ehNodeHfcConsultaNode('AB1')).toBe(false);
-    expect(ehNodeHfcConsultaNode('ABCDEFGHI')).toBe(false);
+    expect(ehNodeHfcConsultaNode('ABCDEFGHIJKLMNOPQ')).toBe(false);
   });
 
   test('mensagem GPON pendente cita o node', () => {
     expect(motivoGponPendente('NAP-01')).toContain('NAP-01');
+  });
+});
+
+describe('reduzirNodesHfcRedundantes()', () => {
+  test('consulta apenas o node-base quando derivações estão no mesmo incidente', () => {
+    expect(reduzirNodesHfcRedundantes([
+      'GRTABB', 'GRTABB1RP', 'GRTABB2RP', 'GRTABB2RR', 'GRTABA2', 'GRTABA1', 'GRTABA'
+    ])).toEqual(['GRTABB', 'GRTABA']);
+  });
+
+  test('preserva nodes independentes com prefixos diferentes', () => {
+    expect(reduzirNodesHfcRedundantes(['AC1J', 'AC1M', 'AC1N'])).toEqual(['AC1J', 'AC1M', 'AC1N']);
+  });
+});
+
+describe('tabelaCorrespondeNode()', () => {
+  test('aceita subnodes pertencentes ao node solicitado', () => {
+    expect(tabelaCorrespondeNode({
+      found: true,
+      subnodes: [{ name: 'AC1J-1' }, { name: 'AC1J-2' }]
+    }, 'AC1J')).toBe(true);
+  });
+
+  test('rejeita tabela deixada pela consulta anterior', () => {
+    expect(tabelaCorrespondeNode({
+      found: true,
+      subnodes: [{ name: 'AC1N-1' }, { name: 'AC1N-2' }]
+    }, 'AC1J')).toBe(false);
   });
 });
 
@@ -291,6 +322,26 @@ describe('validarTopologias() — ciclo compartilhado', () => {
     expect(resultados[0].status).toBe('down');
     expect(resultados[0].nodes).toEqual(['NO123', 'AB456']);
     expect(falhaGlobalVisium).toBeNull();
+  });
+
+  test('reduz derivações HFC e não envia node alfanumérico longo ao GPON', async () => {
+    const consultarNode = jest.fn().mockResolvedValue({ status: 'up' });
+    const consultarGpon = jest.fn();
+
+    const { resultados } = await validarTopologias(
+      [{
+        topologia: 'GRTABB,GRTABB1RP,GRTABB2RP,GRTABB2RR,GRTABB1RR,GRTABA2,GRTABA1,GRTABA',
+        cidade: 'RIO DE JANEIRO'
+      }],
+      { consultarNode, consultarGpon }
+    );
+
+    expect(consultarNode.mock.calls).toEqual([
+      ['RIO DE JANEIRO', 'GRTABB'],
+      ['RIO DE JANEIRO', 'GRTABA']
+    ]);
+    expect(consultarGpon).not.toHaveBeenCalled();
+    expect(resultados[0].status).toBe('up');
   });
 
   test('node GPON não é consultado no HFC (filtro compartilhado)', async () => {

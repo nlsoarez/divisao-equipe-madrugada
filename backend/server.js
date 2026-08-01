@@ -1557,7 +1557,11 @@ app.get('/api/matriz-ofensores', async (req, res) => {
     // Busca todos os campos de mapeamento geográfico: grupo e cluster são os campos
     // canônicos do portal de origem para identificar área (não usar só regional/cidade)
     // Filtrar fora apenas status tratada/treated (igual ao portal de origem que exclui encerrados)
-    const url = `${SUPABASE_URL}/rest/v1/incidents?select=id_mostra,nm_tipo,nm_cidade,nm_status,topologia,dh_inicio,regional,grupo,cluster,ds_sumario&nm_status=not.in.(treated,tratada)&order=dh_inicio.asc&limit=${limit}`;
+    // Incidentes de quarentena continuam com status ativo, mas não devem entrar
+    // na volumetria. O portal usa a tag "#QRT#" e também há registro legado com
+    // a palavra "QUARENTENA"; o OR preserva resumos nulos.
+    // "%23" é o caractere "#" codificado para não virar fragmento da URL.
+    const url = `${SUPABASE_URL}/rest/v1/incidents?select=id_mostra,nm_tipo,nm_cidade,nm_status,topologia,dh_inicio,regional,grupo,cluster,ds_sumario&nm_status=not.in.(treated,tratada)&or=(ds_sumario.is.null,and(ds_sumario.not.ilike.*%23QRT%23*,ds_sumario.not.ilike.*QUARENTENA*))&order=dh_inicio.asc&limit=${limit}`;
 
     const response = await fetch(url, {
       headers: {

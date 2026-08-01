@@ -80,17 +80,53 @@ function extrairNodesTopologia(valor) {
 }
 
 /**
- * Node curto alfanumérico (4-8 chars, sem separadores) é o formato aceito
- * pela tela HFC/ConsultaInterfaceNode. NAPs GPON (com ., -, _ ou /) não
- * devem ser pesquisados lá — o motor GPON ainda não foi implementado.
+ * Nodes HFC são códigos alfanuméricos sem separadores. Alguns nodes reais
+ * ultrapassam oito caracteres (ex.: GRTABB1RP), portanto o tamanho não pode
+ * ser usado para classificá-los como GPON. NAPs GPON chegam com separadores.
  */
 function ehNodeHfcConsultaNode(valor) {
   const bruto = String(valor || '').trim();
   const compacto = compactarCodigo(bruto);
   return compacto.length >= 4 &&
-    compacto.length <= 8 &&
-    /^[A-Z0-9]+$/.test(compacto) &&
-    !/[.\-_/\\]/.test(bruto);
+    compacto.length <= 16 &&
+    /^[A-Z0-9]+$/i.test(bruto);
+}
+
+/**
+ * A topologia pode trazer o node-base junto de derivações que o Visium já
+ * devolve dentro da mesma consulta (GRTABA + GRTABA1/GRTABA2, por exemplo).
+ * Consultar as derivações novamente provoca correspondência parcial e leitura
+ * repetida da tabela do node-base. Remove somente sufixos conhecidos quando o
+ * código-base também está presente, preservando nodes independentes.
+ */
+function reduzirNodesHfcRedundantes(nodes) {
+  const unicos = Array.from(new Map((nodes || [])
+    .map((node) => [compactarCodigo(node), node])
+    .filter(([codigo]) => codigo)).values());
+
+  return unicos.filter((node) => {
+    const codigo = compactarCodigo(node);
+    return !unicos.some((candidatoBase) => {
+      const base = compactarCodigo(candidatoBase);
+      if (base === codigo || base.length < 4 || !codigo.startsWith(base)) return false;
+      const sufixo = codigo.slice(base.length);
+      return /^\d{1,2}$/.test(sufixo) || /^\d{1,2}R[A-Z]{1,2}$/.test(sufixo);
+    });
+  });
+}
+
+/**
+ * Impede que uma consulta sequencial aceite a tabela deixada pelo node
+ * anterior. Subnodes retornados pelo Visium normalmente acrescentam um sufixo
+ * ao código solicitado (AC1J -> AC1J-1), nunca trocam o código-base.
+ */
+function tabelaCorrespondeNode(tabela, node) {
+  const alvo = compactarCodigo(node);
+  if (!alvo || !tabela?.found || !Array.isArray(tabela.subnodes)) return false;
+  return tabela.subnodes.some((subnode) => {
+    const retornado = compactarCodigo(subnode?.name);
+    return retornado === alvo || retornado.startsWith(alvo);
+  });
 }
 
 function motivoGponPendente(node) {
@@ -320,7 +356,7 @@ async function validarTopologias(itens, opcoes) {
       continue;
     }
 
-    const hfcNodes = nodes.filter((node) => ehNodeHfcConsultaNode(node));
+    const hfcNodes = reduzirNodesHfcRedundantes(nodes.filter((node) => ehNodeHfcConsultaNode(node)));
     const gponNodes = nodes.filter((node) => !ehNodeHfcConsultaNode(node));
 
     if (gponNodes.length) {
@@ -433,6 +469,8 @@ module.exports = {
   normalizarOpcao,
   extrairNodesTopologia,
   ehNodeHfcConsultaNode,
+  reduzirNodesHfcRedundantes,
+  tabelaCorrespondeNode,
   motivoGponPendente,
   erroGlobalVisium,
   extrairAtributoHtml,
