@@ -3629,6 +3629,7 @@
 <script src="js/config.js"></script>
 <script src="js/api.js"></script>
 <script src="js/area-editor.js"></script>
+<script src="js/matriz-api.js"></script>
 <script>
 // ============================================
 // VARIÁVEIS GLOBAIS E ALIASES
@@ -10422,6 +10423,7 @@ function iniciarAutoRefresh() {
   // Primeira carga imediata (com sincronização)
   carregarCopRedeInforma(true);
   carregarAlertas();
+  carregarMatrizOfensores(false);
 
   autoRefreshInterval = setInterval(() => {
     if (backendConectado) {
@@ -10434,10 +10436,8 @@ function iniciarAutoRefresh() {
   // Refresh da matriz de ofensores a cada 60 segundos
   if (!autoRefreshOfensoresInterval) {
     autoRefreshOfensoresInterval = setInterval(() => {
-      if (backendConectado) {
-        console.log('[Ofensores] Auto-refresh: atualizando incidentes...');
-        carregarMatrizOfensores(true);
-      }
+      console.log('[Ofensores] Auto-refresh: atualizando incidentes...');
+      carregarMatrizOfensores(true);
     }, AUTO_REFRESH_OFENSORES_MS);
   }
 
@@ -11370,10 +11370,32 @@ function renderizarTabelaOfensores(ofensores) {
 }
 
 /**
- * Carrega Matriz de Ofensores do backend (que faz proxy para Supabase)
+ * Busca a Matriz pelo backend quando ele está online e usa o Data API do
+ * Supabase como fallback de leitura quando o Railway está indisponível.
  */
+async function buscarDadosMatrizOfensores() {
+  if (backendUrl && backendConectado) {
+    try {
+      const response = await fetch(`${backendUrl}/api/matriz-ofensores`);
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+      const data = await response.json();
+      if (!data.sucesso) throw new Error(data.erro || 'Erro desconhecido');
+
+      return { ...data, origem: data.origem || 'backend' };
+    } catch (error) {
+      console.warn('[Ofensores] Backend indisponível; usando Supabase direto:', error.message);
+    }
+  }
+
+  if (!window.MatrizApi?.buscarMatrizOfensores) {
+    throw new Error('Módulo de consulta ao Supabase não carregado');
+  }
+
+  return window.MatrizApi.buscarMatrizOfensores();
+}
+
 async function carregarMatrizOfensores(forcar = false) {
-  if (!backendUrl) return;
   if (!forcar && matrizOfensoresCarregado) return;
 
   const grid = document.getElementById('matrizAreaGrid');
@@ -11390,11 +11412,7 @@ async function carregarMatrizOfensores(forcar = false) {
   }
 
   try {
-    const resp = await fetch(`${backendUrl}/api/matriz-ofensores`);
-    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-    const data = await resp.json();
-
-    if (!data.sucesso) throw new Error(data.erro || 'Erro desconhecido');
+    const data = await buscarDadosMatrizOfensores();
 
     window.dadosMatrizOfensores = data;
     matrizOfensoresCarregado = true;
@@ -11427,14 +11445,15 @@ async function carregarMatrizOfensores(forcar = false) {
     const spanEl = document.getElementById('matrizUltimaAtualizacao');
     if (infoEl && spanEl) {
       const ts = data.timestamp ? new Date(data.timestamp).toLocaleString('pt-BR') : '';
-      spanEl.textContent = `${data.total} ofensores · Atualizado: ${ts}`;
+      const fonte = data.origem === 'supabase-direto' ? ' · Fonte: Supabase' : '';
+      spanEl.textContent = `${data.total} ofensores · Atualizado: ${ts}${fonte}`;
       infoEl.style.display = '';
     }
 
-    console.log('[Ofensores] Matriz carregada:', data.total, 'incidentes');
+    console.log('[Ofensores] Matriz carregada:', data.total, 'incidentes via', data.origem);
 
-    // Carrega o cache central para todos. Novo teste só roda no clique do admin.
-    validarTopologiaSeNecessario();
+    // O cache de topologia também depende do Railway; não consultar enquanto offline.
+    if (backendConectado) validarTopologiaSeNecessario();
   } catch (err) {
     console.error('[Ofensores] Erro:', err.message);
     if (grid) grid.innerHTML = `<p class="text-danger small text-center mb-0"><i class="bi bi-exclamation-triangle me-1"></i>Erro: ${err.message}</p>`;
