@@ -1191,7 +1191,15 @@
       transition: var(--ds-transition-smooth, 0.25s ease);
     }
 
-    .edit-divisao-form .form-select:focus {
+    .edit-divisao-form .area-manual-input {
+      border-color: #ef9a9a;
+      border-radius: var(--ds-border-radius-md, 6px);
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+
+    .edit-divisao-form .form-select:focus,
+    .edit-divisao-form .area-manual-input:focus {
       border-color: #d32f2f;
       box-shadow: 0 0 0 3px rgba(211,47,47,0.12);
     }
@@ -3620,6 +3628,7 @@
 <!-- Módulos separados para melhor organização e manutenção -->
 <script src="js/config.js"></script>
 <script src="js/api.js"></script>
+<script src="js/area-editor.js"></script>
 <script>
 // ============================================
 // VARIÁVEIS GLOBAIS E ALIASES
@@ -9281,20 +9290,30 @@ function editarDivisaoAreas(dia) {
   const funcionariosDisponiveis = dadosDia.trabalhando || [];
 
   // Criar HTML do formulário de edição
-  let formHtml = '<form id="formEditarDivisao" class="edit-divisao-form">';
+  let formHtml = `
+    <form id="formEditarDivisao" class="edit-divisao-form">
+      <div class="alert alert-light border small py-2 mb-3">
+        <i class="bi bi-info-circle me-1"></i>
+        Edite as combinações usando <strong>CO, NO, NE, BA, ES, RIO e MG</strong>, separadas por <strong>/</strong>.
+        Cada área deve aparecer uma única vez.
+      </div>`;
 
-  Object.entries(dadosDia.divisao).forEach(([area, pessoaAtual]) => {
+  Object.entries(dadosDia.divisao).forEach(([area, pessoaAtual], indice) => {
     // Verificar se já tem 2 pessoas (formato "Pessoa1 / Pessoa2")
     const pessoas = pessoaAtual ? pessoaAtual.split(' / ').map(p => p.trim()) : [];
     const pessoa1 = pessoas[0] || '';
     const pessoa2 = pessoas[1] || '';
-    const areaId = area.replace(/\//g, '_').replace(/\s/g, '_');
+    const grupoFixo = AreaEditor.GRUPOS_FIXOS_RESIDENCIAIS.includes(area);
 
     formHtml += `
-      <div class="area-edit-item mb-3">
-        <label class="form-label fw-bold mb-1">${area}</label>
+      <div class="area-edit-item mb-3" data-area-row="${indice}" data-fixed="${grupoFixo}">
+        <label class="form-label fw-bold mb-1" for="area-manual-${dia}-${indice}">${grupoFixo ? 'Atribuição fixa' : 'Áreas'}</label>
+        ${grupoFixo
+          ? `<div class="fw-bold mb-2">${area}</div><input type="hidden" data-role="area" value="${area}">`
+          : `<input type="text" class="form-control form-control-sm area-manual-input mb-2" id="area-manual-${dia}-${indice}" data-role="area" value="${area}" placeholder="Ex.: CO/MG" autocomplete="off" spellcheck="false">`
+        }
         <div class="d-flex gap-2 align-items-center">
-          <select class="form-select form-select-sm" name="area1-${areaId}" data-area="${area}" data-position="1" style="flex: 1;">
+          <select class="form-select form-select-sm" data-role="pessoa1" style="flex: 1;">
             <option value="">-- Pessoa 1 --</option>
     `;
 
@@ -9306,7 +9325,7 @@ function editarDivisaoAreas(dia) {
 
     formHtml += `
           </select>
-          <select class="form-select form-select-sm" name="area2-${areaId}" data-area="${area}" data-position="2" style="flex: 1;">
+          <select class="form-select form-select-sm" data-role="pessoa2" style="flex: 1;">
             <option value="">-- Pessoa 2 (opcional) --</option>
     `;
 
@@ -9344,38 +9363,20 @@ function salvarDivisaoAreas(dia) {
   const form = document.getElementById('formEditarDivisao');
   if (!form) return;
 
-  const selects = form.querySelectorAll('select');
-  const novaDivisao = {};
-  const pessoasPorArea = {};
+  const linhas = Array.from(form.querySelectorAll('[data-area-row]')).map(item => ({
+    area: item.querySelector('[data-role="area"]')?.value || '',
+    pessoa1: item.querySelector('[data-role="pessoa1"]')?.value || '',
+    pessoa2: item.querySelector('[data-role="pessoa2"]')?.value || '',
+    fixa: item.dataset.fixed === 'true'
+  }));
 
-  // Agrupar pessoas por área
-  selects.forEach(select => {
-    const area = select.dataset.area;
-    const pessoa = select.value;
-    const position = select.dataset.position;
+  const resultado = AreaEditor.montarDivisaoManual(linhas);
+  if (!resultado.valido) {
+    showToast(`❌ ${resultado.erro}`, 'danger');
+    return;
+  }
 
-    if (area) {
-      if (!pessoasPorArea[area]) {
-        pessoasPorArea[area] = { pessoa1: '', pessoa2: '' };
-      }
-      if (position === '1' && pessoa) {
-        pessoasPorArea[area].pessoa1 = pessoa;
-      } else if (position === '2' && pessoa) {
-        pessoasPorArea[area].pessoa2 = pessoa;
-      }
-    }
-  });
-
-  // Combinar pessoas em formato "Pessoa1 / Pessoa2" se houver 2
-  Object.entries(pessoasPorArea).forEach(([area, pessoas]) => {
-    if (pessoas.pessoa1 && pessoas.pessoa2) {
-      novaDivisao[area] = `${pessoas.pessoa1} / ${pessoas.pessoa2}`;
-    } else if (pessoas.pessoa1) {
-      novaDivisao[area] = pessoas.pessoa1;
-    } else if (pessoas.pessoa2) {
-      novaDivisao[area] = pessoas.pessoa2;
-    }
-  });
+  const novaDivisao = resultado.divisao;
 
   // Atualizar dados
   if (dadosOriginais[dia]) {
@@ -12453,6 +12454,26 @@ function mapearGrupoParaAreaFrontend(grupo, numPessoas = null) {
                grupoLower === 'bh' || grupoLower.startsWith('bh ');
   const isBA = grupoLower.includes('bahia') || grupoLower.includes('sergipe') || grupoLower.includes(' ba') || grupoLower.includes(' se');
   const isNE = grupoLower.includes('nordeste') || grupoLower.includes(' ne');
+  const isCO = grupoLower.includes('centro oeste') || grupoLower.includes('centro-oeste') || grupoLower === 'co';
+  const isNO = !isNE && (grupoLower.includes('norte') || grupoLower === 'no');
+
+  // Quando o administrador personalizou a divisão, a fonte ainda informa a
+  // região atômica. Resolver essa região para a nova combinação mantém volume,
+  // incidentes e responsável alinhados com a edição manual (ex.: MG -> CO/MG).
+  const areaBase = isRio ? 'RIO'
+    : isES ? 'ES'
+    : isMG ? 'MG'
+    : isBA ? 'BA'
+    : isNE ? 'NE'
+    : isCO ? 'CO'
+    : isNO ? 'NO'
+    : null;
+  const diaAtual = obterDiaEscalaMadrugada(new Date());
+  const dadosDiaAtual = obterDadosDiaEscalaResidencial(diaAtual);
+  if (areaBase && dadosDiaAtual?.divisaoManual) {
+    const grupoManual = AreaEditor.encontrarGrupoDaArea(areaBase, dadosDiaAtual.divisao);
+    if (grupoManual) return grupoManual;
+  }
 
   // Para 2 pessoas: CO/NO/NE/BA/MG + RIO/ES
   if (num === 2) {
