@@ -79,6 +79,30 @@ O primeiro build pode demorar. O `cloud-init` tambem precisa terminar; na VM, ac
 cloud-init status --wait
 ```
 
+### VM OCI compartilhada ja existente
+
+Na VM `163.176.155.119`, o dashboard existente ja ocupa as portas 80/443. Nao suba um segundo Caddy. Use o instalador dedicado, que conecta a aplicacao a rede Docker existente e acrescenta uma rota isolada ao Caddy atual:
+
+```powershell
+.\deploy\oci\configure-existing-vm.ps1
+```
+
+O instalador pede a Supabase Secret key e a senha do site em campos ocultos. Os segredos seguem pelo stdin do SSH, ficam fora dos argumentos de processo e nao sao gravados no Git. Em uma nova tentativa, quando o arquivo de ambiente seguro ja existir na VM, use:
+
+```powershell
+.\deploy\oci\configure-existing-vm.ps1 -ReuseExistingSupabaseConfig
+```
+
+O script valida a configuracao do Caddy, espera o health check do novo container, testa HTTPS, exige HTTP 401 sem autenticacao e confirma a leitura de `/api/escala` com autenticacao. Em caso de falha antes do reload, restaura o Caddyfile anterior.
+
+Se a Secret key informada pertencer a outro projeto ou for rejeitada, corrija somente a credencial sem alterar a senha/Caddy:
+
+```powershell
+.\deploy\oci\update-supabase-secret.ps1
+```
+
+Esse atualizador reinicia apenas o container da aplicacao e restaura o `.env` anterior automaticamente se a leitura real de `/api/escala` falhar.
+
 ## 5. Validar
 
 ```bash

@@ -2,6 +2,8 @@
 
 Painel operacional estatico com backend Node/Express. A implantacao de producao foi preparada para OCI em uma unica VM, com Docker Compose e Caddy.
 
+Producao: <https://divisao.163-176-155-119.sslip.io/> (usuario `operacao`). A senha e mantida fora do repositorio.
+
 ## Estado da migracao
 
 - Frontend e API passam a usar o mesmo dominio OCI; nao existe mais URL fixa do Railway.
@@ -9,6 +11,7 @@ Painel operacional estatico com backend Node/Express. A implantacao de producao 
 - A volumetria por area e a matriz de ofensores continuam usando os incidentes do portal CopRede, via Data API do Supabase, e nao dependem da Evolution API.
 - Evolution API fica desativada na primeira fase (`EVOLUTION_ENABLED=false`). Somente a ingestao COP/WhatsApp e a sincronizacao da alocacao HUB ficam indisponiveis; o historico existente so aparece depois da importacao para o Supabase operacional.
 - `/health` retorna `degraded` enquanto a Evolution estiver desativada. Isso e esperado, ainda retorna HTTP 200 e nao desativa a volumetria do portal.
+- O endereco antigo do GitHub Pages redireciona para a aplicacao OCI para impedir novas gravacoes locais/JSONBin.
 
 ## Execucao local
 

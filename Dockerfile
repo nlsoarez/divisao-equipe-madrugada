@@ -12,10 +12,11 @@ COPY backend/package.json backend/package-lock.json ./
 RUN npm ci --omit=dev && npm cache clean --force
 
 COPY --chown=node:node backend/ ./
-RUN mkdir -p /app/backend/data /app/public && chown -R node:node /app
+RUN mkdir -p /app/backend/data /app/public /app/js && chown -R node:node /app
 
 COPY --chown=node:node index.html design-system.css /app/public/
 COPY --chown=node:node js/ /app/public/js/
+COPY --chown=node:node js/matriz-api.js /app/js/matriz-api.js
 
 USER node
 EXPOSE 3001
