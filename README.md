@@ -5,9 +5,9 @@ Painel operacional estatico com backend Node/Express. A implantacao de producao 
 ## Estado da migracao
 
 - Frontend e API passam a usar o mesmo dominio OCI; nao existe mais URL fixa do Railway.
-- Escalas continuam persistidas no JSONBin quando as novas credenciais sao fornecidas ao backend.
+- Escalas, mensagens, alertas e historico do HUB passam a ser persistidos em tabelas no Supabase.
 - A matriz de ofensores continua usando Supabase/Visium conforme a disponibilidade de rede.
-- Evolution API fica desativada na primeira fase (`EVOLUTION_ENABLED=false`). Atualizacao de volume via WhatsApp e sincronizacao da alocacao HUB ficam indisponiveis; leitura do historico HUB so funciona se seu bin for configurado.
+- Evolution API fica desativada na primeira fase (`EVOLUTION_ENABLED=false`). Atualizacao de volume via WhatsApp e sincronizacao da alocacao HUB ficam indisponiveis; o historico existente so aparece depois da importacao para o Supabase.
 - `/health` retorna `degraded` enquanto a Evolution estiver desativada. Isso e esperado e ainda retorna HTTP 200 para manter o container saudavel.
 
 ## Execucao local
@@ -26,7 +26,9 @@ O runbook completo esta em [deploy/oci/README.md](deploy/oci/README.md). A infra
 
 ## Seguranca
 
-Credenciais JSONBin e Evolution foram historicamente versionadas neste repositorio. Apagar apenas o valor atual nao resolve: o historico Git e forks continuam contendo os segredos. Rotacione todas as chaves antes de implantar na OCI.
+Credenciais JSONBin e Evolution foram historicamente versionadas neste repositorio. Apagar apenas o valor atual nao resolve: o historico Git e forks continuam contendo os segredos. Revogue as chaves antigas depois de concluir e validar a importacao.
+
+A migracao e o rollback estao documentados em [docs/MIGRACAO_SUPABASE.md](docs/MIGRACAO_SUPABASE.md).
 
 O `ADMIN_PIN` ainda e validado no navegador e, portanto, nao e autenticacao real. Na OCI, o Caddy exige Basic Auth no servidor para todo o painel/API, exceto health checks e o webhook da Evolution. Use senha forte e trate o PIN apenas como controle de interface.
 

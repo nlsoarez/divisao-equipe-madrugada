@@ -14,7 +14,8 @@ const server = spawn(process.execPath, ['server.js'], {
     PUBLIC_DIR: publicDir,
     EVOLUTION_ENABLED: 'false',
     WHATSAPP_POLLING_DISABLED: 'true',
-    JSONBIN_MASTER_KEY: 'smoke-test-only'
+    SUPABASE_URL: '',
+    SUPABASE_SECRET_KEY: ''
   },
   stdio: ['ignore', 'pipe', 'pipe']
 });

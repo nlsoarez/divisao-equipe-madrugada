@@ -8,7 +8,8 @@
     "dev": "nodemon server.js",
     "visium-helper": "node local-visium-helper.js",
     "test": "jest",
-    "test:smoke": "node scripts/smoke-test.js"
+    "test:smoke": "node scripts/smoke-test.js",
+    "migrate:jsonbin": "node scripts/migrate-jsonbin-to-supabase.js"
   },
   "dependencies": {
     "cors": "^2.8.5",

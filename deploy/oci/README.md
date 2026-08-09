@@ -7,7 +7,7 @@ Uma VM Ubuntu `VM.Standard.A1.Flex` executa dois containers:
 - `app`: Node/Express, frontend estatico e API na porta interna 3001;
 - `caddy`: entrada publica 80/443, HTTPS automatico quando ha dominio e Basic Auth para o painel/API.
 
-A porta 3001 nao e aberta na VCN. O volume Docker `app-data` preserva caches em reinicios de container. JSONBin continua sendo a persistencia autoritativa; o volume local nao substitui backup.
+A porta 3001 nao e aberta na VCN. O volume Docker `app-data` preserva apenas caches em reinicios de container. O Supabase e a persistencia autoritativa.
 
 Esta topologia e intencionalmente de uma replica. O polling e os timestamps da Evolution vivem na memoria do processo; escalar horizontalmente agora duplicaria leitura/processamento.
 
@@ -18,7 +18,8 @@ Esta topologia e intencionalmente de uma replica. O polling e os timestamps da E
 - chave publica SSH;
 - seu IP publico em CIDR `/32` para liberar SSH;
 - dominio recomendado para HTTPS;
-- novas credenciais JSONBin. As credenciais antigas estao comprometidas porque foram publicadas no Git.
+- projeto Supabase com a migration de `supabase/migrations` aplicada;
+- secret key do Supabase, armazenada somente no ambiente do backend.
 
 ## 2. Criar a infraestrutura
 
@@ -44,7 +45,7 @@ Crie um registro `A` do dominio para o `public_ip`. Depois:
 Copy-Item deploy/oci/.env.example deploy/oci/.env
 ```
 
-Preencha `SITE_ADDRESS` e `CORS_ORIGIN` com o dominio HTTPS. Configure os novos segredos JSONBin. Mantenha na fase 1:
+Preencha `SITE_ADDRESS`, `CORS_ORIGIN`, `SUPABASE_URL` e `SUPABASE_SECRET_KEY`. Na fase 1, mantenha `EVOLUTION_ENABLED=false`.
 
 Gere a senha do proxy antes do deploy:
 
@@ -89,12 +90,14 @@ Resultado esperado na fase 1:
 
 - HTTP 200;
 - `status: "degraded"`;
-- `escala: true` se JSONBin estiver configurado;
+- `persistencia.configurada: true`;
+- `escala: true` se o Supabase estiver configurado;
 - `volumeWhatsappTempoReal: false`;
 - `alocacaoHubTempoReal: false`;
 - POST `/api/alocacao-hub/sincronizar` retorna HTTP 503 com `EVOLUTION_API_INDISPONIVEL`.
 
 Tambem valide escrita e leitura de uma escala nao critica antes de encerrar o servico antigo.
+Siga [docs/MIGRACAO_SUPABASE.md](../../docs/MIGRACAO_SUPABASE.md) para importar e conferir os bins antigos.
 
 ## 6. Migrar a Evolution API depois
 

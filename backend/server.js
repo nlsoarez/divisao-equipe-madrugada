@@ -10,7 +10,8 @@ const fs = require('fs');
 const path = require('path');
 require('dotenv').config();
 
-const { SERVER_CONFIG, EVOLUTION_CONFIG, ALOCACAO_HUB_CONFIG, COP_REDE_EMPRESARIAL_CONFIG, JSONBIN_CONFIG } = require('./config');
+const { SERVER_CONFIG, EVOLUTION_CONFIG, ALOCACAO_HUB_CONFIG, COP_REDE_EMPRESARIAL_CONFIG } = require('./config');
+const { client: supabase } = require('./supabase');
 const storage = require('./storage');
 const storageHub = require('./storageHub');
 const whatsapp = require('./whatsapp');
@@ -132,7 +133,6 @@ app.post('/api/diagnostico/reprocessar-completo', async (req, res) => {
 app.get('/api/diagnostico/polling-status', async (req, res) => {
   try {
     const whatsappStatus = whatsapp.obterStatus();
-    const binId = storage.getBinId();
 
     res.json({
       sucesso: true,
@@ -143,8 +143,8 @@ app.get('/api/diagnostico/polling-status', async (req, res) => {
         intervalo: `${whatsappStatus.pollingIntervalo / 1000}s`
       },
       storage: {
-        binId: binId || 'NÃO CONFIGURADO',
-        binConfigurado: !!binId
+        provedor: 'supabase',
+        configurado: supabase.isConfigured()
       },
       whatsapp: {
         conectado: whatsappStatus.conectado,
@@ -179,8 +179,8 @@ app.post('/api/diagnostico/resetar-polling', async (req, res) => {
 });
 
 /**
- * Limpar mensagemOriginal de todos os registros no JSONBin
- * Reduz tamanho do bin para resolver erro 403
+ * Limpar mensagemOriginal dos registros persistidos
+ * Mantido como ferramenta de minimização de dados legados
  */
 app.post('/api/diagnostico/limpar-storage', async (req, res) => {
   try {
@@ -219,32 +219,31 @@ app.post('/api/diagnostico/limpar-storage', async (req, res) => {
 function obterCapacidades() {
   const whatsappStatus = whatsapp.obterStatus();
   const evolutionDisponivel = whatsappStatus.configurado && whatsappStatus.conectado;
-  const escalaPersistenteDisponivel = Boolean(
-    JSONBIN_CONFIG.MASTER_KEY && JSONBIN_CONFIG.SCALE_BIN_ID
-  );
-  const hubPersistenteDisponivel = Boolean(
-    storageHub.getBinId() && ALOCACAO_HUB_CONFIG.MASTER_KEY
-  );
+  const persistenciaDisponivel = supabase.isConfigured();
 
   return {
+    persistencia: {
+      provedor: 'supabase',
+      configurada: persistenciaDisponivel
+    },
     evolutionApi: {
       habilitada: whatsappStatus.habilitado,
       configurada: whatsappStatus.configurado,
       conectada: whatsappStatus.conectado
     },
     funcionalidades: {
-      escala: escalaPersistenteDisponivel,
+      escala: persistenciaDisponivel,
       matrizOfensores: true,
       volumeWhatsappTempoReal: evolutionDisponivel,
       alocacaoHubTempoReal: evolutionDisponivel,
-      historicoHubPersistido: hubPersistenteDisponivel
+      historicoHubPersistido: persistenciaDisponivel
     }
   };
 }
 
 function responderHealth(req, res) {
   const capacidades = obterCapacidades();
-  const degradado = !capacidades.evolutionApi.conectada;
+  const degradado = !capacidades.persistencia.configurada || !capacidades.evolutionApi.conectada;
 
   res.json({
     status: degradado ? 'degraded' : 'ok',
@@ -267,27 +266,12 @@ app.get('/api/capacidades', (req, res) => {
   });
 });
 
-/**
- * Estatísticas gerais
- */
-function getScaleBinId(binId = null) {
-  return binId || JSONBIN_CONFIG.SCALE_BIN_ID;
-}
-
-function getJsonBinHeaders(extraHeaders = {}) {
-  return {
-    'Content-Type': 'application/json',
-    'X-Master-Key': JSONBIN_CONFIG.MASTER_KEY,
-    ...extraHeaders
-  };
-}
-
 const SCALE_CACHE_PATH = path.join(__dirname, 'data', 'escala-cache.json');
 
-function salvarEscalaEmCache(dados, binId) {
+function salvarEscalaEmCache(dados) {
   fs.mkdirSync(path.dirname(SCALE_CACHE_PATH), { recursive: true });
   fs.writeFileSync(SCALE_CACHE_PATH, JSON.stringify({
-    binId,
+    storageId: 'supabase',
     dados,
     atualizadoEm: new Date().toISOString()
   }, null, 2));
@@ -301,48 +285,14 @@ function carregarEscalaDoCache() {
   return JSON.parse(fs.readFileSync(SCALE_CACHE_PATH, 'utf8'));
 }
 
-async function jsonBinScaleRequest(method, binId, body = null) {
-  const options = {
-    method,
-    headers: getJsonBinHeaders(),
-    timeout: 8000
-  };
-
-  if (body !== null) {
-    options.body = JSON.stringify(body);
-  }
-
-  const response = await fetch(`${JSONBIN_CONFIG.API_URL}/${binId}${method === 'GET' ? '/latest' : ''}`, options);
-  const text = await response.text();
-  let json = null;
-  if (text) {
-    try {
-      json = JSON.parse(text);
-    } catch (parseError) {
-      json = { raw: text };
-    }
-  }
-
-  if (!response.ok) {
-    const error = new Error(`JSONBin ${response.status}: ${text.substring(0, 300)}`);
-    error.status = response.status;
-    error.details = json;
-    throw error;
-  }
-
-  return json;
-}
-
 app.get('/api/escala', async (req, res) => {
   try {
-    const binId = getScaleBinId(req.query.binId);
-    const result = await jsonBinScaleRequest('GET', binId);
+    const dados = await supabase.rpc('get_schedule_document');
     res.json({
       sucesso: true,
-      binId,
-      origem: 'jsonbin',
-      dados: result?.record || null,
-      metadata: result?.metadata || null
+      binId: 'supabase',
+      origem: 'supabase',
+      dados
     });
   } catch (error) {
     console.error('[API Escala] Erro ao carregar:', error.message);
@@ -350,9 +300,9 @@ app.get('/api/escala', async (req, res) => {
     if (cache?.dados) {
       return res.json({
         sucesso: true,
-        binId: cache.binId || getScaleBinId(req.query.binId),
+        binId: 'supabase',
         origem: 'backend-cache',
-        aviso: 'JSONBin indisponível; usando cache do backend',
+        aviso: 'Supabase indisponível; usando cache de leitura do backend',
         dados: cache.dados,
         atualizadoEm: cache.atualizadoEm
       });
@@ -368,31 +318,32 @@ app.get('/api/escala', async (req, res) => {
 
 app.put('/api/escala', async (req, res) => {
   try {
-    const binId = getScaleBinId(req.body?.binId);
     const dados = req.body?.dados;
 
     if (!dados || typeof dados !== 'object') {
       return res.status(400).json({ sucesso: false, erro: 'dados é obrigatório' });
     }
 
-    const result = await jsonBinScaleRequest('PUT', binId, dados);
-    salvarEscalaEmCache(dados, binId);
+    const metadata = await supabase.rpc('replace_schedule_document', { p_document: dados });
+    salvarEscalaEmCache(dados);
     res.json({
       sucesso: true,
-      binId,
-      origem: 'jsonbin',
-      metadata: result?.metadata || null
+      binId: 'supabase',
+      origem: 'supabase',
+      metadata
     });
   } catch (error) {
     console.error('[API Escala] Erro ao salvar:', error.message);
-    const binId = getScaleBinId(req.body?.binId);
-    salvarEscalaEmCache(req.body?.dados, binId);
-    res.json({
-      sucesso: true,
-      binId,
+    if (req.body?.dados && typeof req.body.dados === 'object') {
+      salvarEscalaEmCache(req.body.dados);
+    }
+    res.status(error.status || 503).json({
+      sucesso: false,
+      persistido: false,
       origem: 'backend-cache',
-      aviso: 'JSONBin indisponível; escala salva no cache do backend',
-      erroJsonBin: error.message
+      aviso: 'Supabase indisponível; uma cópia de emergência ficou somente no backend OCI',
+      erro: error.message,
+      detalhes: error.details || null
     });
   }
 });
@@ -1121,9 +1072,8 @@ app.get('/api/alocacao-hub/diagnostico', async (req, res) => {
       diagnostico: {
         config: {
           CHAT_ID: ALOCACAO_HUB_CONFIG.CHAT_ID || 'NÃO CONFIGURADO',
-          BIN_ID: storageHub.getBinId() || 'NÃO CONFIGURADO',
-          MASTER_KEY: ALOCACAO_HUB_CONFIG.MASTER_KEY ? 'CONFIGURADO' : 'NÃO CONFIGURADO',
-          ACCESS_KEY: ALOCACAO_HUB_CONFIG.ACCESS_KEY ? 'CONFIGURADO' : 'NÃO CONFIGURADO'
+          STORAGE_PROVIDER: 'supabase',
+          STORAGE_CONFIGURED: supabase.isConfigured()
         },
         whatsapp: {
           conectado: whatsappStatus.conectado,
@@ -1163,31 +1113,25 @@ app.get('/api/alocacao-hub/mensagens-bruto', async (req, res) => {
 });
 
 /**
- * Configurar Bin ID do Alocação de HUB
+ * Rota legada de configuração do antigo armazenamento
  */
 app.post('/api/alocacao-hub/config/bin-id', async (req, res) => {
-  try {
-    const { binId } = req.body;
-    if (!binId) {
-      return res.status(400).json({ sucesso: false, erro: 'binId é obrigatório' });
-    }
-    storageHub.setBinId(binId);
-    res.json({ sucesso: true, mensagem: 'Bin ID do HUB configurado' });
-  } catch (error) {
-    res.status(500).json({ sucesso: false, erro: error.message });
-  }
+  res.status(410).json({
+    sucesso: false,
+    codigo: 'ARMAZENAMENTO_MIGRADO',
+    erro: 'BIN_ID não é mais usado; configure SUPABASE_URL e SUPABASE_SECRET_KEY no backend.'
+  });
 });
 
 /**
- * Criar novo bin para Alocação de HUB
+ * Rota legada de criação do antigo armazenamento
  */
 app.post('/api/alocacao-hub/config/criar-bin', async (req, res) => {
-  try {
-    const binId = await storageHub.criarBin();
-    res.json({ sucesso: true, binId });
-  } catch (error) {
-    res.status(500).json({ sucesso: false, erro: error.message });
-  }
+  res.status(410).json({
+    sucesso: false,
+    codigo: 'ARMAZENAMENTO_MIGRADO',
+    erro: 'A persistência do HUB agora usa tabelas do Supabase.'
+  });
 });
 
 // ============================================
@@ -1195,34 +1139,25 @@ app.post('/api/alocacao-hub/config/criar-bin', async (req, res) => {
 // ============================================
 
 /**
- * Configurar Bin ID do WhatsApp (para persistência)
+ * Rota legada de configuração do antigo armazenamento
  */
 app.post('/api/config/bin-id', async (req, res) => {
-  try {
-    const { binId } = req.body;
-
-    if (!binId) {
-      return res.status(400).json({ sucesso: false, erro: 'binId é obrigatório' });
-    }
-
-    storage.setBinId(binId);
-
-    res.json({ sucesso: true, mensagem: 'Bin ID configurado' });
-  } catch (error) {
-    res.status(500).json({ sucesso: false, erro: error.message });
-  }
+  res.status(410).json({
+    sucesso: false,
+    codigo: 'ARMAZENAMENTO_MIGRADO',
+    erro: 'BIN_ID não é mais usado; configure o Supabase no backend.'
+  });
 });
 
 /**
- * Criar novo bin para armazenamento
+ * Rota legada de criação do antigo armazenamento
  */
 app.post('/api/config/criar-bin', async (req, res) => {
-  try {
-    const binId = await storage.criarBin();
-    res.json({ sucesso: true, binId });
-  } catch (error) {
-    res.status(500).json({ sucesso: false, erro: error.message });
-  }
+  res.status(410).json({
+    sucesso: false,
+    codigo: 'ARMAZENAMENTO_MIGRADO',
+    erro: 'A persistência operacional agora usa tabelas do Supabase.'
+  });
 });
 
 /**
@@ -1669,6 +1604,7 @@ app.listen(SERVER_CONFIG.PORT, async () => {
   console.log('============================================');
   console.log(`Servidor rodando na porta ${SERVER_CONFIG.PORT}`);
   console.log(`CORS permitido: ${SERVER_CONFIG.CORS_ORIGIN}`);
+  console.log(`Persistência Supabase: ${supabase.isConfigured() ? 'CONFIGURADA' : 'NÃO CONFIGURADA'}`);
   console.log('');
 
   // WhatsApp (Evolution API) - ÚNICA FONTE DE DADOS
@@ -1727,24 +1663,10 @@ app.listen(SERVER_CONFIG.PORT, async () => {
   console.log('');
   console.log('📋 Alocação de HUB:');
   console.log(`   CHAT_ID: ${ALOCACAO_HUB_CONFIG.CHAT_ID}`);
-
-  // Criar bin automaticamente se não existir
-  if (!storageHub.getBinId() && ALOCACAO_HUB_CONFIG.MASTER_KEY) {
-    console.log('   BIN_ID: Criando automaticamente...');
-    try {
-      const novoBinId = await storageHub.criarBin();
-      console.log(`   ✅ Bin criado: ${novoBinId}`);
-    } catch (binError) {
-      console.log(`   ⚠️  Erro ao criar bin: ${binError.message}`);
-    }
-  } else if (storageHub.getBinId()) {
-    console.log(`   BIN_ID: ${storageHub.getBinId()}`);
-  } else {
-    console.log('   BIN_ID: NAO CONFIGURADO (historico do HUB indisponivel)');
-  }
+  console.log(`   STORAGE: ${supabase.isConfigured() ? 'Supabase configurado' : 'Supabase não configurado'}`);
 
   // Carregar histórico de HUB automaticamente no startup
-  if (evolutionConfigurada && ALOCACAO_HUB_CONFIG.CHAT_ID && storageHub.getBinId()) {
+  if (evolutionConfigurada && supabase.isConfigured() && ALOCACAO_HUB_CONFIG.CHAT_ID) {
     try {
       console.log('   📥 Carregando histórico de alocações...');
       const resultadoHub = await whatsapp.buscarHistoricoHub(20);

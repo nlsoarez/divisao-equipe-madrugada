@@ -28,31 +28,16 @@ const COP_REDE_EMPRESARIAL_CONFIG = {
 };
 
 // Configurações do grupo Alocação de HUB
-// IMPORTANTE: As credenciais do HUB são separadas das credenciais principais
-// para evitar problemas de limite de requisições
 const ALOCACAO_HUB_CONFIG = {
   // Chat ID do grupo de Alocação de HUB
-  CHAT_ID: process.env.ALOCACAO_HUB_CHAT_ID || '120363420668199320@g.us',
-  // Bin separado para dados de Alocação de HUB
-  // Se não configurado, será criado automaticamente na inicialização
-  // Para configurar manualmente, defina a variável ALOCACAO_HUB_BIN_ID
-  BIN_ID: process.env.ALOCACAO_HUB_BIN_ID || null,
-  // Credenciais exclusivas para o HUB (conta separada do JSONBin)
-  MASTER_KEY: process.env.ALOCACAO_HUB_MASTER_KEY || '',
-  ACCESS_KEY: process.env.ALOCACAO_HUB_ACCESS_KEY || ''
+  CHAT_ID: process.env.ALOCACAO_HUB_CHAT_ID || '120363420668199320@g.us'
 };
 
-// Configurações do JSONBin.io (mesmas do projeto principal)
-const JSONBIN_CONFIG = {
-  API_URL: 'https://api.jsonbin.io/v3/b',
-  MASTER_KEY: process.env.JSONBIN_MASTER_KEY || '',
-  ACCESS_KEY: process.env.JSONBIN_ACCESS_KEY || '',
-  SCALE_BIN_ID: process.env.SCALE_BIN_ID || process.env.ESCALA_BIN_ID || '697531c843b1c97be9474ae9',
-  // Bin específico para mensagens do WhatsApp (SEPARADO do bin da escala!)
-  // Este bin armazena apenas: COP REDE INFORMA e Alertas
-  // O bin da escala (697531c843b1c97be9474ae9) armazena os calendários de trabalho
-  // IMPORTANTE: Este ID deve ser mantido fixo para persistir os dados entre restarts
-  WHATSAPP_BIN_ID: process.env.WHATSAPP_BIN_ID || process.env.TELEGRAM_BIN_ID || '697778b3ae596e708ff7760f'
+// Persistência operacional. A secret key nunca é enviada ao navegador.
+const SUPABASE_CONFIG = {
+  URL: (process.env.SUPABASE_URL || '').replace(/\/$/, ''),
+  SECRET_KEY: process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || '',
+  SCHEMA: process.env.SUPABASE_SCHEMA || 'public'
 };
 
 // Títulos de mensagens que serão processadas
@@ -178,7 +163,7 @@ module.exports = {
   EVOLUTION_CONFIG,
   COP_REDE_EMPRESARIAL_CONFIG,
   ALOCACAO_HUB_CONFIG,
-  JSONBIN_CONFIG,
+  SUPABASE_CONFIG,
   MESSAGE_TITLES,
   GRUPO_PARA_AREA,
   CAMPOS_MENSAGEM,

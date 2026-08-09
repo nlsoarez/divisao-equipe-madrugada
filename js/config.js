@@ -1,37 +1,12 @@
 /**
  * CONFIGURAÇÕES DO SISTEMA - ESCALA EQUIPE MADRUGADA
  *
- * Este arquivo contém as configurações principais do sistema.
- * Para atualizar o BIN_ID, edite apenas este arquivo e faça commit.
+ * Este arquivo contém as configurações públicas do frontend.
+ * Credenciais de persistência pertencem somente ao backend OCI.
  */
 
 const CONFIG = {
-  // ============================================
-  // JSONBIN.IO - ARMAZENAMENTO NA NUVEM
-  // ============================================
-
-  /**
-   * BIN_ID - Identificador do bin onde os dados são armazenados
-   *
-   * INSTRUÇÕES:
-   * 1. Se este valor for null, o admin criará um novo bin automaticamente
-   * 2. Após criar, o sistema exibirá o novo ID
-   * 3. Atualize este valor e faça commit para que todos acessem
-   *
-   * Exemplo: BIN_ID: "67acf6e1ad19ca34f89c1234"
-   */
-  BIN_ID: "697531c843b1c97be9474ae9",
-
-  /**
-   * Credenciais JSONBin.io
-   * ATENÇÃO: Estas chaves são públicas no código. Use apenas para dados não-sensíveis.
-   */
-  JSONBIN: {
-    API_URL: 'https://api.jsonbin.io/v3/b',
-    // Credenciais ficam somente no ambiente do backend OCI.
-    MASTER_KEY: null,
-    ACCESS_KEY: null
-  },
+  STORAGE_PROVIDER: 'supabase',
 
   // ============================================
   // AUTENTICAÇÃO
@@ -256,7 +231,6 @@ const CONFIG = {
   // ============================================
 
   STORAGE_KEYS: {
-    BIN_ID: 'escala_bin_id',
     AUTH: 'escala_auth',
     AUTH_EXPIRY: 'escala_auth_expiry',
     BACKUP: 'escala_backup',

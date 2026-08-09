@@ -782,7 +782,7 @@ async function buscarHistoricoHub(limite = 50) {
 
     console.log(`[WhatsApp HUB] Total de ${messages.length} mensagens para processar`);
 
-    // Coletar todas as alocações em memória antes de salvar (evita N chamadas ao JSONBin)
+    // Coletar todas as alocações em memória antes do upsert em lote
     const alocacoesParaSalvar = [];
     let ignorados = 0;
     let semTexto = 0;
@@ -831,7 +831,7 @@ async function buscarHistoricoHub(limite = 50) {
       }
     }
 
-    // Salvar tudo em um único GET + PUT no JSONBin
+    // Salvar o lote em uma única operação no Supabase
     const salvas = await storageHub.adicionarAlocacoesBatch(alocacoesParaSalvar);
 
     console.log(`[WhatsApp HUB] Histórico: ${salvas} alocações salvas, ${ignorados} ignoradas, ${semTexto} sem texto`);

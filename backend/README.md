@@ -14,6 +14,8 @@ npm start
 
 Sem `EVOLUTION_ENABLED=true`, o servidor inicia normalmente em modo degradado. Isso e o comportamento esperado durante a primeira fase da migracao OCI.
 
+Defina `SUPABASE_URL` e `SUPABASE_SECRET_KEY` no `.env`. A secret key nunca deve ser enviada ao navegador. O esquema e criado pela migration versionada em `../supabase/migrations`.
+
 ## Endpoints operacionais
 
 | Metodo | Rota | Uso |
@@ -28,4 +30,4 @@ Sem `EVOLUTION_ENABLED=true`, o servidor inicia normalmente em modo degradado. I
 
 ## Producao
 
-Use o [runbook OCI](../deploy/oci/README.md). Nao inclua segredos em arquivos versionados. As chaves antigas do repositorio devem ser consideradas comprometidas e rotacionadas.
+Use o [runbook OCI](../deploy/oci/README.md) e o [procedimento de migracao](../docs/MIGRACAO_SUPABASE.md). Nao inclua segredos em arquivos versionados. As chaves antigas do repositorio devem ser consideradas comprometidas e revogadas depois da importacao.
