@@ -216,20 +216,54 @@ app.post('/api/diagnostico/limpar-storage', async (req, res) => {
 /**
  * Health check
  */
-app.get('/health', (req, res) => {
+function obterCapacidades() {
+  const whatsappStatus = whatsapp.obterStatus();
+  const evolutionDisponivel = whatsappStatus.configurado && whatsappStatus.conectado;
+  const escalaPersistenteDisponivel = Boolean(
+    JSONBIN_CONFIG.MASTER_KEY && JSONBIN_CONFIG.SCALE_BIN_ID
+  );
+  const hubPersistenteDisponivel = Boolean(
+    storageHub.getBinId() && ALOCACAO_HUB_CONFIG.MASTER_KEY
+  );
+
+  return {
+    evolutionApi: {
+      habilitada: whatsappStatus.habilitado,
+      configurada: whatsappStatus.configurado,
+      conectada: whatsappStatus.conectado
+    },
+    funcionalidades: {
+      escala: escalaPersistenteDisponivel,
+      matrizOfensores: true,
+      volumeWhatsappTempoReal: evolutionDisponivel,
+      alocacaoHubTempoReal: evolutionDisponivel,
+      historicoHubPersistido: hubPersistenteDisponivel
+    }
+  };
+}
+
+function responderHealth(req, res) {
+  const capacidades = obterCapacidades();
+  const degradado = !capacidades.evolutionApi.conectada;
+
   res.json({
-    status: 'ok',
+    status: degradado ? 'degraded' : 'ok',
     timestamp: new Date().toISOString(),
-    whatsapp: whatsapp.obterStatus()
+    ambiente: process.env.NODE_ENV || 'development',
+    capacidades
   });
-});
+}
+
+app.get('/health', responderHealth);
 
 // Alias para /api/health
-app.get('/api/health', (req, res) => {
+app.get('/api/health', responderHealth);
+
+app.get('/api/capacidades', (req, res) => {
   res.json({
-    status: 'ok',
-    timestamp: new Date().toISOString(),
-    whatsapp: whatsapp.obterStatus()
+    sucesso: true,
+    ...obterCapacidades(),
+    timestamp: new Date().toISOString()
   });
 });
 
@@ -1037,6 +1071,15 @@ app.get('/api/alocacao-hub', async (req, res) => {
  * Sincronizar alocações de HUB manualmente
  */
 app.post('/api/alocacao-hub/sincronizar', async (req, res) => {
+  const statusEvolution = whatsapp.obterStatus();
+  if (!statusEvolution.configurado) {
+    return res.status(503).json({
+      sucesso: false,
+      codigo: 'EVOLUTION_API_INDISPONIVEL',
+      erro: 'Sincronizacao do HUB indisponivel ate a migracao da Evolution API'
+    });
+  }
+
   try {
     const limite = req.body.limite || 50;
     const resultado = await whatsapp.buscarHistoricoHub(limite);
@@ -1609,6 +1652,17 @@ app.get('/api/matriz-ofensores', async (req, res) => {
 // INICIALIZAÇÃO DO SERVIDOR
 // ============================================
 
+// Em producao OCI, o mesmo processo entrega o frontend e a API. Isso elimina
+// a URL fixa do Railway e evita CORS/mixed-content entre dois dominios.
+const publicDir = process.env.PUBLIC_DIR;
+if (publicDir && fs.existsSync(publicDir)) {
+  app.use(express.static(publicDir, {
+    etag: true,
+    maxAge: process.env.NODE_ENV === 'production' ? '10m' : 0
+  }));
+  console.log(`[Static] Frontend servido de ${publicDir}`);
+}
+
 app.listen(SERVER_CONFIG.PORT, async () => {
   console.log('============================================');
   console.log('   COP REDE INFORMA - Backend');
@@ -1618,7 +1672,14 @@ app.listen(SERVER_CONFIG.PORT, async () => {
   console.log('');
 
   // WhatsApp (Evolution API) - ÚNICA FONTE DE DADOS
-  if (EVOLUTION_CONFIG.API_KEY && EVOLUTION_CONFIG.INSTANCE_NAME) {
+  const evolutionConfigurada = Boolean(
+    EVOLUTION_CONFIG.ENABLED &&
+    EVOLUTION_CONFIG.API_URL &&
+    EVOLUTION_CONFIG.API_KEY &&
+    EVOLUTION_CONFIG.INSTANCE_NAME
+  );
+
+  if (evolutionConfigurada) {
     console.log('📱 Verificando WhatsApp (Evolution API)...');
     console.log(`   Instância: ${EVOLUTION_CONFIG.INSTANCE_NAME}`);
     console.log(`   SOURCE_CHAT_ID: ${EVOLUTION_CONFIG.SOURCE_CHAT_ID || 'NÃO CONFIGURADO'}`);
@@ -1639,7 +1700,7 @@ app.listen(SERVER_CONFIG.PORT, async () => {
 
         console.log('');
         console.log('   Para receber mensagens via webhook (mais rápido):');
-        console.log('   URL: https://seu-backend.railway.app/api/whatsapp/webhook');
+        console.log('   URL: https://seu-dominio.example/api/whatsapp/webhook');
         console.log('   Eventos: MESSAGES_UPSERT');
       } else {
         console.log('⚠️  WhatsApp não conectado:', status.estado || status.erro);
@@ -1650,6 +1711,7 @@ app.listen(SERVER_CONFIG.PORT, async () => {
   } else {
     console.log('❌ WhatsApp não configurado!');
     console.log('   Configure as variáveis:');
+    console.log('   - EVOLUTION_ENABLED=true');
     console.log('   - EVOLUTION_API_URL');
     console.log('   - EVOLUTION_API_KEY');
     console.log('   - EVOLUTION_INSTANCE_NAME');
@@ -1667,7 +1729,7 @@ app.listen(SERVER_CONFIG.PORT, async () => {
   console.log(`   CHAT_ID: ${ALOCACAO_HUB_CONFIG.CHAT_ID}`);
 
   // Criar bin automaticamente se não existir
-  if (!storageHub.getBinId()) {
+  if (!storageHub.getBinId() && ALOCACAO_HUB_CONFIG.MASTER_KEY) {
     console.log('   BIN_ID: Criando automaticamente...');
     try {
       const novoBinId = await storageHub.criarBin();
@@ -1675,12 +1737,14 @@ app.listen(SERVER_CONFIG.PORT, async () => {
     } catch (binError) {
       console.log(`   ⚠️  Erro ao criar bin: ${binError.message}`);
     }
-  } else {
+  } else if (storageHub.getBinId()) {
     console.log(`   BIN_ID: ${storageHub.getBinId()}`);
+  } else {
+    console.log('   BIN_ID: NAO CONFIGURADO (historico do HUB indisponivel)');
   }
 
   // Carregar histórico de HUB automaticamente no startup
-  if (ALOCACAO_HUB_CONFIG.CHAT_ID && storageHub.getBinId()) {
+  if (evolutionConfigurada && ALOCACAO_HUB_CONFIG.CHAT_ID && storageHub.getBinId()) {
     try {
       console.log('   📥 Carregando histórico de alocações...');
       const resultadoHub = await whatsapp.buscarHistoricoHub(20);

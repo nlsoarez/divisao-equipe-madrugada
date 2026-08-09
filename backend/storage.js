@@ -274,7 +274,7 @@ async function salvarDados(dados, tentativa = 1) {
           const novoBinId = await criarNovoBinParaMensagens(dadosParaSalvar);
           if (novoBinId) {
             console.log('[Storage] Novo bin criado:', novoBinId);
-            console.log('[Storage] IMPORTANTE: Atualize WHATSAPP_BIN_ID=' + novoBinId + ' no Railway');
+            console.log('[Storage] IMPORTANTE: Atualize WHATSAPP_BIN_ID=' + novoBinId + ' no ambiente OCI');
             return true;
           }
         } catch (criarError) {
@@ -346,7 +346,7 @@ async function criarNovoBinParaMensagens(dados) {
   console.log('========================================');
   console.log('[Storage] NOVO BIN CRIADO COM SUCESSO!');
   console.log('[Storage] Novo ID:', novoBinId);
-  console.log('[Storage] Configure no Railway: WHATSAPP_BIN_ID=' + novoBinId);
+  console.log('[Storage] Configure no ambiente OCI: WHATSAPP_BIN_ID=' + novoBinId);
   console.log('========================================');
 
   return novoBinId;

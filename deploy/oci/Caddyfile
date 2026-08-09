@@ -1,0 +1,19 @@
+{$SITE_ADDRESS::80} {
+  encode zstd gzip
+
+  @protected {
+    not path /health /api/health /api/whatsapp/webhook
+  }
+
+  basic_auth @protected {
+    {$BASIC_AUTH_USER} {$BASIC_AUTH_HASH}
+  }
+
+  header {
+    X-Content-Type-Options nosniff
+    Referrer-Policy strict-origin-when-cross-origin
+    -Server
+  }
+
+  reverse_proxy app:3001
+}

@@ -1,0 +1,69 @@
+name: Deploy OCI
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-oci-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Prepare SSH
+        env:
+          OCI_HOST: ${{ secrets.OCI_HOST }}
+          OCI_SSH_PRIVATE_KEY: ${{ secrets.OCI_SSH_PRIVATE_KEY }}
+        run: |
+          test -n "$OCI_HOST"
+          test -n "$OCI_SSH_PRIVATE_KEY"
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$OCI_SSH_PRIVATE_KEY" > ~/.ssh/oci_key
+          chmod 600 ~/.ssh/oci_key
+          ssh-keyscan -H "$OCI_HOST" >> ~/.ssh/known_hosts
+
+      - name: Package committed source and runtime environment
+        env:
+          OCI_APP_ENV_B64: ${{ secrets.OCI_APP_ENV_B64 }}
+        run: |
+          test -n "$OCI_APP_ENV_B64"
+          git archive --format=tar.gz --output=/tmp/divisao-madrugada.tar.gz "$GITHUB_SHA"
+          printf '%s' "$OCI_APP_ENV_B64" | base64 --decode > /tmp/divisao-madrugada.env
+          chmod 600 /tmp/divisao-madrugada.env
+
+      - name: Upload release
+        env:
+          OCI_HOST: ${{ secrets.OCI_HOST }}
+          OCI_SSH_USER: ${{ secrets.OCI_SSH_USER }}
+        run: |
+          user="${OCI_SSH_USER:-ubuntu}"
+          scp -i ~/.ssh/oci_key /tmp/divisao-madrugada.tar.gz /tmp/divisao-madrugada.env "$user@$OCI_HOST:/tmp/"
+
+      - name: Activate release
+        env:
+          OCI_HOST: ${{ secrets.OCI_HOST }}
+          OCI_SSH_USER: ${{ secrets.OCI_SSH_USER }}
+        run: |
+          user="${OCI_SSH_USER:-ubuntu}"
+          release="$GITHUB_SHA"
+          ssh -i ~/.ssh/oci_key "$user@$OCI_HOST" "RELEASE='$release' bash -s" <<'REMOTE'
+          set -euo pipefail
+          root=/opt/divisao-equipe-madrugada
+          target="$root/releases/$RELEASE"
+          sudo mkdir -p "$target"
+          sudo chown -R "$USER:$USER" "$root"
+          tar -xzf /tmp/divisao-madrugada.tar.gz -C "$target"
+          install -m 600 /tmp/divisao-madrugada.env "$target/deploy/oci/.env"
+          cd "$target/deploy/oci"
+          docker compose up -d --build --remove-orphans
+          ln -sfn "$target" "$root/current"
+          rm -f /tmp/divisao-madrugada.tar.gz /tmp/divisao-madrugada.env
+          curl --fail --silent --show-error http://127.0.0.1/health
+          REMOTE

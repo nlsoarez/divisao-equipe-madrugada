@@ -3649,7 +3649,20 @@ const JSONBIN_CONFIG = {
   API_URL: CONFIG.JSONBIN.API_URL
 };
 
-const ESCALA_BACKEND_URL = 'https://divisao-equipe-madrugada-production.up.railway.app';
+// Na OCI, frontend e API sao publicados pelo mesmo dominio. Uma URL externa
+// ainda pode ser injetada por window.APP_CONFIG.BACKEND_URL em desenvolvimento.
+function resolverBackendUrl() {
+  const configurada = window.APP_CONFIG && window.APP_CONFIG.BACKEND_URL;
+  if (configurada) return String(configurada).replace(/\/$/, '');
+
+  if (window.location.protocol === 'http:' || window.location.protocol === 'https:') {
+    return window.location.origin;
+  }
+
+  return 'http://localhost:3001';
+}
+
+const ESCALA_BACKEND_URL = resolverBackendUrl();
 
 // Funções de compatibilidade com código existente
 function obterBinId() { return API.getBinId(); }
@@ -6203,6 +6216,10 @@ async function salvarConfiguracaoCalendarios(tentativa = 1) {
       console.warn('⚠️ Backend não conseguiu salvar a escala. Tentando JSONBin direto...', backendError);
     }
 
+    if (!JSONBIN_CONFIG.MASTER_KEY) {
+      throw new Error('Backend OCI indisponivel; fallback direto ao JSONBin foi desativado por seguranca');
+    }
+
     const response = await fetch(`${JSONBIN_CONFIG.API_URL}/${binId}`, {
       method: 'PUT',
       headers: {
@@ -6494,6 +6511,12 @@ async function carregarDadosDaNuvem() {
     }
   } catch (backendError) {
     console.warn('⚠️ Backend não conseguiu carregar a escala. Tentando JSONBin direto...', backendError);
+  }
+
+  if (!JSONBIN_CONFIG.MASTER_KEY) {
+    console.warn('Fallback direto ao JSONBin desativado; tentando backup local.');
+    carregarDoBackupLocal();
+    return false;
   }
 
   if (!binId) {
@@ -7219,6 +7242,23 @@ async function testarConexaoNuvem() {
 
   console.log('🔍 TESTANDO CONEXÃO COM A NUVEM...');
   console.log('📌 BIN ID:', binId || 'Nenhum configurado');
+
+  if (!JSONBIN_CONFIG.MASTER_KEY) {
+    showLoading();
+    try {
+      const response = await fetch(`${BACKEND_URL}/api/health`);
+      const health = await response.json();
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      alert(`Backend OCI acessível. Status: ${health.status}`);
+      showToast('✅ Backend OCI acessível', 'success');
+    } catch (error) {
+      showToast('❌ Backend OCI indisponível: ' + error.message, 'danger');
+    } finally {
+      hideLoading();
+    }
+    return;
+  }
+
   console.log('🔑 Master Key:', JSONBIN_CONFIG.MASTER_KEY.substring(0, 20) + '...');
   console.log('🔑 Access Key:', JSONBIN_CONFIG.ACCESS_KEY.substring(0, 20) + '...');
 
@@ -9989,8 +10029,8 @@ function showToast(message, type = 'info') {
 // INTEGRAÇÃO WHATSAPP - COP REDE INFORMA
 // ============================================
 
-// Configuração do Backend - URL fixa do Render
-const BACKEND_URL = 'https://divisao-equipe-madrugada-production.up.railway.app';
+// Backend no mesmo dominio do frontend (OCI).
+const BACKEND_URL = ESCALA_BACKEND_URL;
 let backendUrl = BACKEND_URL;
 let dadosCopRedeInforma = [];
 let dadosCopRedeEmpresarial = [];
@@ -11314,7 +11354,7 @@ executarValidacaoTopologia = async function(manual = false) {
     const ciclo = data.resultadosCiclo || [];
     const todosIndeterminados = ciclo.length > 0 && ciclo.every(r => r.status === 'indeterminado');
     if (data.falhaGlobalVisium || (!viaHelper && todosIndeterminados)) {
-      const origemTxt = viaHelper ? 'pelo helper local' : 'pelo backend central (Railway não está na VPN)';
+      const origemTxt = viaHelper ? 'pelo helper local' : 'pelo backend central OCI (fora da VPN)';
       const detalhe = data.falhaGlobalVisium || 'sem diagnóstico para nenhum node';
       atualizarMensagemValidacaoTopologia(
         `<i class="bi bi-plug me-1"></i>Visium inacessível ${origemTxt}: <span class="text-danger">${escapeHtml(detalhe)}</span> — inicie o helper local na máquina com VPN e clique em Testar novamente.`
@@ -11371,7 +11411,7 @@ function renderizarTabelaOfensores(ofensores) {
 
 /**
  * Busca a Matriz pelo backend quando ele está online e usa o Data API do
- * Supabase como fallback de leitura quando o Railway está indisponível.
+ * Supabase como fallback de leitura quando o backend OCI está indisponível.
  */
 async function buscarDadosMatrizOfensores() {
   if (backendUrl && backendConectado) {
@@ -11452,7 +11492,7 @@ async function carregarMatrizOfensores(forcar = false) {
 
     console.log('[Ofensores] Matriz carregada:', data.total, 'incidentes via', data.origem);
 
-    // O cache de topologia também depende do Railway; não consultar enquanto offline.
+    // O cache de topologia também depende do backend OCI; não consultar enquanto offline.
     if (backendConectado) validarTopologiaSeNecessario();
   } catch (err) {
     console.error('[Ofensores] Erro:', err.message);

@@ -24,6 +24,14 @@ const POLLING_INTERVAL_MS = parseInt(process.env.WHATSAPP_POLLING_INTERVAL || '3
  * Faz requisição para a Evolution API
  */
 async function evolutionRequest(endpoint, method = 'GET', body = null) {
+  if (!EVOLUTION_CONFIG.ENABLED) {
+    throw new Error('Evolution API desativada neste ambiente');
+  }
+
+  if (!EVOLUTION_CONFIG.API_URL || !EVOLUTION_CONFIG.API_KEY || !EVOLUTION_CONFIG.INSTANCE_NAME) {
+    throw new Error('Evolution API habilitada, mas incompletamente configurada');
+  }
+
   const url = `${EVOLUTION_CONFIG.API_URL}${endpoint}`;
 
   const options = {
@@ -419,6 +427,13 @@ async function listarChats() {
  */
 function obterStatus() {
   return {
+    habilitado: EVOLUTION_CONFIG.ENABLED,
+    configurado: Boolean(
+      EVOLUTION_CONFIG.ENABLED &&
+      EVOLUTION_CONFIG.API_URL &&
+      EVOLUTION_CONFIG.API_KEY &&
+      EVOLUTION_CONFIG.INSTANCE_NAME
+    ),
     conectado: isConnected,
     instancia: EVOLUTION_CONFIG.INSTANCE_NAME,
     apiUrl: EVOLUTION_CONFIG.API_URL,

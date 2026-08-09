@@ -28,8 +28,9 @@ const CONFIG = {
    */
   JSONBIN: {
     API_URL: 'https://api.jsonbin.io/v3/b',
-    MASTER_KEY: '$2a$10$tGExKDQ1CS6U/A7JPWOlRerdm4XUs6sQcChusEUmlqiVdkugQ/MZW',
-    ACCESS_KEY: '$2a$10$2dbmigUDE0MQ/2jxympm8eyPQzRdC/Ts4FIksSn/F9Pb4Qu8Mg0wm'
+    // Credenciais ficam somente no ambiente do backend OCI.
+    MASTER_KEY: null,
+    ACCESS_KEY: null
   },
 
   // ============================================

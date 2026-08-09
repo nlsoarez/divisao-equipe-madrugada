@@ -1,0 +1,16 @@
+#cloud-config
+package_update: true
+package_upgrade: true
+packages:
+  - docker.io
+  - docker-compose-v2
+  - git
+  - unzip
+
+runcmd:
+  - [systemctl, enable, --now, docker]
+  - [usermod, -aG, docker, ubuntu]
+  - [mkdir, -p, /opt/divisao-equipe-madrugada]
+  - [chown, -R, "ubuntu:ubuntu", /opt/divisao-equipe-madrugada]
+
+final_message: "Bootstrap OCI concluido em $UPTIME segundos"

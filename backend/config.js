@@ -5,11 +5,18 @@
 
 require('dotenv').config();
 
+function envFlag(name, defaultValue = false) {
+  const value = process.env[name];
+  if (value === undefined) return defaultValue;
+  return ['1', 'true', 'yes', 'on'].includes(String(value).toLowerCase());
+}
+
 // Configurações da Evolution API (WhatsApp) - ÚNICA FONTE DE DADOS
 const EVOLUTION_CONFIG = {
-  API_URL: process.env.EVOLUTION_API_URL || 'https://evolution-api-production-b976.up.railway.app',
-  API_KEY: process.env.EVOLUTION_API_KEY || 'BCCA054B44D0-4F28-B60A-0C9C1410221F',
-  INSTANCE_NAME: process.env.EVOLUTION_INSTANCE_NAME || 'NIA',
+  ENABLED: envFlag('EVOLUTION_ENABLED', false),
+  API_URL: (process.env.EVOLUTION_API_URL || '').replace(/\/$/, ''),
+  API_KEY: process.env.EVOLUTION_API_KEY || '',
+  INSTANCE_NAME: process.env.EVOLUTION_INSTANCE_NAME || '',
   // Número do grupo ou contato de onde vêm as mensagens (formato: 5511999999999@g.us para grupos)
   SOURCE_CHAT_ID: process.env.EVOLUTION_SOURCE_CHAT_ID || null
 };
@@ -31,15 +38,15 @@ const ALOCACAO_HUB_CONFIG = {
   // Para configurar manualmente, defina a variável ALOCACAO_HUB_BIN_ID
   BIN_ID: process.env.ALOCACAO_HUB_BIN_ID || null,
   // Credenciais exclusivas para o HUB (conta separada do JSONBin)
-  MASTER_KEY: process.env.ALOCACAO_HUB_MASTER_KEY || '$2a$10$PiBMNNOp1IyF1Fp5Od6xdObHbiKLvZfKRz9riFR4vUwc.mzS7pgU.',
-  ACCESS_KEY: process.env.ALOCACAO_HUB_ACCESS_KEY || '$2a$10$chuVdUSu4tC83GVFpIxxyOTtIOlt9P/tey3dcYNPh83UqwL4UDljy'
+  MASTER_KEY: process.env.ALOCACAO_HUB_MASTER_KEY || '',
+  ACCESS_KEY: process.env.ALOCACAO_HUB_ACCESS_KEY || ''
 };
 
 // Configurações do JSONBin.io (mesmas do projeto principal)
 const JSONBIN_CONFIG = {
   API_URL: 'https://api.jsonbin.io/v3/b',
-  MASTER_KEY: process.env.JSONBIN_MASTER_KEY || '$2a$10$tGExKDQ1CS6U/A7JPWOlRerdm4XUs6sQcChusEUmlqiVdkugQ/MZW',
-  ACCESS_KEY: process.env.JSONBIN_ACCESS_KEY || '$2a$10$2dbmigUDE0MQ/2jxympm8eyPQzRdC/Ts4FIksSn/F9Pb4Qu8Mg0wm',
+  MASTER_KEY: process.env.JSONBIN_MASTER_KEY || '',
+  ACCESS_KEY: process.env.JSONBIN_ACCESS_KEY || '',
   SCALE_BIN_ID: process.env.SCALE_BIN_ID || process.env.ESCALA_BIN_ID || '697531c843b1c97be9474ae9',
   // Bin específico para mensagens do WhatsApp (SEPARADO do bin da escala!)
   // Este bin armazena apenas: COP REDE INFORMA e Alertas
