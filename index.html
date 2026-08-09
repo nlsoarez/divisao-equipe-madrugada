@@ -3630,6 +3630,7 @@
 <script src="js/api.js"></script>
 <script src="js/area-editor.js"></script>
 <script src="js/matriz-api.js"></script>
+<script src="js/backup-recovery.js"></script>
 <script>
 // ============================================
 // VARIÁVEIS GLOBAIS E ALIASES
@@ -6234,27 +6235,76 @@ function mostrarBotaoRepublicar() {
         }
       }
     }
+
+    if (!document.getElementById('btnExportarBackup')) {
+      const adminControls = document.getElementById('adminControls');
+      const btnGroup = adminControls?.querySelector('.buttons-group');
+      if (btnGroup) {
+        const btnExportar = document.createElement('button');
+        btnExportar.id = 'btnExportarBackup';
+        btnExportar.className = 'refresh-btn';
+        btnExportar.style.background = 'linear-gradient(135deg, #546e7a 0%, #37474f 100%)';
+        btnExportar.title = 'Baixar uma cópia JSON da escala pendente';
+        btnExportar.innerHTML = '<i class="bi bi-download"></i>';
+        btnExportar.onclick = exportarBackupLocalJson;
+        btnGroup.insertBefore(btnExportar, btnGroup.firstChild);
+      }
+    }
   }
+}
+
+function exportarBackupLocalJson() {
+  const backup = BackupRecovery.lerBackupLocal(localStorage);
+  if (!backup.valido) {
+    showToast(`❌ ${backup.erro}`, 'danger');
+    return false;
+  }
+
+  const url = URL.createObjectURL(new Blob([backup.bruto], { type: 'application/json' }));
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = BackupRecovery.nomeArquivoBackup();
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+  showToast('✅ Backup da escala baixado em JSON.', 'success');
+  return true;
 }
 
 // Função para republicar dados pendentes
 async function republicarDados() {
   if (!isAdmin) return;
 
-  const backup = localStorage.getItem('escala_backup');
-  if (!backup) {
-    showToast('ℹ️ Não há dados pendentes para republicar', 'info');
+  const backup = BackupRecovery.lerBackupLocal(localStorage);
+  if (!backup.valido) {
+    showToast(`❌ ${backup.erro}`, 'danger');
     return;
   }
 
   showToast('🔄 Tentando republicar dados na nuvem...', 'info');
-  await salvarConfiguracaoCalendarios();
+  showLoading();
 
-  // Se publicou com sucesso, remover botão
-  const pendente = localStorage.getItem('escala_pendente_publicacao');
-  if (!pendente) {
-    const btn = document.getElementById('btnRepublicar');
-    if (btn) btn.remove();
+  try {
+    const publicacao = await BackupRecovery.republicarBackupLocal(
+      localStorage,
+      salvarEscalaViaBackend
+    );
+    const resultadoBackend = publicacao.resultado;
+    if (resultadoBackend?.binId) salvarBinId(resultadoBackend.binId);
+
+    processarDadosCarregados(backup.dados);
+    salvarBackupLocalSeguro(backup.dados, false);
+
+    document.getElementById('btnRepublicar')?.remove();
+    document.getElementById('btnExportarBackup')?.remove();
+    showToast('✅ Backup republicado para todos os usuários.', 'success');
+  } catch (error) {
+    console.error('❌ Falha ao republicar backup local:', error);
+    localStorage.setItem('escala_pendente_publicacao', 'true');
+    showToast(`❌ Não foi possível republicar: ${error.message}`, 'danger');
+  } finally {
+    hideLoading();
   }
 }
 
@@ -6327,6 +6377,16 @@ async function carregarDadosDaNuvem() {
       return true;
     }
 
+    if (localStorage.getItem('escala_pendente_publicacao') === 'true') {
+      console.warn('⚠️ Supabase vazio; preservando a escala pendente do backup local.');
+      const carregouBackup = carregarDoBackupLocal();
+      if (carregouBackup) {
+        mostrarBotaoRepublicar();
+        showToast('⚠️ Escala local pendente. Republique antes de trocar o endereço do site.', 'danger');
+      }
+      return carregouBackup;
+    }
+
     showToast('📭 Nenhuma escala encontrada no Supabase. Faça o primeiro upload.', 'info');
     return false;
   } catch (error) {
@@ -6339,52 +6399,24 @@ async function carregarDadosDaNuvem() {
 
 function carregarDoBackupLocal() {
   try {
-    const dadosSalvos = localStorage.getItem('escala_backup');
-    const ultimoSalvamento = localStorage.getItem('escala_ultimo_salvamento');
+    const backup = BackupRecovery.lerBackupLocal(localStorage);
 
-    if (dadosSalvos) {
-      const dados = JSON.parse(dadosSalvos);
+    if (backup.valido) {
+      processarDadosCarregados(backup.dados);
 
-      // Verificar se há dados válidos (formato v2 OU v3.0)
-      const formatoV2 = dados && (dados.dadosOriginais || dados.dadosPlanilha);
-      const formatoV3 = dados && (dados.versao === '3.0' || dados.calendario1 || dados.calendario2);
-
-      // Verificar se há CONTEÚDO real (não apenas estrutura vazia).
-      // Evita que um backup "esqueleto" (ex: { versao: '3.0', calendario1: null })
-      // seja aceito e sobrescreva a nuvem com vazio no próximo save.
-      const cal1TemConteudo = dados && dados.calendario1 && dados.calendario1.dadosOriginais
-        && Object.keys(dados.calendario1.dadosOriginais).length > 0;
-      const cal2RioEs = dados?.calendario2?.rio_es?.dadosOriginais;
-      const cal2Leste = dados?.calendario2?.leste?.dadosOriginais;
-      const cal2Legado = dados?.calendario2?.dadosOriginais;
-      const cal2TemConteudo = (cal2RioEs && Object.keys(cal2RioEs).length > 0)
-        || (cal2Leste && Object.keys(cal2Leste).length > 0)
-        || (cal2Legado && Object.keys(cal2Legado).length > 0);
-      const v2TemConteudo = dados && dados.dadosOriginais
-        && Object.keys(dados.dadosOriginais).length > 0;
-      const temConteudo = cal1TemConteudo || cal2TemConteudo || v2TemConteudo;
-
-      if ((formatoV2 || formatoV3) && temConteudo) {
-        processarDadosCarregados(dados);
-
-        let mensagem = '📁 Backup local carregado';
-        if (ultimoSalvamento) {
-          const dataBackup = new Date(ultimoSalvamento);
-          mensagem += ` (${dataBackup.toLocaleDateString()} ${dataBackup.toLocaleTimeString()})`;
-        }
-
-        showToast(mensagem, 'info');
-        return true;
-      } else {
-        console.warn('⚠️ Backup local sem conteúdo real - ignorando para não sobrescrever nuvem');
-        showToast('📭 Nenhuma escala salva ainda.', 'warning');
-        return false;
+      let mensagem = '📁 Backup local carregado';
+      if (backup.ultimoSalvamento) {
+        const dataBackup = new Date(backup.ultimoSalvamento);
+        mensagem += ` (${dataBackup.toLocaleDateString()} ${dataBackup.toLocaleTimeString()})`;
       }
-    } else {
-      console.log('📭 Nenhum backup local encontrado');
-      showToast('📭 Nenhuma escala encontrada. Faça upload de uma planilha para começar.', 'warning');
-      return false;
+
+      showToast(mensagem, 'info');
+      return true;
     }
+
+    console.warn(`⚠️ ${backup.erro}`);
+    showToast(`📭 ${backup.erro}`, 'warning');
+    return false;
   } catch (error) {
     console.error('❌ Erro no backup local:', error);
     showToast('💥 Erro ao carregar dados: ' + error.message, 'danger');

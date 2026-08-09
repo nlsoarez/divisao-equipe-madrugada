@@ -44,7 +44,25 @@ $env:ALOCACAO_HUB_BIN_ID='ID_HUB_SE_EXISTIR'
 npm run migrate:jsonbin -- --dry-run
 ```
 
-Se o JSONBin responder `429 Requests exhausted`, nao tente contornar a cota criando novos bins. Aguarde a renovacao ou regularize a conta e repita o dry-run.
+Se o JSONBin responder `403/429 Requests exhausted`, nao tente contornar a cota criando novos bins. Aguarde a renovacao ou regularize a conta e repita o dry-run.
+
+## Recuperacao de uma escala salva apenas no navegador
+
+Quando a publicacao remota falha, o frontend grava a escala em `escala_backup` e marca
+`escala_pendente_publicacao=true`. O aviso "Dados salvos APENAS localmente" so e exibido
+depois que essa copia local e concluida.
+
+Antes de trocar o dominio GitHub Pages pelo dominio OCI:
+
+1. use o mesmo navegador, perfil e endereco em que a planilha foi enviada;
+2. nao limpe os dados do site;
+3. entre como administrador e use o botao de download para guardar o backup JSON;
+4. depois que o backend OCI/Supabase estiver ativo, use o botao de republicacao;
+5. confirme em outro navegador que a escala foi carregada do Supabase.
+
+O armazenamento local pertence ao dominio. O backup do GitHub Pages nao aparece
+automaticamente no dominio OCI. Se a virada de DNS ocorrer antes da republicacao,
+importe novamente a planilha original ou preserve o arquivo JSON baixado.
 
 Depois configure `SUPABASE_URL` e `SUPABASE_SECRET_KEY` no terminal e execute:
 
