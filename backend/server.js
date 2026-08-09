@@ -15,6 +15,7 @@ const { client: supabase } = require('./supabase');
 const storage = require('./storage');
 const storageHub = require('./storageHub');
 const whatsapp = require('./whatsapp');
+const { buscarMatrizOfensores } = require('../js/matriz-api');
 
 const app = express();
 
@@ -234,6 +235,8 @@ function obterCapacidades() {
     funcionalidades: {
       escala: persistenciaDisponivel,
       matrizOfensores: true,
+      volumetriaPortal: true,
+      ingestaoCopWhatsappTempoReal: evolutionDisponivel,
       volumeWhatsappTempoReal: evolutionDisponivel,
       alocacaoHubTempoReal: evolutionDisponivel,
       historicoHubPersistido: persistenciaDisponivel
@@ -1177,9 +1180,6 @@ app.post('/api/cache/limpar', async (req, res) => {
 // ROTA MATRIZ DE OFENSORES (Coprede / Supabase)
 // ============================================
 
-const SUPABASE_URL = 'https://wthzxrgifjtenaujhdbb.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind0aHp4cmdpZmp0ZW5hdWpoZGJiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjkwMjYwODIsImV4cCI6MjA4NDYwMjA4Mn0.MGhDMxfbbKGc69Mut8M7ESmULS8d10VgeIu_vXcorpc';
-
 const TOPOLOGIA_VALIDACAO_CACHE_PATH = path.join(__dirname, 'data', 'topologia-validacao-cache.json');
 const TOPOLOGIA_VALIDACAO_CACHE_VERSION = 7;
 const TOPOLOGIA_VALIDACAO_ORIGEM_MANUAL = 'admin-manual-v6';
@@ -1527,39 +1527,19 @@ app.post('/api/topologia-validacao/registrar', (req, res) => {
 
 /**
  * Buscar Matriz de Ofensores do portal Coprede (Supabase)
- * Retorna top 100 incidentes mais antigos, agrupados por área
+ * Retorna os incidentes ativos mais antigos do portal, agrupados por área
  */
 app.get('/api/matriz-ofensores', async (req, res) => {
   try {
-    const limit = parseInt(req.query.limit) || 200;
-    // Busca todos os campos de mapeamento geográfico: grupo e cluster são os campos
-    // canônicos do portal de origem para identificar área (não usar só regional/cidade)
-    // Filtrar fora apenas status tratada/treated (igual ao portal de origem que exclui encerrados)
-    // Incidentes de quarentena continuam com status ativo, mas não devem entrar
-    // na volumetria. O portal usa a tag "#QRT#" e também há registro legado com
-    // a palavra "QUARENTENA"; o OR preserva resumos nulos.
-    // "%23" é o caractere "#" codificado para não virar fragmento da URL.
-    const url = `${SUPABASE_URL}/rest/v1/incidents?select=id_mostra,nm_tipo,nm_cidade,nm_status,topologia,dh_inicio,regional,grupo,cluster,ds_sumario&nm_status=not.in.(treated,tratada)&or=(ds_sumario.is.null,and(ds_sumario.not.ilike.*%23QRT%23*,ds_sumario.not.ilike.*QUARENTENA*))&order=dh_inicio.asc&limit=${limit}`;
-
-    const response = await fetch(url, {
-      headers: {
-        'apikey': SUPABASE_ANON_KEY,
-        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-        'Content-Type': 'application/json'
-      }
-    });
-
-    if (!response.ok) {
-      const errText = await response.text();
-      throw new Error(`Supabase ${response.status}: ${errText}`);
-    }
-
-    const ofensores = await response.json();
+    const limit = Number.parseInt(req.query.limit, 10) || 200;
+    const resultadoPortal = await buscarMatrizOfensores({ limit });
+    // O módulo compartilhado aplica os mesmos campos e filtros no backend e no fallback do navegador.
+    const ofensores = resultadoPortal.ofensores;
 
     // Agrupar por área e calcular estatísticas
     const areaMap = { 'RIO': [], 'MG/ES/BA': [], 'CO/NO/NE': [], 'OUTRO': [] };
     for (const inc of ofensores) {
-      const area = mapearRegionalParaArea(inc.regional, inc.nm_cidade);
+      const area = mapearRegionalParaArea(inc.grupo || inc.cluster || inc.regional, inc.nm_cidade);
       areaMap[area].push(inc);
     }
 
@@ -1575,7 +1555,8 @@ app.get('/api/matriz-ofensores', async (req, res) => {
       total: ofensores.length,
       ofensores,
       porArea,
-      timestamp: new Date().toISOString()
+      timestamp: resultadoPortal.timestamp,
+      origem: 'portal-coprede'
     });
   } catch (error) {
     console.error('[API] Erro ao buscar Matriz de Ofensores:', error.message);

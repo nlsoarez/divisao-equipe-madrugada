@@ -10218,7 +10218,7 @@ function formatarNomeEscala(nomeCompleto) {
 
 /**
  * Renderiza o painel "Volume por Área" a partir dos incidentes ativos do
- * Supabase (window.dadosMatrizOfensores) — MESMA fonte da seção
+ * portal CopRede (window.dadosMatrizOfensores) — MESMA fonte da seção
  * "Incidentes ativos por analista". Não depende de mensagens do COP,
  * que podem ficar dias sem chegar.
  * Plantonista e nº de pessoas vêm da escala Residencial de AGORA.
@@ -10300,7 +10300,7 @@ function atualizarAreaCardsComOfensores() {
 
 /**
  * Renderiza a seção "Incidentes Ativos por Analista" dentro da aba Residencial.
- * Combina os dados de volumetria (CopRede) com os incidentes do Supabase,
+ * Combina os dados de volumetria com os incidentes do portal CopRede,
  * agrupando por área/analista da escala atual.
  */
 function renderizarIncidentesPorAnalista() {
@@ -10862,7 +10862,7 @@ async function buscarDadosMatrizOfensores() {
 
       return { ...data, origem: data.origem || 'backend' };
     } catch (error) {
-      console.warn('[Ofensores] Backend indisponível; usando Supabase direto:', error.message);
+      console.warn('[Ofensores] Backend indisponível; consultando o portal diretamente:', error.message);
     }
   }
 
@@ -10923,7 +10923,9 @@ async function carregarMatrizOfensores(forcar = false) {
     const spanEl = document.getElementById('matrizUltimaAtualizacao');
     if (infoEl && spanEl) {
       const ts = data.timestamp ? new Date(data.timestamp).toLocaleString('pt-BR') : '';
-      const fonte = data.origem === 'supabase-direto' ? ' · Fonte: Supabase' : '';
+      const fonte = ['portal-coprede', 'portal-coprede-direto'].includes(data.origem)
+        ? ' · Fonte: Portal CopRede'
+        : '';
       spanEl.textContent = `${data.total} ofensores · Atualizado: ${ts}${fonte}`;
       infoEl.style.display = '';
     }

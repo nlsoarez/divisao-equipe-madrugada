@@ -70,4 +70,4 @@ Durante os sete dias, preserve o snapshot em `backend/data-migration` fora do Gi
 
 ## Limitacao independente
 
-A troca de banco nao cria dados que nao chegaram. Volume WhatsApp em tempo real e sincronizacao do HUB permanecem indisponiveis enquanto a Evolution API nao for migrada ou reconectada.
+A troca de banco nao cria dados que nao chegaram. A ingestao COP/WhatsApp e a sincronizacao do HUB permanecem indisponiveis enquanto a Evolution API nao for migrada ou reconectada. A volumetria por area continua funcionando porque consulta os incidentes do portal CopRede por uma integracao independente.

@@ -6,9 +6,9 @@ Painel operacional estatico com backend Node/Express. A implantacao de producao 
 
 - Frontend e API passam a usar o mesmo dominio OCI; nao existe mais URL fixa do Railway.
 - Escalas, mensagens, alertas e historico do HUB passam a ser persistidos em tabelas no Supabase.
-- A matriz de ofensores continua usando Supabase/Visium conforme a disponibilidade de rede.
-- Evolution API fica desativada na primeira fase (`EVOLUTION_ENABLED=false`). Atualizacao de volume via WhatsApp e sincronizacao da alocacao HUB ficam indisponiveis; o historico existente so aparece depois da importacao para o Supabase.
-- `/health` retorna `degraded` enquanto a Evolution estiver desativada. Isso e esperado e ainda retorna HTTP 200 para manter o container saudavel.
+- A volumetria por area e a matriz de ofensores continuam usando os incidentes do portal CopRede, via Data API do Supabase, e nao dependem da Evolution API.
+- Evolution API fica desativada na primeira fase (`EVOLUTION_ENABLED=false`). Somente a ingestao COP/WhatsApp e a sincronizacao da alocacao HUB ficam indisponiveis; o historico existente so aparece depois da importacao para o Supabase operacional.
+- `/health` retorna `degraded` enquanto a Evolution estiver desativada. Isso e esperado, ainda retorna HTTP 200 e nao desativa a volumetria do portal.
 
 ## Execucao local
 

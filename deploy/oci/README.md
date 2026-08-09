@@ -92,6 +92,7 @@ Resultado esperado na fase 1:
 - `status: "degraded"`;
 - `persistencia.configurada: true`;
 - `escala: true` se o Supabase estiver configurado;
+- `volumetriaPortal: true`, independentemente da Evolution API;
 - `volumeWhatsappTempoReal: false`;
 - `alocacaoHubTempoReal: false`;
 - POST `/api/alocacao-hub/sincronizar` retorna HTTP 503 com `EVOLUTION_API_INDISPONIVEL`.

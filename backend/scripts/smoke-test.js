@@ -47,6 +47,12 @@ async function waitForHealth() {
     if (health.capacidades.funcionalidades.alocacaoHubTempoReal !== false) {
       throw new Error('HUB em tempo real deveria estar desativado sem Evolution API');
     }
+    if (health.capacidades.funcionalidades.volumetriaPortal !== true) {
+      throw new Error('Volumetria do portal deve permanecer ativa sem Evolution API');
+    }
+    if (health.capacidades.funcionalidades.ingestaoCopWhatsappTempoReal !== false) {
+      throw new Error('Ingestao COP/WhatsApp deveria estar desativada sem Evolution API');
+    }
 
     const page = await fetch(`http://127.0.0.1:${port}/`);
     const html = await page.text();

@@ -54,15 +54,17 @@
       throw new Error('Fetch indisponível para consultar o Supabase');
     }
 
+    const headers = { apikey: anonKey };
+    if (!String(anonKey).startsWith('sb_')) {
+      headers.Authorization = `Bearer ${anonKey}`;
+    }
+
     const response = await fetchImpl(
       criarUrlMatrizOfensores(opcoes.limit, opcoes.supabaseUrl),
       {
         method: 'GET',
         cache: 'no-store',
-        headers: {
-          apikey: anonKey,
-          Authorization: `Bearer ${anonKey}`
-        }
+        headers
       }
     );
 
@@ -81,7 +83,7 @@
       total: ofensores.length,
       ofensores,
       timestamp: new Date().toISOString(),
-      origem: 'supabase-direto'
+      origem: 'portal-coprede-direto'
     };
   }
 
