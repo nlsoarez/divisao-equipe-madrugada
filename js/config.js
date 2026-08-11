@@ -9,21 +9,6 @@ const CONFIG = {
   STORAGE_PROVIDER: 'supabase',
 
   // ============================================
-  // AUTENTICAÇÃO
-  // ============================================
-
-  /**
-   * PIN de administrador
-   * Usado para acessar funcionalidades de upload e gerenciamento
-   */
-  ADMIN_PIN: 'Coprede2026',
-
-  /**
-   * Duração da sessão em horas
-   */
-  SESSION_DURATION_HOURS: 24,
-
-  // ============================================
   // NOMES DOS FUNCIONÁRIOS (para normalização)
   // ============================================
 

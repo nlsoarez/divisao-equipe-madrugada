@@ -9,7 +9,8 @@ param(
     [string]$CaddyContainer = 'dashboard-indicadores-cop-caddy-1',
     [string]$CaddyfilePath = '/opt/dashboard/releases/4f676b7/deploy/Caddyfile',
     [string]$SupabaseUrl = 'https://aaxdcpftynjphzitigrv.supabase.co',
-    [switch]$ReuseExistingSupabaseConfig
+    [switch]$ReuseExistingSupabaseConfig,
+    [switch]$ReuseExistingAdminPassword
 )
 
 $ErrorActionPreference = 'Stop'
@@ -63,17 +64,25 @@ else {
     Write-Host 'Reutilizando a configuracao Supabase segura existente na VM.' -ForegroundColor DarkGray
 }
 
-do {
-    $passwordSecure = Read-Host 'Crie a senha de acesso ao site (minimo 12 caracteres)' -AsSecureString
-    $passwordConfirmSecure = Read-Host 'Repita a senha de acesso' -AsSecureString
-    $passwordPlain = ConvertFrom-SecureValue $passwordSecure
-    $passwordConfirmPlain = ConvertFrom-SecureValue $passwordConfirmSecure
-    $passwordIsValid = $passwordPlain.Length -ge 12 -and $passwordPlain -ceq $passwordConfirmPlain
-    if (-not $passwordIsValid) {
-        Write-Host 'As senhas nao coincidem ou possuem menos de 12 caracteres.' -ForegroundColor Yellow
-    }
-    $passwordConfirmPlain = $null
-} until ($passwordIsValid)
+$passwordSecure = $null
+$passwordConfirmSecure = $null
+$passwordPlain = $null
+if (-not $ReuseExistingAdminPassword) {
+    do {
+        $passwordSecure = Read-Host 'Crie a senha de acesso administrativo (minimo 12 caracteres)' -AsSecureString
+        $passwordConfirmSecure = Read-Host 'Repita a senha administrativa' -AsSecureString
+        $passwordPlain = ConvertFrom-SecureValue $passwordSecure
+        $passwordConfirmPlain = ConvertFrom-SecureValue $passwordConfirmSecure
+        $passwordIsValid = $passwordPlain.Length -ge 12 -and $passwordPlain -ceq $passwordConfirmPlain
+        if (-not $passwordIsValid) {
+            Write-Host 'As senhas nao coincidem ou possuem menos de 12 caracteres.' -ForegroundColor Yellow
+        }
+        $passwordConfirmPlain = $null
+    } until ($passwordIsValid)
+}
+else {
+    Write-Host 'Reutilizando a senha administrativa ja configurada no Caddy.' -ForegroundColor DarkGray
+}
 
 $remoteTarget = '{0}@{1}:/tmp/configure-divisao.sh' -f $RemoteUser, $HostIp
 Write-Host ''
@@ -95,7 +104,8 @@ $sshArguments = @(
     $CaddyContainer,
     $CaddyfilePath,
     $SupabaseUrl,
-    $ReuseExistingSupabaseConfig.IsPresent.ToString().ToLowerInvariant()
+    $ReuseExistingSupabaseConfig.IsPresent.ToString().ToLowerInvariant(),
+    $ReuseExistingAdminPassword.IsPresent.ToString().ToLowerInvariant()
 )
 
 $processInfo = New-Object Diagnostics.ProcessStartInfo
@@ -104,13 +114,15 @@ $processInfo.Arguments = (($sshArguments | ForEach-Object { Quote-NativeArgument
 $processInfo.UseShellExecute = $false
 $processInfo.RedirectStandardInput = $true
 
-Write-Host 'Configurando banco, container, HTTPS e autenticacao...' -ForegroundColor Cyan
+Write-Host 'Configurando banco, container, HTTPS e acesso administrativo...' -ForegroundColor Cyan
 $process = [Diagnostics.Process]::Start($processInfo)
 $process.StandardInput.NewLine = "`n"
 if (-not $ReuseExistingSupabaseConfig) {
     $process.StandardInput.WriteLine($secretPlain)
 }
-$process.StandardInput.WriteLine($passwordPlain)
+if (-not $ReuseExistingAdminPassword) {
+    $process.StandardInput.WriteLine($passwordPlain)
+}
 $process.StandardInput.Close()
 
 $secretPlain = $null
@@ -118,8 +130,12 @@ $passwordPlain = $null
 if ($null -ne $secretSecure) {
     $secretSecure.Dispose()
 }
-$passwordSecure.Dispose()
-$passwordConfirmSecure.Dispose()
+if ($null -ne $passwordSecure) {
+    $passwordSecure.Dispose()
+}
+if ($null -ne $passwordConfirmSecure) {
+    $passwordConfirmSecure.Dispose()
+}
 
 $process.WaitForExit()
 if ($process.ExitCode -ne 0) {
@@ -127,6 +143,12 @@ if ($process.ExitCode -ne 0) {
 }
 
 Write-Host ''
-Write-Host "Implantacao concluida: https://$Domain/" -ForegroundColor Green
-Write-Host 'Usuario: operacao' -ForegroundColor Green
-Write-Host 'Use a senha que voce acabou de criar.' -ForegroundColor Green
+Write-Host "Consulta publica: https://$Domain/" -ForegroundColor Green
+Write-Host "Administracao: https://$Domain/admin" -ForegroundColor Green
+Write-Host 'Usuario administrativo: operacao' -ForegroundColor Green
+if ($ReuseExistingAdminPassword) {
+    Write-Host 'Use a senha administrativa ja configurada.' -ForegroundColor Green
+}
+else {
+    Write-Host 'Use a senha que voce acabou de criar.' -ForegroundColor Green
+}

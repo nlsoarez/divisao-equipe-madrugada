@@ -87,13 +87,13 @@ Na VM `163.176.155.119`, o dashboard existente ja ocupa as portas 80/443. Nao su
 .\deploy\oci\configure-existing-vm.ps1
 ```
 
-O instalador pede a Supabase Secret key e a senha do site em campos ocultos. Os segredos seguem pelo stdin do SSH, ficam fora dos argumentos de processo e nao sao gravados no Git. Em uma nova tentativa, quando o arquivo de ambiente seguro ja existir na VM, use:
+O instalador pede a Supabase Secret key e a senha administrativa em campos ocultos. Os segredos seguem pelo stdin do SSH, ficam fora dos argumentos de processo e nao sao gravados no Git. Em uma nova tentativa, quando o arquivo de ambiente seguro e a senha do Caddy ja existirem na VM, use:
 
 ```powershell
-.\deploy\oci\configure-existing-vm.ps1 -ReuseExistingSupabaseConfig
+.\deploy\oci\configure-existing-vm.ps1 -ReuseExistingSupabaseConfig -ReuseExistingAdminPassword
 ```
 
-O script valida a configuracao do Caddy, espera o health check do novo container, testa HTTPS, exige HTTP 401 sem autenticacao e confirma a leitura de `/api/escala` com autenticacao. Em caso de falha antes do reload, restaura o Caddyfile anterior.
+O script valida a configuracao do Caddy, espera o health check do novo container e testa HTTPS. A raiz e `GET /api/escala` devem responder sem autenticacao; `/admin` e `PUT /api/escala` devem responder HTTP 401 sem credenciais. Em caso de falha antes do reload, restaura o Caddyfile anterior.
 
 Se a Secret key informada pertencer a outro projeto ou for rejeitada, corrija somente a credencial sem alterar a senha/Caddy:
 
@@ -107,7 +107,8 @@ Esse atualizador reinicia apenas o container da aplicacao e restaura o `.env` an
 
 ```bash
 curl -fsS https://SEU_DOMINIO/health
-curl -fsS -u USUARIO:SENHA https://SEU_DOMINIO/api/capacidades
+curl -fsS https://SEU_DOMINIO/api/capacidades
+curl -fsS -u USUARIO:SENHA https://SEU_DOMINIO/admin
 ```
 
 Resultado esperado na fase 1:
@@ -141,6 +142,6 @@ Nao aponte o backend OCI para a URL Railway antiga da Evolution: a dependencia a
 
 - O Railway antigo responde `Application not found`; hoje o GitHub Pages carrega, mas as chamadas ao backend falham.
 - O endpoint Visium usa HTTP e pode depender de VPN/allowlist. Saida da OCI precisa ser testada separadamente.
-- O `ADMIN_PIN` esta no JavaScript e nao protege sozinho; a barreira real na OCI e o Basic Auth do Caddy.
+- A consulta da escala e publica. `/admin` e todas as mutacoes da API sao protegidas pelo Basic Auth do Caddy; nao ha PIN no JavaScript.
 - O webhook da Evolution permanece publico por necessidade de integracao. Adicione validacao de assinatura/token quando a Evolution for migrada.
 - O volume Docker preserva cache, nao alta disponibilidade. A VM e um ponto unico de falha.

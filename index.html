@@ -2642,9 +2642,8 @@
       <i class="bi bi-arrow-clockwise"></i>
     </button>
 
-    <!-- Botão Logout Viewer -->
-    <button class="refresh-btn logout-viewer" onclick="logoutViewer()" title="Sair do modo visualização">
-      <i class="bi bi-x-lg"></i>
+    <button class="refresh-btn" onclick="location.assign('/admin')" title="Acesso administrativo">
+      <i class="bi bi-shield-lock"></i>
     </button>
   </div>
 </div>
@@ -3566,7 +3565,7 @@
   </div>
 </div>
 
-<!-- Modal para Login PIN - SEGURO -->
+<!-- Modal legado de seleção. A entrada normal agora abre direto em consulta. -->
 <div class="modal fade" id="loginModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
   <div class="modal-dialog modal-md">
     <div class="modal-content">
@@ -3594,27 +3593,10 @@
           <span>ou</span>
         </div>
         
-        <div class="pin-section">
-          <h6 class="text-center mb-3">
+        <div class="pin-section text-center">
+          <a class="btn w-100 mt-2" href="/admin" style="border: 2px solid #d32f2f; color: #d32f2f; background: white; font-weight: 600;">
             <i class="bi bi-shield-lock me-2"></i>Acesso administrativo
-          </h6>
-          
-          <div class="mb-3">
-            <label class="pin-label">PIN:</label>
-            <input type="password" 
-                   class="form-control form-control-lg text-center" 
-                   id="pinInput" 
-                   placeholder=""
-                   autocomplete="off">
-          </div>
-          
-          <div id="pinError" class="alert alert-danger py-2 small" style="display: none;">
-            <i class="bi bi-exclamation-triangle me-1"></i> PIN incorreto. Tente novamente.
-          </div>
-          
-          <button type="button" class="btn w-100 mt-2" style="border: 2px solid #d32f2f; color: #d32f2f; background: white; font-weight: 600;" onmouseover="this.style.background='#d32f2f'; this.style.color='white';" onmouseout="this.style.background='white'; this.style.color='#d32f2f';" onclick="verificarPin()">
-            <i class="bi bi-unlock me-2"></i>Acessar como administrador
-          </button>
+          </a>
         </div>
       </div>
     </div>
@@ -3651,7 +3633,6 @@
 // ============================================
 
 // Aliases para compatibilidade com código existente
-const ADMIN_PIN = CONFIG.ADMIN_PIN;
 const PRIORIDADES = CONFIG.PRIORIDADES;
 const DIAS_SEMANA = CONFIG.DIAS_SEMANA;
 const MESES = CONFIG.MESES;
@@ -6665,127 +6646,32 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 function verificarAutenticacao() {
-  const auth = localStorage.getItem('escala_auth');
-  const authExpiry = localStorage.getItem('escala_auth_expiry');
-  
-  // Verificar se a autenticação expirou
-  const now = new Date().getTime();
-  if (authExpiry && now > parseInt(authExpiry)) {
-    localStorage.removeItem('escala_auth');
-    localStorage.removeItem('escala_auth_expiry');
-    mostrarModalLogin();
-  } else if (auth === 'admin') {
+  const rotaAdmin = /^\/admin\/?$/.test(window.location.pathname);
+  localStorage.removeItem('escala_auth');
+  localStorage.removeItem('escala_auth_expiry');
+
+  if (rotaAdmin) {
     iniciarComoAdmin();
     carregarDadosDaNuvem();
-    // Limpar cache e carregar dados do WhatsApp ao iniciar
     setTimeout(async () => {
-      await limparCacheBackend(); // Limpar cache primeiro para garantir dados frescos
-      await carregarCopRedeInforma(true); // Sincroniza com WhatsApp e carrega (aguardar conclusão)
-      await carregarAlertas();
-    }, 1000);
-  } else if (auth === 'viewer') {
-    iniciarComoVisualizador();
-    carregarDadosDaNuvem();
-    // Limpar cache e carregar dados do WhatsApp ao iniciar
-    setTimeout(async () => {
-      await limparCacheBackend(); // Limpar cache primeiro para garantir dados frescos
-      await carregarCopRedeInforma(true); // Sincroniza com WhatsApp e carrega (aguardar conclusão)
+      await limparCacheBackend();
+      await carregarCopRedeInforma(true);
       await carregarAlertas();
     }, 1000);
   } else {
-    setTimeout(() => {
-      mostrarModalLogin();
-    }, 500);
+    iniciarComoVisualizador();
+    carregarDadosDaNuvem();
+    setTimeout(async () => {
+      await carregarAlertas();
+    }, 1000);
   }
 }
 
 function mostrarModalLogin() {
-  const loginModal = new bootstrap.Modal(document.getElementById('loginModal'), {
-    backdrop: 'static',
-    keyboard: false
-  });
-  loginModal.show();
-  
-  // Limpar campo PIN e focar
-  setTimeout(() => {
-    const pinInput = document.getElementById('pinInput');
-    if (pinInput) {
-      pinInput.value = '';
-      pinInput.focus();
-    }
-  }, 500);
-}
-
-// Throttle em memória (não persistente) para limitar brute-force no cliente.
-// Após 5 tentativas erradas, bloqueia por 30s.
-const _pinThrottle = { fails: 0, lockUntil: 0 };
-
-function verificarPin() {
-  const pinInput = document.getElementById('pinInput');
-  const pinError = document.getElementById('pinError');
-  const pin = pinInput.value.trim();
-
-  const agora = Date.now();
-  if (_pinThrottle.lockUntil > agora) {
-    const segRestantes = Math.ceil((_pinThrottle.lockUntil - agora) / 1000);
-    pinError.textContent = `Muitas tentativas. Aguarde ${segRestantes}s.`;
-    pinError.style.display = 'block';
-    pinInput.value = '';
-    return;
-  }
-
-  if (pin === ADMIN_PIN) {
-    _pinThrottle.fails = 0;
-    _pinThrottle.lockUntil = 0;
-    pinError.style.display = 'none';
-    
-    // Salvar autenticação por 24 horas
-    const expiryTime = new Date().getTime() + (24 * 60 * 60 * 1000);
-    localStorage.setItem('escala_auth', 'admin');
-    localStorage.setItem('escala_auth_expiry', expiryTime.toString());
-    
-    // Fechar modal
-    const loginModal = bootstrap.Modal.getInstance(document.getElementById('loginModal'));
-    if (loginModal) loginModal.hide();
-    
-    // Iniciar como admin
-    iniciarComoAdmin();
-    carregarDadosDaNuvem();
-    // Limpar cache e carregar dados do WhatsApp ao iniciar
-    setTimeout(async () => {
-      await limparCacheBackend(); // Limpar cache primeiro para garantir dados frescos
-      await carregarCopRedeInforma(true); // Sincroniza com WhatsApp e carrega (aguardar conclusão)
-      await carregarAlertas();
-    }, 1000);
-
-    showToast('✅ Acesso administrativo concedido!', 'success');
-  } else {
-    _pinThrottle.fails++;
-    if (_pinThrottle.fails >= 5) {
-      _pinThrottle.lockUntil = Date.now() + 30000;
-      _pinThrottle.fails = 0;
-      pinError.textContent = 'Muitas tentativas. Aguarde 30s.';
-    } else {
-      pinError.textContent = `PIN incorreto. Tentativas restantes: ${5 - _pinThrottle.fails}`;
-    }
-    pinError.style.display = 'block';
-    pinInput.value = '';
-    pinInput.focus();
-
-    // Efeito de shake
-    pinInput.classList.add('shake');
-    setTimeout(() => {
-      pinInput.classList.remove('shake');
-    }, 500);
-  }
+  window.location.assign('/admin');
 }
 
 function entrarComoVisualizador(tipo = 'residencial') {
-  // Salvar como visualizador por 24 horas
-  const expiryTime = new Date().getTime() + (24 * 60 * 60 * 1000);
-  localStorage.setItem('escala_auth', 'viewer');
-  localStorage.setItem('escala_auth_expiry', expiryTime.toString());
-
   // Definir calendário ativo baseado no tipo selecionado
   // residencial = calendario1, rio_es/leste = calendario2
   const tipoDestino = tipo === 'empresarial' ? 'empresarial' : tipo;
@@ -6807,10 +6693,8 @@ function entrarComoVisualizador(tipo = 'residencial') {
     trocarAbaAdmin(tipoDestino);
   }, 100);
 
-  // Limpar cache e carregar dados do WhatsApp ao iniciar
+  // Consultores fazem apenas leituras; sincronizações ficam no /admin.
   setTimeout(async () => {
-    await limparCacheBackend(); // Limpar cache primeiro para garantir dados frescos
-    await carregarCopRedeInforma(true); // Sincroniza com WhatsApp e carrega (aguardar conclusão)
     await carregarAlertas();
   }, 1000);
 
@@ -6956,15 +6840,7 @@ function logoutAdmin() {
   if (confirm('Deseja sair do modo administrador?')) {
     localStorage.removeItem('escala_auth');
     localStorage.removeItem('escala_auth_expiry');
-    location.reload();
-  }
-}
-
-function logoutViewer() {
-  if (confirm('Deseja sair do modo visualização?')) {
-    localStorage.removeItem('escala_auth');
-    localStorage.removeItem('escala_auth_expiry');
-    location.reload();
+    window.location.replace('/');
   }
 }
 

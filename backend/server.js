@@ -1576,6 +1576,9 @@ if (publicDir && fs.existsSync(publicDir)) {
     etag: true,
     maxAge: process.env.NODE_ENV === 'production' ? '10m' : 0
   }));
+  app.get(['/admin', '/admin/'], (req, res) => {
+    res.sendFile(path.join(publicDir, 'index.html'));
+  });
   console.log(`[Static] Frontend servido de ${publicDir}`);
 }
 

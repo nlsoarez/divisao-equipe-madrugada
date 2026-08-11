@@ -9,6 +9,7 @@ CADDY_CONTAINER="${4:?container Caddy nao informado}"
 CADDYFILE_PATH="${5:?Caddyfile nao informado}"
 SUPABASE_URL="${6:?URL do Supabase nao informada}"
 REUSE_EXISTING_SUPABASE_CONFIG="${7:-false}"
+REUSE_EXISTING_ADMIN_PASSWORD="${8:-false}"
 
 BASIC_AUTH_USER="operacao"
 APP_CONTAINER="divisao-equipe-madrugada"
@@ -30,11 +31,9 @@ if [[ "$REUSE_EXISTING_SUPABASE_CONFIG" == "true" ]]; then
     echo "ERRO: configuracao Supabase anterior nao encontrada na VM." >&2
     exit 2
   fi
-  IFS= read -r SITE_PASSWORD
 else
   IFS= read -r SUPABASE_SECRET_KEY
   SUPABASE_SECRET_KEY="$(printf '%s' "$SUPABASE_SECRET_KEY" | tr -d '[:space:]')"
-  IFS= read -r SITE_PASSWORD
 
   if [[ "$SUPABASE_SECRET_KEY" != sb_secret_* ]]; then
     echo "ERRO: a chave precisa ser uma Supabase Secret key (sb_secret_...)." >&2
@@ -42,9 +41,12 @@ else
   fi
 fi
 
-if (( ${#SITE_PASSWORD} < 12 )); then
-  echo "ERRO: a senha do site precisa ter pelo menos 12 caracteres." >&2
-  exit 2
+if [[ "$REUSE_EXISTING_ADMIN_PASSWORD" != "true" ]]; then
+  IFS= read -r SITE_PASSWORD
+  if (( ${#SITE_PASSWORD} < 12 )); then
+    echo "ERRO: a senha administrativa precisa ter pelo menos 12 caracteres." >&2
+    exit 2
+  fi
 fi
 
 if [[ ! -f "$CADDYFILE_PATH" ]]; then
@@ -90,9 +92,17 @@ if [[ "$REUSE_EXISTING_SUPABASE_CONFIG" != "true" ]]; then
   unset SUPABASE_SECRET_KEY
 fi
 
-BASIC_AUTH_HASH="$(printf '%s\n' "$SITE_PASSWORD" | docker exec -i "$CADDY_CONTAINER" caddy hash-password)"
+if [[ "$REUSE_EXISTING_ADMIN_PASSWORD" == "true" ]]; then
+  BASIC_AUTH_HASH="$(awk -v begin="$CADDY_BEGIN" -v end="$CADDY_END" -v user="$BASIC_AUTH_USER" '
+    $0 == begin { managed = 1; next }
+    $0 == end { managed = 0; next }
+    managed && $1 == user { print $2; exit }
+  ' "$CADDYFILE_PATH")"
+else
+  BASIC_AUTH_HASH="$(printf '%s\n' "$SITE_PASSWORD" | docker exec -i "$CADDY_CONTAINER" caddy hash-password)"
+fi
 if [[ -z "$BASIC_AUTH_HASH" ]]; then
-  echo "ERRO: nao foi possivel gerar o hash da senha no Caddy." >&2
+  echo "ERRO: nao foi possivel obter o hash da senha administrativa no Caddy." >&2
   exit 4
 fi
 
@@ -106,8 +116,17 @@ awk -v begin="$CADDY_BEGIN" -v end="$CADDY_END" '
   printf '\n%s\n' "$CADDY_BEGIN"
   printf 'https://%s {\n' "$DOMAIN"
   printf '  encode zstd gzip\n'
-  printf '  @protected not path /health /api/health\n'
-  printf '  basic_auth @protected {\n'
+  printf '  @adminPage {\n'
+  printf '    path /admin /admin/*\n'
+  printf '  }\n'
+  printf '  @adminMutation {\n'
+  printf '    method POST PUT PATCH DELETE\n'
+  printf '    not path /api/whatsapp/webhook /api/webhook/mensagem\n'
+  printf '  }\n'
+  printf '  basic_auth @adminPage {\n'
+  printf '    %s %s\n' "$BASIC_AUTH_USER" "$BASIC_AUTH_HASH"
+  printf '  }\n'
+  printf '  basic_auth @adminMutation {\n'
   printf '    %s %s\n' "$BASIC_AUTH_USER" "$BASIC_AUTH_HASH"
   printf '  }\n'
   printf '  header {\n'
@@ -167,22 +186,38 @@ docker exec "$CADDY_CONTAINER" caddy reload --config /etc/caddy/Caddyfile
 PUBLIC_HEALTH="https://${DOMAIN}/health"
 curl --fail --silent --show-error --retry 10 --retry-delay 3 --retry-all-errors "$PUBLIC_HEALTH" >/dev/null
 
-NO_AUTH_STATUS="$(curl --silent --output /dev/null --write-out '%{http_code}' "https://${DOMAIN}/")"
-if [[ "$NO_AUTH_STATUS" != "401" ]]; then
-  echo "ERRO: a pagina sem credenciais retornou HTTP $NO_AUTH_STATUS; esperado 401." >&2
+PUBLIC_STATUS="$(curl --silent --output /dev/null --write-out '%{http_code}' "https://${DOMAIN}/")"
+if [[ "$PUBLIC_STATUS" != "200" ]]; then
+  echo "ERRO: a consulta publica retornou HTTP $PUBLIC_STATUS; esperado 200." >&2
   exit 7
 fi
 
-CURL_PASSWORD="${SITE_PASSWORD//\\/\\\\}"
-CURL_PASSWORD="${CURL_PASSWORD//\"/\\\"}"
-{
-  printf 'fail\n'
-  printf 'silent\n'
-  printf 'show-error\n'
-  printf 'user = "%s:%s"\n' "$BASIC_AUTH_USER" "$CURL_PASSWORD"
-  printf 'url = "https://%s/api/escala"\n' "$DOMAIN"
-} | curl --config - >/dev/null
-unset CURL_PASSWORD
+curl --fail --silent --show-error "https://${DOMAIN}/api/escala" >/dev/null
+
+ADMIN_NO_AUTH_STATUS="$(curl --silent --output /dev/null --write-out '%{http_code}' "https://${DOMAIN}/admin")"
+if [[ "$ADMIN_NO_AUTH_STATUS" != "401" ]]; then
+  echo "ERRO: /admin sem credenciais retornou HTTP $ADMIN_NO_AUTH_STATUS; esperado 401." >&2
+  exit 7
+fi
+
+WRITE_NO_AUTH_STATUS="$(curl --silent --output /dev/null --write-out '%{http_code}' -X PUT "https://${DOMAIN}/api/escala")"
+if [[ "$WRITE_NO_AUTH_STATUS" != "401" ]]; then
+  echo "ERRO: PUT /api/escala sem credenciais retornou HTTP $WRITE_NO_AUTH_STATUS; esperado 401." >&2
+  exit 7
+fi
+
+if [[ "$REUSE_EXISTING_ADMIN_PASSWORD" != "true" ]]; then
+  CURL_PASSWORD="${SITE_PASSWORD//\\/\\\\}"
+  CURL_PASSWORD="${CURL_PASSWORD//\"/\\\"}"
+  {
+    printf 'fail\n'
+    printf 'silent\n'
+    printf 'show-error\n'
+    printf 'user = "%s:%s"\n' "$BASIC_AUTH_USER" "$CURL_PASSWORD"
+    printf 'url = "https://%s/admin"\n' "$DOMAIN"
+  } | curl --config - >/dev/null
+  unset CURL_PASSWORD
+fi
 unset SITE_PASSWORD BASIC_AUTH_HASH
 
-echo "DEPLOY_OK domain=https://${DOMAIN}/ user=${BASIC_AUTH_USER}"
+echo "DEPLOY_OK public=https://${DOMAIN}/ admin=https://${DOMAIN}/admin user=${BASIC_AUTH_USER}"

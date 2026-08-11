@@ -2,7 +2,7 @@
 
 Painel operacional estatico com backend Node/Express. A implantacao de producao foi preparada para OCI em uma unica VM, com Docker Compose e Caddy.
 
-Producao: <https://divisao.163-176-155-119.sslip.io/> (usuario `operacao`). A senha e mantida fora do repositorio.
+Producao: <https://divisao.163-176-155-119.sslip.io/>. A consulta e publica e abre sem senha. A administracao fica em `/admin`, com usuario `operacao` e senha mantida fora do repositorio.
 
 ## Estado da migracao
 
@@ -33,7 +33,7 @@ Credenciais JSONBin e Evolution foram historicamente versionadas neste repositor
 
 A migracao e o rollback estao documentados em [docs/MIGRACAO_SUPABASE.md](docs/MIGRACAO_SUPABASE.md).
 
-O `ADMIN_PIN` ainda e validado no navegador e, portanto, nao e autenticacao real. Na OCI, o Caddy exige Basic Auth no servidor para todo o painel/API, exceto health checks e o webhook da Evolution. Use senha forte e trate o PIN apenas como controle de interface.
+Nao existe credencial administrativa no JavaScript. Na OCI, o Caddy exige Basic Auth no servidor em `/admin` e em operacoes `POST`, `PUT`, `PATCH` e `DELETE`. A raiz e as leituras da escala permanecem publicas. Os webhooks da Evolution continuam isentos por necessidade de integracao e devem receber validacao de assinatura/token quando forem migrados.
 
 ## Testes
 

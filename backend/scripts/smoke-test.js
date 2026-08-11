@@ -60,7 +60,17 @@ async function waitForHealth() {
       throw new Error('Frontend estatico nao foi servido');
     }
 
-    console.log('Smoke test OCI concluido: frontend ativo e Evolution degradada.');
+    const adminPage = await fetch(`http://127.0.0.1:${port}/admin`);
+    const adminHtml = await adminPage.text();
+    if (!adminPage.ok || !adminHtml.includes('<!DOCTYPE html>')) {
+      throw new Error('Rota do frontend administrativo nao foi servida');
+    }
+
+    if (html.includes("ADMIN_PIN: '")) {
+      throw new Error('PIN administrativo nao pode ser publicado no JavaScript');
+    }
+
+    console.log('Smoke test OCI concluido: consulta publica, rota admin e Evolution degradada.');
   } finally {
     server.kill();
   }
