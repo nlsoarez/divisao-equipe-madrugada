@@ -103,6 +103,14 @@ Se a Secret key informada pertencer a outro projeto ou for rejeitada, corrija so
 
 Esse atualizador reinicia apenas o container da aplicacao e restaura o `.env` anterior automaticamente se a leitura real de `/api/escala` falhar.
 
+Para trocar apenas a senha administrativa, sem alterar Supabase ou Caddy:
+
+```powershell
+.\deploy\oci\update-admin-password.ps1
+```
+
+O script pede a nova senha duas vezes em campos ocultos, gera o hash na VM, invalida sessoes antigas, recria o container e restaura a configuracao anterior se a validacao falhar. Nunca envie a senha pelo chat nem grave a senha em texto puro no repositorio.
+
 ## 5. Validar
 
 ```bash

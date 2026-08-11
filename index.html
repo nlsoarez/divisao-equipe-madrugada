@@ -3565,6 +3565,36 @@
   </div>
 </div>
 
+<!-- Escolha publica da escala. Nao exige autenticacao. -->
+<div class="modal fade" id="viewerChoiceModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+  <div class="modal-dialog modal-md">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title text-center w-100">
+          <i class="bi bi-calendar-check me-2"></i>Escolha a escala
+        </h5>
+      </div>
+      <div class="modal-body">
+        <div class="text-center">
+          <i class="bi bi-eye mb-3" style="font-size: 3rem; color: #d32f2f;"></i>
+          <p class="text-muted mb-4">Qual escala você deseja consultar?</p>
+          <div class="d-flex gap-2 flex-column">
+            <button type="button" class="btn btn-lg flex-fill py-3" style="background: linear-gradient(135deg, #d32f2f 0%, #b71c1c 100%); color: white; border: none;" onclick="entrarComoVisualizador('residencial')">
+              <i class="bi bi-house me-2"></i>Escala Residencial
+            </button>
+            <button type="button" class="btn btn-lg flex-fill py-3" style="background: linear-gradient(135deg, #d32f2f 0%, #b71c1c 100%); color: white; border: none;" onclick="entrarComoVisualizador('empresarial')">
+              <i class="bi bi-building me-2"></i>Escala Empresarial
+            </button>
+          </div>
+          <div class="mt-4">
+            <a href="/admin" class="text-muted"><i class="bi bi-shield-lock me-1"></i>Acesso administrativo</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- Login administrativo: somente senha, validada pelo backend OCI. -->
 <div class="modal fade" id="loginModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
   <div class="modal-dialog modal-md">
@@ -6664,12 +6694,16 @@ async function verificarAutenticacao() {
       mostrarModalLogin('Não foi possível verificar o acesso administrativo.');
     }
   } else {
-    iniciarComoVisualizador();
-    carregarDadosDaNuvem();
-    setTimeout(async () => {
-      await carregarAlertas();
-    }, 1000);
+    mostrarEscolhaEscala();
   }
+}
+
+function mostrarEscolhaEscala() {
+  const choiceModal = bootstrap.Modal.getOrCreateInstance(document.getElementById('viewerChoiceModal'), {
+    backdrop: 'static',
+    keyboard: false
+  });
+  choiceModal.show();
 }
 
 function mostrarModalLogin(mensagem = '') {
@@ -6751,8 +6785,8 @@ function entrarComoVisualizador(tipo = 'residencial') {
   localStorage.setItem('escala_tipo_selecionado', tipoSelecionado);
 
   // Fechar modal
-  const loginModal = bootstrap.Modal.getInstance(document.getElementById('loginModal'));
-  if (loginModal) loginModal.hide();
+  const choiceModal = bootstrap.Modal.getInstance(document.getElementById('viewerChoiceModal'));
+  if (choiceModal) choiceModal.hide();
 
   // Iniciar como visualizador
   iniciarComoVisualizador();

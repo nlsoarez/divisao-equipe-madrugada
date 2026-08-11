@@ -63,6 +63,11 @@ async function waitForHealth() {
     if (!page.ok || !html.includes('<!DOCTYPE html>')) {
       throw new Error('Frontend estatico nao foi servido');
     }
+    if (!html.includes('id="viewerChoiceModal"') ||
+        !html.includes('Escala Residencial') ||
+        !html.includes('Escala Empresarial')) {
+      throw new Error('Escolha publica entre as escalas nao foi preservada');
+    }
 
     const adminPage = await fetch(`http://127.0.0.1:${port}/admin`);
     const adminHtml = await adminPage.text();
