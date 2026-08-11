@@ -5,7 +5,7 @@
 Uma VM Ubuntu `VM.Standard.A1.Flex` executa dois containers:
 
 - `app`: Node/Express, frontend estatico e API na porta interna 3001;
-- `caddy`: entrada publica 80/443, HTTPS automatico quando ha dominio e Basic Auth para o painel/API.
+- `caddy`: entrada publica 80/443 e HTTPS automatico quando ha dominio. A autenticacao administrativa e validada pelo backend.
 
 A porta 3001 nao e aberta na VCN. O volume Docker `app-data` preserva apenas caches em reinicios de container. O Supabase e a persistencia autoritativa.
 
@@ -47,13 +47,13 @@ Copy-Item deploy/oci/.env.example deploy/oci/.env
 
 Preencha `SITE_ADDRESS`, `CORS_ORIGIN`, `SUPABASE_URL` e `SUPABASE_SECRET_KEY`. Na fase 1, mantenha `EVOLUTION_ENABLED=false`.
 
-Gere a senha do proxy antes do deploy:
+Gere o hash da senha administrativa antes do deploy:
 
 ```powershell
 docker run --rm caddy:2-alpine caddy hash-password --plaintext 'SUA-SENHA-FORTE'
 ```
 
-Grave o usuario em `BASIC_AUTH_USER` e o hash em `BASIC_AUTH_HASH`. No arquivo `.env` do Compose, cada `$` do hash precisa ser escrito como `$$` para nao ser interpretado como interpolacao.
+Grave o hash em `ADMIN_PASSWORD_HASH` e gere um `ADMIN_SESSION_SECRET` aleatorio com pelo menos 32 caracteres. No arquivo `.env` do Compose, cada `$` do hash precisa ser escrito como `$$` para nao ser interpretado como interpolacao.
 
 ```dotenv
 EVOLUTION_ENABLED=false
@@ -87,13 +87,13 @@ Na VM `163.176.155.119`, o dashboard existente ja ocupa as portas 80/443. Nao su
 .\deploy\oci\configure-existing-vm.ps1
 ```
 
-O instalador pede a Supabase Secret key e a senha administrativa em campos ocultos. Os segredos seguem pelo stdin do SSH, ficam fora dos argumentos de processo e nao sao gravados no Git. Em uma nova tentativa, quando o arquivo de ambiente seguro e a senha do Caddy ja existirem na VM, use:
+O instalador pede a Supabase Secret key e a senha administrativa em campos ocultos. Os segredos seguem pelo stdin do SSH, ficam fora dos argumentos de processo e nao sao gravados no Git. Em uma nova tentativa, quando o arquivo de ambiente seguro e o hash da senha ja existirem na VM, use:
 
 ```powershell
 .\deploy\oci\configure-existing-vm.ps1 -ReuseExistingSupabaseConfig -ReuseExistingAdminPassword
 ```
 
-O script valida a configuracao do Caddy, espera o health check do novo container e testa HTTPS. A raiz e `GET /api/escala` devem responder sem autenticacao; `/admin` e `PUT /api/escala` devem responder HTTP 401 sem credenciais. Em caso de falha antes do reload, restaura o Caddyfile anterior.
+O script valida a configuracao do Caddy, espera o health check do novo container e testa HTTPS. A raiz, `GET /api/escala` e a tela `/admin` devem responder sem autenticacao HTTP; `GET /api/admin/session` e `PUT /api/escala` devem responder HTTP 401 sem uma sessao administrativa. Em caso de falha antes do reload, restaura o Caddyfile anterior.
 
 Se a Secret key informada pertencer a outro projeto ou for rejeitada, corrija somente a credencial sem alterar a senha/Caddy:
 
@@ -108,7 +108,7 @@ Esse atualizador reinicia apenas o container da aplicacao e restaura o `.env` an
 ```bash
 curl -fsS https://SEU_DOMINIO/health
 curl -fsS https://SEU_DOMINIO/api/capacidades
-curl -fsS -u USUARIO:SENHA https://SEU_DOMINIO/admin
+curl -fsS https://SEU_DOMINIO/admin
 ```
 
 Resultado esperado na fase 1:
@@ -142,6 +142,6 @@ Nao aponte o backend OCI para a URL Railway antiga da Evolution: a dependencia a
 
 - O Railway antigo responde `Application not found`; hoje o GitHub Pages carrega, mas as chamadas ao backend falham.
 - O endpoint Visium usa HTTP e pode depender de VPN/allowlist. Saida da OCI precisa ser testada separadamente.
-- A consulta da escala e publica. `/admin` e todas as mutacoes da API sao protegidas pelo Basic Auth do Caddy; nao ha PIN no JavaScript.
+- A consulta da escala e publica. `/admin` mostra um formulario com apenas a senha; todas as mutacoes da API exigem a sessao segura criada pelo backend.
 - O webhook da Evolution permanece publico por necessidade de integracao. Adicione validacao de assinatura/token quando a Evolution for migrada.
 - O volume Docker preserva cache, nao alta disponibilidade. A VM e um ponto unico de falha.

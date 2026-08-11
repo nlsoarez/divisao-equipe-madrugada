@@ -1,23 +1,6 @@
 {$SITE_ADDRESS::80} {
   encode zstd gzip
 
-  @adminPage {
-    path /admin /admin/*
-  }
-
-  @adminMutation {
-    method POST PUT PATCH DELETE
-    not path /api/whatsapp/webhook /api/webhook/mensagem
-  }
-
-  basic_auth @adminPage {
-    {$BASIC_AUTH_USER} {$BASIC_AUTH_HASH}
-  }
-
-  basic_auth @adminMutation {
-    {$BASIC_AUTH_USER} {$BASIC_AUTH_HASH}
-  }
-
   header {
     X-Content-Type-Options nosniff
     Referrer-Policy strict-origin-when-cross-origin

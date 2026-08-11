@@ -3565,38 +3565,33 @@
   </div>
 </div>
 
-<!-- Modal legado de seleção. A entrada normal agora abre direto em consulta. -->
+<!-- Login administrativo: somente senha, validada pelo backend OCI. -->
 <div class="modal fade" id="loginModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
   <div class="modal-dialog modal-md">
     <div class="modal-content">
       <div class="modal-header">
         <h5 class="modal-title text-center w-100">
-          <i class="bi bi-calendar-check me-2"></i>Acesso ao portal
+          <i class="bi bi-shield-lock me-2"></i>Acesso administrativo
         </h5>
       </div>
       <div class="modal-body">
-        <div class="login-option text-center">
-          <i class="bi bi-eye mb-3" style="font-size: 3rem; color: #d32f2f;"></i>
-          <h5 class="mb-3">Visualizar escala</h5>
-          <p class="text-muted mb-4">Selecione qual escala deseja visualizar</p>
-          <div class="d-flex gap-2 flex-column">
-            <button type="button" class="btn btn-lg flex-fill py-3" style="background: linear-gradient(135deg, #d32f2f 0%, #b71c1c 100%); color: white; border: none;" onclick="entrarComoVisualizador('residencial')">
-              <i class="bi bi-house me-2"></i>Escala Residencial
-            </button>
-            <button type="button" class="btn btn-lg flex-fill py-3" style="background: linear-gradient(135deg, #d32f2f 0%, #b71c1c 100%); color: white; border: none;" onclick="entrarComoVisualizador('empresarial')">
-              <i class="bi bi-building me-2"></i>Escala Empresarial
-            </button>
-          </div>
+        <div class="text-center mb-4">
+          <i class="bi bi-shield-lock" style="font-size: 3rem; color: #d32f2f;"></i>
+          <p class="text-muted mt-3 mb-0">Digite a senha para acessar uploads e alterações.</p>
         </div>
-
-        <div class="login-divider">
-          <span>ou</span>
+        <div class="mb-3">
+          <label for="adminPasswordInput" class="form-label fw-semibold">Senha</label>
+          <input type="password"
+                 class="form-control form-control-lg"
+                 id="adminPasswordInput"
+                 autocomplete="current-password">
         </div>
-        
-        <div class="pin-section text-center">
-          <a class="btn w-100 mt-2" href="/admin" style="border: 2px solid #d32f2f; color: #d32f2f; background: white; font-weight: 600;">
-            <i class="bi bi-shield-lock me-2"></i>Acesso administrativo
-          </a>
+        <div id="adminLoginError" class="alert alert-danger py-2 small" style="display: none;"></div>
+        <button type="button" id="adminLoginButton" class="btn btn-danger btn-lg w-100" onclick="autenticarAdmin()">
+          <i class="bi bi-unlock me-2"></i>Entrar
+        </button>
+        <div class="text-center mt-3">
+          <a href="/" class="text-muted"><i class="bi bi-arrow-left me-1"></i>Voltar para consulta</a>
         </div>
       </div>
     </div>
@@ -6638,6 +6633,13 @@ document.addEventListener('DOMContentLoaded', function() {
       }
     });
   }
+
+  const adminPasswordInput = document.getElementById('adminPasswordInput');
+  if (adminPasswordInput) {
+    adminPasswordInput.addEventListener('keydown', event => {
+      if (event.key === 'Enter') autenticarAdmin();
+    });
+  }
   
   // Verificar autenticação
   setTimeout(() => {
@@ -6645,19 +6647,22 @@ document.addEventListener('DOMContentLoaded', function() {
   }, 500);
 });
 
-function verificarAutenticacao() {
+async function verificarAutenticacao() {
   const rotaAdmin = /^\/admin\/?$/.test(window.location.pathname);
   localStorage.removeItem('escala_auth');
   localStorage.removeItem('escala_auth_expiry');
 
   if (rotaAdmin) {
-    iniciarComoAdmin();
-    carregarDadosDaNuvem();
-    setTimeout(async () => {
-      await limparCacheBackend();
-      await carregarCopRedeInforma(true);
-      await carregarAlertas();
-    }, 1000);
+    try {
+      const response = await fetch(`${BACKEND_URL}/api/admin/session`, { cache: 'no-store' });
+      if (response.ok) {
+        iniciarAplicacaoAdmin();
+      } else {
+        mostrarModalLogin();
+      }
+    } catch {
+      mostrarModalLogin('Não foi possível verificar o acesso administrativo.');
+    }
   } else {
     iniciarComoVisualizador();
     carregarDadosDaNuvem();
@@ -6667,8 +6672,73 @@ function verificarAutenticacao() {
   }
 }
 
-function mostrarModalLogin() {
-  window.location.assign('/admin');
+function mostrarModalLogin(mensagem = '') {
+  const errorElement = document.getElementById('adminLoginError');
+  if (errorElement) {
+    errorElement.textContent = mensagem;
+    errorElement.style.display = mensagem ? 'block' : 'none';
+  }
+
+  const loginModalElement = document.getElementById('loginModal');
+  const loginModal = bootstrap.Modal.getOrCreateInstance(loginModalElement, {
+    backdrop: 'static',
+    keyboard: false
+  });
+  loginModal.show();
+  setTimeout(() => document.getElementById('adminPasswordInput')?.focus(), 300);
+}
+
+function iniciarAplicacaoAdmin() {
+  iniciarComoAdmin();
+  carregarDadosDaNuvem();
+  setTimeout(async () => {
+    await limparCacheBackend();
+    await carregarCopRedeInforma(true);
+    await carregarAlertas();
+  }, 1000);
+}
+
+async function autenticarAdmin() {
+  const passwordInput = document.getElementById('adminPasswordInput');
+  const errorElement = document.getElementById('adminLoginError');
+  const loginButton = document.getElementById('adminLoginButton');
+  const password = passwordInput?.value || '';
+
+  if (!password) {
+    mostrarModalLogin('Digite a senha administrativa.');
+    return;
+  }
+
+  if (loginButton) loginButton.disabled = true;
+  if (errorElement) errorElement.style.display = 'none';
+
+  try {
+    const response = await fetch(`${BACKEND_URL}/api/admin/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password })
+    });
+    const result = await response.json().catch(() => ({}));
+
+    if (!response.ok) {
+      throw new Error(result.erro || 'Senha incorreta');
+    }
+
+    if (passwordInput) passwordInput.value = '';
+    bootstrap.Modal.getInstance(document.getElementById('loginModal'))?.hide();
+    iniciarAplicacaoAdmin();
+  } catch (error) {
+    if (passwordInput) {
+      passwordInput.value = '';
+      passwordInput.focus();
+    }
+    if (errorElement) {
+      errorElement.textContent = error.message;
+      errorElement.style.display = 'block';
+    }
+  } finally {
+    if (loginButton) loginButton.disabled = false;
+  }
 }
 
 function entrarComoVisualizador(tipo = 'residencial') {
@@ -6836,10 +6906,9 @@ function iniciarComoVisualizador() {
   showToast('👁️ Modo visualização ativado', 'info');
 }
 
-function logoutAdmin() {
+async function logoutAdmin() {
   if (confirm('Deseja sair do modo administrador?')) {
-    localStorage.removeItem('escala_auth');
-    localStorage.removeItem('escala_auth_expiry');
+    await fetch(`${BACKEND_URL}/api/admin/logout`, { method: 'POST' }).catch(() => null);
     window.location.replace('/');
   }
 }

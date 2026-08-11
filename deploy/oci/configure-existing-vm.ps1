@@ -145,7 +145,6 @@ if ($process.ExitCode -ne 0) {
 Write-Host ''
 Write-Host "Consulta publica: https://$Domain/" -ForegroundColor Green
 Write-Host "Administracao: https://$Domain/admin" -ForegroundColor Green
-Write-Host 'Usuario administrativo: operacao' -ForegroundColor Green
 if ($ReuseExistingAdminPassword) {
     Write-Host 'Use a senha administrativa ja configurada.' -ForegroundColor Green
 }

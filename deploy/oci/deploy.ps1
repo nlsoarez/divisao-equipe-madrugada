@@ -22,7 +22,7 @@ if ($environmentText -match "troque-|substitua|example\.com") {
   throw "O arquivo de ambiente ainda contem placeholders. Corrija antes do deploy."
 }
 
-foreach ($requiredName in @("SITE_ADDRESS", "BASIC_AUTH_USER", "BASIC_AUTH_HASH", "SUPABASE_URL", "SUPABASE_SECRET_KEY")) {
+foreach ($requiredName in @("SITE_ADDRESS", "ADMIN_PASSWORD_HASH", "ADMIN_SESSION_SECRET", "SUPABASE_URL", "SUPABASE_SECRET_KEY")) {
   if ($environmentText -notmatch "(?m)^$requiredName=.+$") {
     throw "Variavel obrigatoria ausente ou vazia: $requiredName"
   }

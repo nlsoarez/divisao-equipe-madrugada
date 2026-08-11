@@ -8,6 +8,8 @@ const cors = require('cors');
 const fetch = require('node-fetch');
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
+const bcrypt = require('bcryptjs');
 require('dotenv').config();
 
 const { SERVER_CONFIG, EVOLUTION_CONFIG, ALOCACAO_HUB_CONFIG, COP_REDE_EMPRESARIAL_CONFIG } = require('./config');
@@ -18,12 +20,22 @@ const whatsapp = require('./whatsapp');
 const { buscarMatrizOfensores } = require('../js/matriz-api');
 
 const app = express();
+app.set('trust proxy', 1);
+
+const ADMIN_PASSWORD_HASH = String(process.env.ADMIN_PASSWORD_HASH || '').trim();
+const ADMIN_SESSION_SECRET = String(process.env.ADMIN_SESSION_SECRET || '').trim();
+const ADMIN_SESSION_COOKIE = 'divisao_admin_session';
+const ADMIN_SESSION_TTL_SECONDS = 8 * 60 * 60;
+const ADMIN_LOGIN_MAX_FAILURES = 5;
+const ADMIN_LOGIN_LOCK_MS = 30 * 1000;
+const adminLoginAttempts = new Map();
 
 // Middlewares
 app.use(cors({
   origin: SERVER_CONFIG.CORS_ORIGIN,
-  methods: ['GET', 'POST', 'PUT', 'DELETE'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: true
 }));
 app.use(express.json());
 
@@ -31,6 +43,123 @@ app.use(express.json());
 app.use((req, res, next) => {
   console.log(`[API] ${req.method} ${req.path}`);
   next();
+});
+
+function adminAuthConfigured() {
+  return /^\$2[aby]\$/.test(ADMIN_PASSWORD_HASH) && ADMIN_SESSION_SECRET.length >= 32;
+}
+
+function parseCookies(req) {
+  return String(req.headers.cookie || '')
+    .split(';')
+    .map(item => item.trim())
+    .filter(Boolean)
+    .reduce((cookies, item) => {
+      const separator = item.indexOf('=');
+      if (separator > 0) {
+        cookies[item.slice(0, separator)] = item.slice(separator + 1);
+      }
+      return cookies;
+    }, {});
+}
+
+function signAdminSession(payload) {
+  return crypto
+    .createHmac('sha256', ADMIN_SESSION_SECRET)
+    .update(payload)
+    .digest('base64url');
+}
+
+function createAdminSession() {
+  const payload = Buffer.from(JSON.stringify({
+    exp: Date.now() + (ADMIN_SESSION_TTL_SECONDS * 1000),
+    nonce: crypto.randomBytes(16).toString('hex')
+  })).toString('base64url');
+  return `${payload}.${signAdminSession(payload)}`;
+}
+
+function hasValidAdminSession(req) {
+  if (!adminAuthConfigured()) return false;
+
+  const token = parseCookies(req)[ADMIN_SESSION_COOKIE];
+  if (!token) return false;
+
+  const [payload, signature] = token.split('.');
+  if (!payload || !signature) return false;
+
+  const expected = signAdminSession(payload);
+  const receivedBuffer = Buffer.from(signature);
+  const expectedBuffer = Buffer.from(expected);
+  if (receivedBuffer.length !== expectedBuffer.length || !crypto.timingSafeEqual(receivedBuffer, expectedBuffer)) {
+    return false;
+  }
+
+  try {
+    const session = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8'));
+    return Number.isFinite(session.exp) && session.exp > Date.now();
+  } catch {
+    return false;
+  }
+}
+
+function adminCookie(value, maxAgeSeconds) {
+  const secure = process.env.NODE_ENV === 'production' ? '; Secure' : '';
+  return `${ADMIN_SESSION_COOKIE}=${value}; Path=/; HttpOnly; SameSite=Strict; Max-Age=${maxAgeSeconds}${secure}`;
+}
+
+app.post('/api/admin/login', async (req, res) => {
+  if (!adminAuthConfigured()) {
+    return res.status(503).json({ sucesso: false, erro: 'Acesso administrativo nao configurado' });
+  }
+
+  const clientKey = req.ip || 'unknown';
+  const attempt = adminLoginAttempts.get(clientKey) || { failures: 0, lockedUntil: 0 };
+  if (attempt.lockedUntil > Date.now()) {
+    return res.status(429).json({
+      sucesso: false,
+      erro: 'Muitas tentativas. Aguarde 30 segundos.'
+    });
+  }
+
+  const password = typeof req.body?.password === 'string' ? req.body.password : '';
+  const authenticated = password.length > 0 && password.length <= 256 && await bcrypt.compare(password, ADMIN_PASSWORD_HASH);
+  if (!authenticated) {
+    attempt.failures += 1;
+    if (attempt.failures >= ADMIN_LOGIN_MAX_FAILURES) {
+      attempt.failures = 0;
+      attempt.lockedUntil = Date.now() + ADMIN_LOGIN_LOCK_MS;
+    }
+    adminLoginAttempts.set(clientKey, attempt);
+    return res.status(401).json({ sucesso: false, erro: 'Senha incorreta' });
+  }
+
+  adminLoginAttempts.delete(clientKey);
+  res.setHeader('Set-Cookie', adminCookie(createAdminSession(), ADMIN_SESSION_TTL_SECONDS));
+  res.json({ sucesso: true, expiraEmSegundos: ADMIN_SESSION_TTL_SECONDS });
+});
+
+app.get('/api/admin/session', (req, res) => {
+  if (!hasValidAdminSession(req)) {
+    return res.status(401).json({ sucesso: false, autenticado: false });
+  }
+  res.json({ sucesso: true, autenticado: true });
+});
+
+app.post('/api/admin/logout', (req, res) => {
+  res.setHeader('Set-Cookie', adminCookie('', 0));
+  res.json({ sucesso: true });
+});
+
+app.use('/api', (req, res, next) => {
+  if (['GET', 'HEAD', 'OPTIONS'].includes(req.method)) return next();
+  if (req.path === '/admin/login' || req.path === '/admin/logout') return next();
+  if (req.path === '/whatsapp/webhook' || req.path === '/webhook/mensagem') return next();
+  if (hasValidAdminSession(req)) return next();
+
+  return res.status(401).json({
+    sucesso: false,
+    erro: 'Autenticacao administrativa necessaria'
+  });
 });
 
 /**

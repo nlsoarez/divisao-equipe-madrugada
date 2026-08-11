@@ -12,6 +12,7 @@
     "migrate:jsonbin": "node scripts/migrate-jsonbin-to-supabase.js"
   },
   "dependencies": {
+    "bcryptjs": "^3.0.2",
     "cors": "^2.8.5",
     "dotenv": "^16.3.1",
     "express": "^4.22.2",

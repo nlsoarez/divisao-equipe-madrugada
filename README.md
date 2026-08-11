@@ -2,7 +2,7 @@
 
 Painel operacional estatico com backend Node/Express. A implantacao de producao foi preparada para OCI em uma unica VM, com Docker Compose e Caddy.
 
-Producao: <https://divisao.163-176-155-119.sslip.io/>. A consulta e publica e abre sem senha. A administracao fica em `/admin`, com usuario `operacao` e senha mantida fora do repositorio.
+Producao: <https://divisao.163-176-155-119.sslip.io/>. A consulta e publica e abre sem senha. A administracao fica em `/admin` e pede somente a senha mantida fora do repositorio.
 
 ## Estado da migracao
 
@@ -17,7 +17,7 @@ Producao: <https://divisao.163-176-155-119.sslip.io/>. A consulta e publica e ab
 
 ```powershell
 Copy-Item deploy/oci/.env.example deploy/oci/.env
-# Edite deploy/oci/.env, use SITE_ADDRESS=http://localhost e configure o hash Basic Auth.
+# Edite deploy/oci/.env, use SITE_ADDRESS=http://localhost e configure ADMIN_PASSWORD_HASH e ADMIN_SESSION_SECRET.
 docker compose -f deploy/oci/compose.yaml up -d --build
 ```
 
@@ -33,7 +33,7 @@ Credenciais JSONBin e Evolution foram historicamente versionadas neste repositor
 
 A migracao e o rollback estao documentados em [docs/MIGRACAO_SUPABASE.md](docs/MIGRACAO_SUPABASE.md).
 
-Nao existe credencial administrativa no JavaScript. Na OCI, o Caddy exige Basic Auth no servidor em `/admin` e em operacoes `POST`, `PUT`, `PATCH` e `DELETE`. A raiz e as leituras da escala permanecem publicas. Os webhooks da Evolution continuam isentos por necessidade de integracao e devem receber validacao de assinatura/token quando forem migrados.
+Nao existe credencial administrativa no JavaScript. O backend valida a senha, cria uma sessao `HttpOnly` e bloqueia operacoes `POST`, `PUT`, `PATCH` e `DELETE` sem essa sessao. A raiz e as leituras da escala permanecem publicas. Os webhooks da Evolution continuam isentos por necessidade de integracao e devem receber validacao de assinatura/token quando forem migrados.
 
 ## Testes
 

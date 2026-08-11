@@ -11,18 +11,18 @@ SUPABASE_URL="${6:?URL do Supabase nao informada}"
 REUSE_EXISTING_SUPABASE_CONFIG="${7:-false}"
 REUSE_EXISTING_ADMIN_PASSWORD="${8:-false}"
 
-BASIC_AUTH_USER="operacao"
 APP_CONTAINER="divisao-equipe-madrugada"
 APP_DATA_DIR="/opt/divisao/data"
 APP_ENV_FILE="/opt/divisao/.env"
 CADDY_BEGIN="# BEGIN divisao-equipe-madrugada"
 CADDY_END="# END divisao-equipe-madrugada"
 CADDY_TEMP="$(mktemp)"
+APP_ENV_TEMP="$(mktemp)"
 CADDY_BACKUP="${CADDYFILE_PATH}.bak-$(date -u +%Y%m%dT%H%M%SZ)"
 
 cleanup() {
-  rm -f "$CADDY_TEMP" /tmp/configure-divisao.sh
-  unset SUPABASE_SECRET_KEY SITE_PASSWORD BASIC_AUTH_HASH
+  rm -f "$CADDY_TEMP" "$APP_ENV_TEMP" /tmp/configure-divisao.sh
+  unset SUPABASE_SECRET_KEY SITE_PASSWORD ADMIN_PASSWORD_HASH ADMIN_SESSION_SECRET
 }
 trap cleanup EXIT
 
@@ -93,18 +93,33 @@ if [[ "$REUSE_EXISTING_SUPABASE_CONFIG" != "true" ]]; then
 fi
 
 if [[ "$REUSE_EXISTING_ADMIN_PASSWORD" == "true" ]]; then
-  BASIC_AUTH_HASH="$(awk -v begin="$CADDY_BEGIN" -v end="$CADDY_END" -v user="$BASIC_AUTH_USER" '
-    $0 == begin { managed = 1; next }
-    $0 == end { managed = 0; next }
-    managed && $1 == user { print $2; exit }
-  ' "$CADDYFILE_PATH")"
+  ADMIN_PASSWORD_HASH="$(sed -n 's/^ADMIN_PASSWORD_HASH=//p' "$APP_ENV_FILE" | tail -n 1)"
+  if [[ -z "$ADMIN_PASSWORD_HASH" ]]; then
+    ADMIN_PASSWORD_HASH="$(awk -v begin="$CADDY_BEGIN" -v end="$CADDY_END" '
+      $0 == begin { managed = 1; next }
+      $0 == end { managed = 0; next }
+      managed && $1 == "operacao" { print $2; exit }
+    ' "$CADDYFILE_PATH")"
+  fi
 else
-  BASIC_AUTH_HASH="$(printf '%s\n' "$SITE_PASSWORD" | docker exec -i "$CADDY_CONTAINER" caddy hash-password)"
+  ADMIN_PASSWORD_HASH="$(printf '%s\n' "$SITE_PASSWORD" | docker exec -i "$CADDY_CONTAINER" caddy hash-password)"
 fi
-if [[ -z "$BASIC_AUTH_HASH" ]]; then
-  echo "ERRO: nao foi possivel obter o hash da senha administrativa no Caddy." >&2
+if [[ -z "$ADMIN_PASSWORD_HASH" ]]; then
+  echo "ERRO: nao foi possivel obter o hash da senha administrativa." >&2
   exit 4
 fi
+
+ADMIN_SESSION_SECRET="$(sed -n 's/^ADMIN_SESSION_SECRET=//p' "$APP_ENV_FILE" | tail -n 1)"
+if (( ${#ADMIN_SESSION_SECRET} < 32 )); then
+  ADMIN_SESSION_SECRET="$(openssl rand -hex 32)"
+fi
+
+grep -v -E '^ADMIN_(PASSWORD_HASH|SESSION_SECRET)=' "$APP_ENV_FILE" > "$APP_ENV_TEMP"
+{
+  printf 'ADMIN_PASSWORD_HASH=%s\n' "$ADMIN_PASSWORD_HASH"
+  printf 'ADMIN_SESSION_SECRET=%s\n' "$ADMIN_SESSION_SECRET"
+} >> "$APP_ENV_TEMP"
+install -m 0600 "$APP_ENV_TEMP" "$APP_ENV_FILE"
 
 awk -v begin="$CADDY_BEGIN" -v end="$CADDY_END" '
   $0 == begin { skipping = 1; next }
@@ -116,19 +131,6 @@ awk -v begin="$CADDY_BEGIN" -v end="$CADDY_END" '
   printf '\n%s\n' "$CADDY_BEGIN"
   printf 'https://%s {\n' "$DOMAIN"
   printf '  encode zstd gzip\n'
-  printf '  @adminPage {\n'
-  printf '    path /admin /admin/*\n'
-  printf '  }\n'
-  printf '  @adminMutation {\n'
-  printf '    method POST PUT PATCH DELETE\n'
-  printf '    not path /api/whatsapp/webhook /api/webhook/mensagem\n'
-  printf '  }\n'
-  printf '  basic_auth @adminPage {\n'
-  printf '    %s %s\n' "$BASIC_AUTH_USER" "$BASIC_AUTH_HASH"
-  printf '  }\n'
-  printf '  basic_auth @adminMutation {\n'
-  printf '    %s %s\n' "$BASIC_AUTH_USER" "$BASIC_AUTH_HASH"
-  printf '  }\n'
   printf '  header {\n'
   printf '    Strict-Transport-Security "max-age=31536000; includeSubDomains"\n'
   printf '    X-Content-Type-Options "nosniff"\n'
@@ -195,8 +197,14 @@ fi
 curl --fail --silent --show-error "https://${DOMAIN}/api/escala" >/dev/null
 
 ADMIN_NO_AUTH_STATUS="$(curl --silent --output /dev/null --write-out '%{http_code}' "https://${DOMAIN}/admin")"
-if [[ "$ADMIN_NO_AUTH_STATUS" != "401" ]]; then
-  echo "ERRO: /admin sem credenciais retornou HTTP $ADMIN_NO_AUTH_STATUS; esperado 401." >&2
+if [[ "$ADMIN_NO_AUTH_STATUS" != "200" ]]; then
+  echo "ERRO: a tela de login /admin retornou HTTP $ADMIN_NO_AUTH_STATUS; esperado 200." >&2
+  exit 7
+fi
+
+SESSION_NO_AUTH_STATUS="$(curl --silent --output /dev/null --write-out '%{http_code}' "https://${DOMAIN}/api/admin/session")"
+if [[ "$SESSION_NO_AUTH_STATUS" != "401" ]]; then
+  echo "ERRO: a sessao administrativa sem login retornou HTTP $SESSION_NO_AUTH_STATUS; esperado 401." >&2
   exit 7
 fi
 
@@ -206,18 +214,6 @@ if [[ "$WRITE_NO_AUTH_STATUS" != "401" ]]; then
   exit 7
 fi
 
-if [[ "$REUSE_EXISTING_ADMIN_PASSWORD" != "true" ]]; then
-  CURL_PASSWORD="${SITE_PASSWORD//\\/\\\\}"
-  CURL_PASSWORD="${CURL_PASSWORD//\"/\\\"}"
-  {
-    printf 'fail\n'
-    printf 'silent\n'
-    printf 'show-error\n'
-    printf 'user = "%s:%s"\n' "$BASIC_AUTH_USER" "$CURL_PASSWORD"
-    printf 'url = "https://%s/admin"\n' "$DOMAIN"
-  } | curl --config - >/dev/null
-  unset CURL_PASSWORD
-fi
-unset SITE_PASSWORD BASIC_AUTH_HASH
+unset SITE_PASSWORD ADMIN_PASSWORD_HASH ADMIN_SESSION_SECRET
 
-echo "DEPLOY_OK public=https://${DOMAIN}/ admin=https://${DOMAIN}/admin user=${BASIC_AUTH_USER}"
+echo "DEPLOY_OK public=https://${DOMAIN}/ admin=https://${DOMAIN}/admin password_only=true"
