@@ -413,7 +413,9 @@ async function configurarWebhook(webhookUrl) {
 async function listarChats() {
   try {
     const chats = await evolutionRequest(
-      `/chat/findChats/${encodeURIComponent(EVOLUTION_CONFIG.INSTANCE_NAME)}`
+      `/chat/findChats/${encodeURIComponent(EVOLUTION_CONFIG.INSTANCE_NAME)}`,
+      'POST',
+      {}
     );
     return chats;
   } catch (error) {

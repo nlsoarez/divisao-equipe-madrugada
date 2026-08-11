@@ -92,4 +92,36 @@ describe('Supabase operational storage', () => {
       'message_id'
     );
   });
+
+  test('deduplicates repeated Evolution messages before the HUB upsert', async () => {
+    mockSupabaseClient.upsert.mockResolvedValue([]);
+    const allocations = [
+      {
+        id: 'hub-duplicate-1',
+        messageId: 'same-whatsapp-message',
+        tipoAlocacao: 'MADRUGADA',
+        data: '11/08/2026',
+        dataRecebimento: '2026-08-11T03:00:00.000Z'
+      },
+      {
+        id: 'hub-duplicate-2',
+        messageId: 'same-whatsapp-message',
+        tipoAlocacao: 'MADRUGADA',
+        data: '11/08/2026',
+        dataRecebimento: '2026-08-11T03:00:00.000Z'
+      }
+    ];
+
+    const count = await storageHub.adicionarAlocacoesBatch(allocations);
+
+    expect(count).toBe(1);
+    expect(mockSupabaseClient.upsert).toHaveBeenCalledWith(
+      'hub_allocations',
+      [expect.objectContaining({
+        message_id: 'same-whatsapp-message',
+        record_id: 'hub-duplicate-2'
+      })],
+      'message_id'
+    );
+  });
 });

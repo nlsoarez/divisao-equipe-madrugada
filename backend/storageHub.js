@@ -58,6 +58,17 @@ function allocationFromRow(row) {
   };
 }
 
+function uniqueAllocationRows(allocations) {
+  const rowsByMessageId = new Map();
+  for (const allocation of allocations || []) {
+    const row = allocationToRow(allocation);
+    // A Evolution pode devolver o mesmo evento mais de uma vez. O Postgres
+    // rejeita duas linhas com a mesma chave no mesmo comando de upsert.
+    rowsByMessageId.set(row.message_id, row);
+  }
+  return [...rowsByMessageId.values()];
+}
+
 function limparCache() {
   cachedData = null;
   cacheTimestamp = 0;
@@ -88,7 +99,7 @@ async function carregarDados(forcarAtualizacao = false) {
 }
 
 async function salvarDados(dados) {
-  const rows = (dados.alocacoes || []).map(allocationToRow);
+  const rows = uniqueAllocationRows(dados.alocacoes);
   if (rows.length) {
     await supabase.upsert('hub_allocations', rows, 'message_id');
   }
@@ -98,13 +109,14 @@ async function salvarDados(dados) {
 
 async function adicionarAlocacoesBatch(novasAlocacoes) {
   if (!Array.isArray(novasAlocacoes) || novasAlocacoes.length === 0) return 0;
+  const rows = uniqueAllocationRows(novasAlocacoes);
   await supabase.upsert(
     'hub_allocations',
-    novasAlocacoes.map(allocationToRow),
+    rows,
     'message_id'
   );
   limparCache();
-  return novasAlocacoes.length;
+  return rows.length;
 }
 
 async function adicionarAlocacao(alocacao) {
@@ -174,5 +186,5 @@ module.exports = {
   obterUltimaAlocacao,
   obterAlocacoes,
   obterEstatisticas,
-  _internals: { allocationToRow, parseDate }
+  _internals: { allocationToRow, uniqueAllocationRows, parseDate }
 };
