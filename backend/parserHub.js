@@ -284,6 +284,15 @@ function processarMadrugada(texto) {
         continue;
       }
 
+      // Avalia observações antes da regra genérica de atividade. O formato
+      // "[Obs: ...]" começa com um caractere não alfanumérico e seria
+      // classificado incorretamente como atividade se chegasse à regra abaixo.
+      const observacaoMatchAntecipada = linhaLimpa.match(/^\[?Obs\s*:\s*(.+?)\]?\.?\s*$/i);
+      if (observacaoMatchAntecipada && tecnicoAtual) {
+        observacaoAtual = limparObservacao(observacaoMatchAntecipada[1]);
+        continue;
+      }
+
       // Detecta atividade
       // Formato: "° Tijuca: (rebaixamento rota Grajaú [8])."
       const atividadeMatch = linhaLimpa.match(/^[°•]\s*[A-Za-zÀ-ÿ\s]+\s*:\s*\((.+?)\)\.?\s*$/);
@@ -309,19 +318,6 @@ function processarMadrugada(texto) {
         continue;
       }
 
-      // Detecta observação
-      // Formato: "[Obs: pega o carro em Niterói e vai para a Tijuca]."
-      const obsMatch = linhaLimpa.match(/^\[Obs\s*:\s*(.+?)\]\.?\s*$/i);
-      if (obsMatch && tecnicoAtual) {
-        observacaoAtual = limparObservacao(obsMatch[1]);
-        continue;
-      }
-
-      const obsMatchSemColchetes = linhaLimpa.match(/^Obs\s*:\s*(.+?)\.?\s*$/i);
-      if (obsMatchSemColchetes && tecnicoAtual) {
-        observacaoAtual = limparObservacao(obsMatchSemColchetes[1]);
-        continue;
-      }
     }
 
     // Salva último técnico da seção

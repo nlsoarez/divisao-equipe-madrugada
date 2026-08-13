@@ -58,11 +58,12 @@ describe('Formatação das observações da madrugada', () => {
         'ALOCAÇÃO TÉCNICA HUBS/RJO MADRUGADA',
         '________________',
         'Celso: Paraná',
-        'Obs: vai direto para Paraná]',
+        '[Obs: vai direto para Paraná].',
         'Tel: 9214-2566'
       ].join('\n')
     });
 
     expect(resultado.dados.tecnicos[0].observacao).toBe('vai direto para Paraná');
+    expect(resultado.dados.tecnicos[0].atividade).toBeNull();
   });
 });
