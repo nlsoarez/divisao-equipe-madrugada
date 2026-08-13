@@ -5,6 +5,14 @@
 
 const { MESSAGE_TITLES } = require('./config');
 
+function limparObservacao(value) {
+  return String(value || '')
+    .trim()
+    .replace(/^\[\s*/, '')
+    .replace(/\s*\]\s*\.?\s*$/, '')
+    .trim();
+}
+
 /**
  * Identifica o tipo de mensagem de alocação
  * @param {string} texto - Texto da mensagem
@@ -305,13 +313,13 @@ function processarMadrugada(texto) {
       // Formato: "[Obs: pega o carro em Niterói e vai para a Tijuca]."
       const obsMatch = linhaLimpa.match(/^\[Obs\s*:\s*(.+?)\]\.?\s*$/i);
       if (obsMatch && tecnicoAtual) {
-        observacaoAtual = obsMatch[1].trim();
+        observacaoAtual = limparObservacao(obsMatch[1]);
         continue;
       }
 
       const obsMatchSemColchetes = linhaLimpa.match(/^Obs\s*:\s*(.+?)\.?\s*$/i);
       if (obsMatchSemColchetes && tecnicoAtual) {
-        observacaoAtual = obsMatchSemColchetes[1].trim();
+        observacaoAtual = limparObservacao(obsMatchSemColchetes[1]);
         continue;
       }
     }
@@ -384,5 +392,6 @@ module.exports = {
   identificarTipoAlocacao,
   processarMensagemHub,
   processarDiurno,
-  processarMadrugada
+  processarMadrugada,
+  _internals: { limparObservacao }
 };

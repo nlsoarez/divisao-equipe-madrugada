@@ -4,6 +4,7 @@ const crypto = require('crypto');
 const { client: supabase } = require('./supabase');
 
 const CACHE_TTL_MS = 5000;
+const HUB_TIME_ZONE = 'America/Sao_Paulo';
 let cachedData = null;
 let cacheTimestamp = 0;
 
@@ -67,6 +68,64 @@ function uniqueAllocationRows(allocations) {
     rowsByMessageId.set(row.message_id, row);
   }
   return [...rowsByMessageId.values()];
+}
+
+function saoPauloDateParts(value) {
+  const date = value instanceof Date ? value : parseDate(value);
+  if (!date) return null;
+
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: HUB_TIME_ZONE,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23'
+  }).formatToParts(date);
+  const values = Object.fromEntries(parts.map(part => [part.type, part.value]));
+
+  return {
+    year: Number(values.year),
+    month: Number(values.month),
+    day: Number(values.day),
+    hour: Number(values.hour),
+    minute: Number(values.minute)
+  };
+}
+
+function dateKey(parts) {
+  return `${parts.year}-${String(parts.month).padStart(2, '0')}-${String(parts.day).padStart(2, '0')}`;
+}
+
+function nextDateKey(parts) {
+  const next = new Date(Date.UTC(parts.year, parts.month - 1, parts.day + 1));
+  return `${next.getUTCFullYear()}-${String(next.getUTCMonth() + 1).padStart(2, '0')}-${String(next.getUTCDate()).padStart(2, '0')}`;
+}
+
+function madrugadaEstaVigente(allocation, now = new Date()) {
+  const receivedAt = parseDate(allocation?.dataRecebimento);
+  const currentDate = now instanceof Date ? now : parseDate(now);
+  if (!receivedAt || !currentDate || receivedAt.getTime() > currentDate.getTime()) return false;
+
+  const receivedParts = saoPauloDateParts(receivedAt);
+  const currentParts = saoPauloDateParts(currentDate);
+  const currentKey = dateKey(currentParts);
+
+  if (currentKey === dateKey(receivedParts)) return true;
+  return currentKey === nextDateKey(receivedParts) && (currentParts.hour * 60 + currentParts.minute) < 5 * 60;
+}
+
+function selecionarAlocacaoAtual(allocations, now = new Date()) {
+  const ordered = [...(allocations || [])]
+    .sort((a, b) => (parseDate(b.dataRecebimento)?.getTime() || 0) - (parseDate(a.dataRecebimento)?.getTime() || 0));
+
+  const activeNightAllocation = ordered.find(item =>
+    item.tipoAlocacao === 'MADRUGADA' && madrugadaEstaVigente(item, now)
+  );
+  if (activeNightAllocation) return activeNightAllocation;
+
+  return ordered.find(item => item.tipoAlocacao === 'DIURNO') || null;
 }
 
 function limparCache() {
@@ -133,21 +192,10 @@ async function obterAlocacoes(filtros = {}) {
   return alocacoes.sort((a, b) => (parseDate(b.dataRecebimento) || 0) - (parseDate(a.dataRecebimento) || 0));
 }
 
-async function obterUltimaAlocacao() {
+async function obterUltimaAlocacao(now = new Date()) {
   const ordenadas = await obterAlocacoes();
   if (!ordenadas.length) return null;
-
-  const ultimaMadrugada = ordenadas.find(item => item.tipoAlocacao === 'MADRUGADA') || null;
-  const ultimoDiurno = ordenadas.find(item => item.tipoAlocacao === 'DIURNO') || null;
-  const horaBrasilia = (new Date().getUTCHours() - 3 + 24) % 24;
-
-  if (horaBrasilia < 5) return ultimaMadrugada || ultimoDiurno || ordenadas[0];
-  if (ultimaMadrugada && ultimoDiurno) {
-    const madrugadaTime = parseDate(ultimaMadrugada.dataRecebimento)?.getTime() || 0;
-    const diurnoTime = parseDate(ultimoDiurno.dataRecebimento)?.getTime() || 0;
-    return madrugadaTime > diurnoTime ? ultimaMadrugada : ultimoDiurno;
-  }
-  return ultimoDiurno || ultimaMadrugada || ordenadas[0];
+  return selecionarAlocacaoAtual(ordenadas, now);
 }
 
 async function obterEstatisticas() {
@@ -186,5 +234,11 @@ module.exports = {
   obterUltimaAlocacao,
   obterAlocacoes,
   obterEstatisticas,
-  _internals: { allocationToRow, uniqueAllocationRows, parseDate }
+  _internals: {
+    allocationToRow,
+    uniqueAllocationRows,
+    parseDate,
+    madrugadaEstaVigente,
+    selecionarAlocacaoAtual
+  }
 };
