@@ -1,0 +1,10 @@
+{
+  "escala_id": "portal_escala_v3_multi",
+  "versao": "3.0",
+  "calendarioAtivo": "calendario1",
+  "calendario1": null,
+  "calendario2": null,
+  "escalonamento": null,
+  "ultima_atualizacao": "2026-08-19T02:00:00.000Z",
+  "origem": "repositorio-estatico"
+}

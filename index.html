@@ -2619,6 +2619,11 @@
       <i class="bi bi-telephone"></i>
     </button>
 
+    <!-- Botão Baixar escala.json para commit no GitHub -->
+    <button class="refresh-btn" id="btnBaixarEscalaJson" onclick="baixarEscalaJson()" title="Baixar data/escala.json para commit no GitHub Pages">
+      <i class="bi bi-file-earmark-arrow-down"></i>
+    </button>
+
     <!-- Botão Refresh -->
     <button class="refresh-btn" onclick="location.reload()" title="Recarregar página">
       <i class="bi bi-arrow-clockwise"></i>
@@ -3653,6 +3658,7 @@
 <script src="js/area-editor.js"></script>
 <script src="js/matriz-api.js"></script>
 <script src="js/backup-recovery.js"></script>
+<script src="js/escala-api.js"></script>
 <script>
 // ============================================
 // VARIÁVEIS GLOBAIS E ALIASES
@@ -6131,6 +6137,32 @@ async function salvarEscalaViaBackend(dados) {
   return result;
 }
 
+function baixarEscalaJson() {
+  const calendariosParaSalvar = prepararCalendariosParaPersistencia(calendarios);
+  const dadosParaSalvar = {
+    escala_id: 'portal_escala_v3_multi',
+    versao: '3.0',
+    calendarioAtivo: calendarioAtivo,
+    calendario1: calendariosParaSalvar.calendario1,
+    calendario2: calendariosParaSalvar.calendario2,
+    escalonamento: Object.keys(escalonamentoDados).length > 0 ? escalonamentoDados : null,
+    ultima_atualizacao: new Date().toISOString(),
+    origem: 'repositorio-estatico'
+  };
+
+  const jsonStr = JSON.stringify(dadosParaSalvar, null, 2);
+  const blob = new Blob([jsonStr], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'escala.json';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  showToast('📥 Arquivo escala.json baixado! Coloque na pasta data/ do repositório.', 'success');
+}
+
 async function salvarConfiguracaoCalendarios(tentativa = 1) {
   console.log('💾 Salvando configuração dos calendários...');
   console.log('📅 Calendário ativo:', calendarioAtivo);
@@ -6138,8 +6170,6 @@ async function salvarConfiguracaoCalendarios(tentativa = 1) {
   console.log('📦 Calendário 2:', calendarios.calendario2 ? 'Preenchido' : 'Vazio');
 
   // GUARDA DE SEGURANÇA: não sobrescrever dados existentes na nuvem com estado vazio.
-  // Se ambos calendários estão vazios E já existe um BIN configurado, aborta o save
-  // para evitar que fluxos de inicialização ou race conditions apaguem as escalas.
   const cal1Vazio = !calendarios.calendario1
     || !calendarios.calendario1.dadosOriginais
     || Object.keys(calendarios.calendario1.dadosOriginais).length === 0;
@@ -6149,8 +6179,8 @@ async function salvarConfiguracaoCalendarios(tentativa = 1) {
   const cal2Vazio = (!cal2RioEs || Object.keys(cal2RioEs).length === 0)
     && (!cal2Leste || Object.keys(cal2Leste).length === 0)
     && (!cal2Legado || Object.keys(cal2Legado).length === 0);
-  if (cal1Vazio && cal2Vazio && obterBinId()) {
-    console.warn('⛔ Save cancelado: ambos calendários vazios e bin já existe. Protegendo dados remotos.');
+  if (cal1Vazio && cal2Vazio) {
+    console.warn('⛔ Save cancelado: ambos calendários vazios. Protegendo dados remotos.');
     showToast('⚠️ Nenhum dado para salvar. Operação cancelada para proteger as escalas existentes.', 'warning');
     hideLoading();
     return;
@@ -6171,65 +6201,53 @@ async function salvarConfiguracaoCalendarios(tentativa = 1) {
 
   try {
     const binId = obterBinId();
+    const opcoes = {
+      backendUrl: ESCALA_BACKEND_URL,
+      binId: binId,
+      storageKey: 'escala_backup',
+      lastSaveKey: 'escala_ultimo_salvamento'
+    };
 
-    console.log('📤 Enviando para nuvem:', {
-      binId,
-      versao: dadosParaSalvar.versao,
-      calendarioAtivo: dadosParaSalvar.calendarioAtivo,
-      temCal1: !!dadosParaSalvar.calendario1,
-      temCal2: !!dadosParaSalvar.calendario2
-    });
+    if (window.EscalaApi) {
+      console.log('📤 Salvando escala via EscalaApi Multi-Tier...');
+      const resSalvar = await window.EscalaApi.salvarEscala(dadosParaSalvar, opcoes);
 
-    const payload = JSON.stringify(dadosParaSalvar);
-    const payloadKB = (payload.length / 1024).toFixed(1);
-    console.log(`📦 Tamanho do payload: ${payloadKB} KB`);
+      if (resSalvar.sucesso) {
+        let msg = '✅ Escalas salvas com sucesso!';
+        if (resSalvar.salvouRemoto) {
+          const destinos = [];
+          if (resSalvar.resultados.supabase) destinos.push('Supabase');
+          if (resSalvar.resultados.backend) destinos.push('Backend');
+          msg += ` Publicado em: ${destinos.join(', ')}`;
+        } else {
+          msg = '⚠️ Salvo apenas no cache local. Use "Baixar escala.json" para commitar no GitHub.';
+        }
+        showToast(msg, resSalvar.salvouRemoto ? 'success' : 'warning');
+        salvarBackupLocalSeguro(dadosParaSalvar, !resSalvar.salvouRemoto);
+        if (!resSalvar.salvouRemoto) mostrarBotaoRepublicar();
+        return;
+      }
+    }
 
+    // Fallback legado se EscalaApi não estiver presente
     try {
       const resultadoBackend = await salvarEscalaViaBackend(dadosParaSalvar);
-      if (resultadoBackend?.binId) {
-        salvarBinId(resultadoBackend.binId);
-      }
+      if (resultadoBackend?.binId) salvarBinId(resultadoBackend.binId);
       showToast('✅ Escalas salvas e publicadas para todos!', 'success');
       salvarBackupLocalSeguro(dadosParaSalvar, false);
       return;
     } catch (backendError) {
       console.warn('⚠️ Backend/Supabase não conseguiu salvar a escala.', backendError);
-      if (tentativa > 3) throw backendError;
-      const tempoEspera = tentativa * 2000;
-      showToast(`⏳ Persistência indisponível. Nova tentativa em ${tempoEspera/1000}s...`, 'warning');
-      hideLoading();
-      await new Promise(resolve => setTimeout(resolve, tempoEspera));
-      return salvarConfiguracaoCalendarios(tentativa + 1);
     }
+
+    salvarBackupLocalSeguro(dadosParaSalvar, true);
+    showToast('⚠️ Salvo apenas localmente. Use "Baixar escala.json" para commitar no GitHub.', 'warning');
+    mostrarBotaoRepublicar();
   } catch (error) {
     console.error('❌ Erro ao salvar calendários:', error);
-
-    // Salvar localmente como backup de emergência
-    try {
-      const dadosBackup = {
-        escala_id: 'backup_local',
-        versao: '3.0',
-        calendarioAtivo: calendarioAtivo,
-        calendario1: calendariosParaSalvar.calendario1,
-        calendario2: calendariosParaSalvar.calendario2,
-        escalonamento: Object.keys(escalonamentoDados).length > 0 ? escalonamentoDados : null,
-        ultima_atualizacao: new Date().toISOString()
-      };
-      const backupOk = salvarBackupLocalSeguro(dadosBackup, true);
-
-      if (backupOk) {
-        // Mostrar alerta mais claro para o admin
-        const msgErro = (error && error.message) ? ` (${error.message.substring(0, 120)})` : '';
-        showToast('⚠️ ATENÇÃO: Dados salvos APENAS localmente! Outros usuários NÃO verão as alterações.' + msgErro, 'danger');
-        // Mostrar botão de republicar se não existir
-        mostrarBotaoRepublicar();
-      } else {
-        showToast('❌ Erro crítico: não foi possível salvar nem localmente', 'danger');
-      }
-    } catch (backupError) {
-      console.error('❌ Falha inesperada no backup local:', backupError);
-      showToast('❌ Erro crítico: não foi possível salvar nem localmente', 'danger');
-    }
+    salvarBackupLocalSeguro(dadosParaSalvar, true);
+    showToast('⚠️ Salvo no cache local: ' + error.message, 'warning');
+    mostrarBotaoRepublicar();
   } finally {
     hideLoading();
   }
@@ -6383,39 +6401,52 @@ async function tentarSalvarNoBin(_storageId, dados) {
 }
 
 async function carregarDadosDaNuvem() {
-  console.log('🔵 CARREGANDO ESCALA DO SUPABASE...');
+  console.log('🔵 INICIANDO CARREGAMENTO RESILIENTE DA ESCALA (Multi-Tier)...');
   showLoading();
 
+  const binId = obterBinId();
+  const opcoes = {
+    caminhoEstatico: 'data/escala.json',
+    backendUrl: ESCALA_BACKEND_URL,
+    binId: binId,
+    storageKey: 'escala_backup',
+    lastSaveKey: 'escala_ultimo_salvamento'
+  };
+
   try {
-    const resultadoBackend = await carregarEscalaViaBackend();
-    const dados = resultadoBackend?.dados;
-    const formatoV2 = dados && (dados.dadosOriginais || dados.dadosPlanilha);
-    const formatoV3 = dados && (dados.versao === '3.0' || dados.calendario1 || dados.calendario2);
+    if (window.EscalaApi) {
+      const resultado = await window.EscalaApi.carregarEscala(opcoes);
 
-    if (formatoV2 || formatoV3) {
-      processarDadosCarregados(dados);
-      showToast('✅ Escalas carregadas do Supabase!', 'success');
-      return true;
-    }
+      if (resultado && resultado.sucesso && resultado.dados) {
+        console.log(`✅ Escala carregada via [${resultado.origem}]:`, resultado.dados);
+        processarDadosCarregados(resultado.dados);
+        hideLoading();
 
-    if (localStorage.getItem('escala_pendente_publicacao') === 'true') {
-      console.warn('⚠️ Supabase vazio; preservando a escala pendente do backup local.');
-      const carregouBackup = carregarDoBackupLocal();
-      if (carregouBackup) {
-        mostrarBotaoRepublicar();
-        showToast('⚠️ Escala local pendente. Republique antes de trocar o endereço do site.', 'danger');
+        const nomesOrigem = {
+          'supabase': 'Nuvem Supabase',
+          'github-static': 'Repositório GitHub',
+          'backend': 'Servidor Backend',
+          'localstorage': 'Cache Local'
+        };
+        const origemExibicao = nomesOrigem[resultado.origem] || resultado.origem;
+
+        if (resultado.origem === 'localstorage') {
+          showToast(`📁 Escala carregada do cache local`, 'info');
+        } else {
+          showToast(`✅ Escalas carregadas da nuvem (${origemExibicao})!`, 'success');
+        }
+        return true;
+      } else if (resultado?.logs) {
+        console.warn('⚠️ Logs das tentativas das camadas:', resultado.logs);
       }
-      return carregouBackup;
     }
-
-    showToast('📭 Nenhuma escala encontrada no Supabase. Faça o primeiro upload.', 'info');
-    return false;
-  } catch (error) {
-    console.warn('⚠️ Backend/Supabase indisponível; tentando backup local.', error);
-    return carregarDoBackupLocal();
-  } finally {
-    hideLoading();
+  } catch (err) {
+    console.warn('⚠️ Falha ao carregar via EscalaApi, tentando fallback local...', err);
   }
+
+  // Fallback para o backup local caso todas as camadas remotas estejam inacessíveis
+  console.log('🔄 Tentando carregar do backup local...');
+  return carregarDoBackupLocal();
 }
 
 function carregarDoBackupLocal() {
