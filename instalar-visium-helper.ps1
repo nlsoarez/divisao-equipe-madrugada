@@ -1,3 +1,8 @@
+param(
+  [string]$CentralBackendUrl = $env:CENTRAL_BACKEND_URL,
+  [string]$BasicAuthUser = $env:CENTRAL_BACKEND_AUTH_USER
+)
+
 $ErrorActionPreference = "Stop"
 
 $repoRef = if ($env:VISIUM_HELPER_REF) { $env:VISIUM_HELPER_REF } else { "main" }
@@ -5,6 +10,40 @@ $repoRaw = "https://raw.githubusercontent.com/nlsoarez/divisao-equipe-madrugada/
 $cacheBust = [DateTimeOffset]::UtcNow.ToUnixTimeSeconds()
 $destino = Join-Path $env:USERPROFILE "visium-helper"
 $backend = Join-Path $destino "backend"
+
+if ([string]::IsNullOrWhiteSpace($CentralBackendUrl)) {
+  $CentralBackendUrl = Read-Host "Informe a URL HTTPS do backend OCI (ex.: https://painel.exemplo.com)"
+}
+
+if ($CentralBackendUrl -notmatch '^https://[^/]+') {
+  Write-Host "URL invalida. O helper exige o dominio HTTPS do backend OCI." -ForegroundColor Red
+  exit 1
+}
+
+$CentralBackendUrl = $CentralBackendUrl.TrimEnd('/')
+
+if ([string]::IsNullOrWhiteSpace($BasicAuthUser)) {
+  $BasicAuthUser = Read-Host "Informe o usuario Basic Auth do painel OCI"
+}
+
+$securePassword = Read-Host "Informe a senha Basic Auth do painel OCI" -AsSecureString
+$passwordPtr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($securePassword)
+try {
+  $plainPassword = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($passwordPtr)
+  if ([string]::IsNullOrWhiteSpace($plainPassword)) {
+    Write-Host "Senha Basic Auth vazia." -ForegroundColor Red
+    exit 1
+  }
+  $basicAuthToken = [Convert]::ToBase64String(
+    [Text.Encoding]::UTF8.GetBytes("${BasicAuthUser}:${plainPassword}")
+  )
+}
+finally {
+  if ($passwordPtr -ne [IntPtr]::Zero) {
+    [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($passwordPtr)
+  }
+  $plainPassword = $null
+}
 
 Write-Host ""
 Write-Host "Instalando helper local do Visium em: $destino" -ForegroundColor Cyan
@@ -41,8 +80,10 @@ $bat = Join-Path $destino "iniciar-visium-helper.bat"
 @"
 @echo off
 cd /d "%USERPROFILE%\visium-helper\backend"
-set CENTRAL_BACKEND_TLS_INSEGURO=1
-set NODE_TLS_REJECT_UNAUTHORIZED=0
+set CENTRAL_BACKEND_URL=$CentralBackendUrl
+set CENTRAL_BACKEND_AUTH_TOKEN=$basicAuthToken
+set CENTRAL_BACKEND_TLS_INSEGURO=0
+set NODE_TLS_REJECT_UNAUTHORIZED=1
 set VISIUM_LOGIN_URL=http://201.55.234.76/
 set VISIUM_BASE_URL=http://201.55.234.76/Consultas_/ConsultaInterfaceNode
 set VISIUM_GPON_LOGIN_URL=http://201.55.234.76:8080/Login

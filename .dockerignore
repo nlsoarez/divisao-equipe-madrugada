@@ -1,0 +1,12 @@
+.git
+.github
+.env
+**/.env
+**/node_modules
+**/*.log
+backend/__tests__
+deploy/oci/terraform/.terraform
+deploy/oci/terraform/*.tfstate*
+RAILWAY_DEBUG.md
+nixpacks.toml
+railway.json

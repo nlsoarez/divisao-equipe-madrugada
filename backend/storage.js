@@ -1,12 +1,13 @@
 /**
- * Módulo de persistência - JSONBin.io
- * Gerencia o armazenamento de mensagens COP REDE INFORMA e Alertas
+ * Persistência operacional no Supabase.
+ * Cada mensagem/alerta ocupa uma linha; o payload JSON preserva o contrato
+ * legado do frontend sem voltar ao modelo de um documento único.
  */
 
-const fetch = require('node-fetch');
-const { JSONBIN_CONFIG } = require('./config');
+const crypto = require('crypto');
+const { client: supabase } = require('./supabase');
 
-// Cache local para reduzir requisições
+const CACHE_TTL_MS = 5000;
 let cacheLocal = {
   copRedeInforma: [],
   copRedeEmpresarial: [],
@@ -14,913 +15,363 @@ let cacheLocal = {
   ultimaAtualizacao: null
 };
 
-// ID do bin para mensagens do WhatsApp (será criado se não existir)
-let whatsappBinId = JSONBIN_CONFIG.WHATSAPP_BIN_ID;
-
-/**
- * Parseia uma string de data que pode estar em diferentes formatos
- * Suporta: ISO, brasileiro "dd/mm/yyyy HH:mm" e outros
- * IMPORTANTE: Verifica formato brasileiro PRIMEIRO porque JavaScript interpreta
- * "08/02/2026" como MM/DD/YYYY (agosto 2) em vez de DD/MM/YYYY (fevereiro 8)
- * @param {string} dataStr - String da data
- * @returns {Date} Objeto Date parseado
- */
 function parsearData(dataStr) {
-  if (!dataStr) return new Date(0); // Data mínima para ordenação
+  if (!dataStr) return new Date(0);
 
-  // PRIMEIRO: Tentar formato brasileiro "dd/mm/yyyy HH:mm" ou "dd/mm/yyyy"
-  // Isso DEVE vir antes do new Date() porque JavaScript interpreta "08/02/2026"
-  // como MM/DD/YYYY (americano) em vez de DD/MM/YYYY (brasileiro)
-  const matchBR = dataStr.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:[\s,]+(\d{1,2}):(\d{2})(?::(\d{2}))?)?/);
+  const matchBR = String(dataStr).match(
+    /^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:[\s,]+(\d{1,2}):(\d{2})(?::(\d{2}))?)?/
+  );
   if (matchBR) {
-    const dia = parseInt(matchBR[1], 10);
-    const mes = parseInt(matchBR[2], 10) - 1; // Mês é 0-indexed
-    const ano = parseInt(matchBR[3], 10);
-    const hora = matchBR[4] ? parseInt(matchBR[4], 10) : 0;
-    const minuto = matchBR[5] ? parseInt(matchBR[5], 10) : 0;
-    const segundo = matchBR[6] ? parseInt(matchBR[6], 10) : 0;
-    return new Date(ano, mes, dia, hora, minuto, segundo);
+    return new Date(
+      Number(matchBR[3]),
+      Number(matchBR[2]) - 1,
+      Number(matchBR[1]),
+      Number(matchBR[4] || 0),
+      Number(matchBR[5] || 0),
+      Number(matchBR[6] || 0)
+    );
   }
 
-  // SEGUNDO: Tentar ISO ou outros formatos suportados nativamente
-  const dataISO = new Date(dataStr);
-  if (!isNaN(dataISO.getTime())) {
-    return dataISO;
-  }
-
-  // Fallback: retornar data mínima
-  return new Date(0);
+  const parsed = new Date(dataStr);
+  return Number.isNaN(parsed.getTime()) ? new Date(0) : parsed;
 }
 
-/**
- * Headers padrão para requisições ao JSONBin
- */
-function getHeaders() {
+function toIsoOrNull(value) {
+  if (!value) return null;
+  const parsed = parsearData(value);
+  return parsed.getTime() === 0 ? null : parsed.toISOString();
+}
+
+function toNonNegativeInteger(value) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed >= 0 ? Math.round(parsed) : null;
+}
+
+function stableId(prefix, value) {
+  return `${prefix}-${crypto.createHash('sha256').update(JSON.stringify(value)).digest('hex').slice(0, 24)}`;
+}
+
+function messageId(message, channel) {
+  return String(message.messageId || message.id || stableId(channel, message));
+}
+
+function alertId(alert) {
+  return String(alert.id || alert.messageId || stableId('alert', alert));
+}
+
+function messageToRow(message, channel) {
+  const now = new Date().toISOString();
   return {
-    'Content-Type': 'application/json',
-    'X-Master-Key': JSONBIN_CONFIG.MASTER_KEY,
-    'X-Access-Key': JSONBIN_CONFIG.ACCESS_KEY
+    channel,
+    message_id: messageId(message, channel),
+    record_id: message.id ? String(message.id) : null,
+    event_at: toIsoOrNull(message.dataGeracao || message.dataMensagem || message.dataRecebimento),
+    received_at: toIsoOrNull(message.dataRecebimento),
+    area_panel: message.areaPainel || null,
+    original_group: message.grupoOriginal || null,
+    responsible: message.responsavel || null,
+    message_type: message.tipo || null,
+    volume: toNonNegativeInteger(message.volume),
+    payload: message,
+    updated_at: now
   };
 }
 
-/**
- * Cria um novo bin no JSONBin.io
- * @returns {Promise<string>} ID do bin criado
- */
-async function criarBin() {
-  console.log('[Storage] Criando novo bin para mensagens do WhatsApp...');
-
-  const dadosIniciais = {
-    copRedeInforma: [],
-    copRedeEmpresarial: [],
-    alertas: [],
-    ultimaAtualizacao: new Date().toISOString(),
-    versao: '1.0'
+function alertToRow(alert) {
+  const now = new Date().toISOString();
+  return {
+    alert_id: alertId(alert),
+    message_id: alert.messageId ? String(alert.messageId) : null,
+    event_at: toIsoOrNull(alert.dataMensagem || alert.dataRecebimento),
+    received_at: toIsoOrNull(alert.dataRecebimento),
+    area_panel: alert.areaPainel || null,
+    original_group: alert.grupoOriginal || null,
+    status: ['novo', 'em_analise', 'tratado'].includes(alert.statusAlerta)
+      ? alert.statusAlerta
+      : 'novo',
+    payload: alert,
+    updated_at: now
   };
-
-  const response = await fetch(JSONBIN_CONFIG.API_URL, {
-    method: 'POST',
-    headers: {
-      ...getHeaders(),
-      'X-Bin-Name': 'COP_REDE_INFORMA_WhatsApp'
-    },
-    body: JSON.stringify(dadosIniciais)
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`Erro ao criar bin: ${response.status} - ${errorText}`);
-  }
-
-  const result = await response.json();
-  whatsappBinId = result.metadata.id;
-
-  console.log('[Storage] Bin criado com ID:', whatsappBinId);
-  console.log('[Storage] IMPORTANTE: Adicione WHATSAPP_BIN_ID=' + whatsappBinId + ' ao seu .env');
-
-  return whatsappBinId;
 }
 
-/**
- * Obtém o ID do bin, criando um novo se necessário
- * @returns {Promise<string>} ID do bin
- */
-async function obterBinId() {
-  if (whatsappBinId) {
-    return whatsappBinId;
-  }
-
-  // Tentar criar um novo bin
-  return await criarBin();
-}
-
-/**
- * Carrega todos os dados do JSONBin
- * @param {boolean} forcarAtualizacao - Se deve ignorar o cache
- * @returns {Promise<object>} Dados carregados
- */
-async function carregarDados(forcarAtualizacao = false) {
-  // Usar cache se disponível e não forçar atualização
-  if (!forcarAtualizacao && cacheLocal.ultimaAtualizacao) {
-    const idadeCache = Date.now() - new Date(cacheLocal.ultimaAtualizacao).getTime();
-    if (idadeCache < 5000) { // Cache válido por 5 segundos (antes era 30s)
-      return {
-        copRedeInforma: cacheLocal.copRedeInforma,
-        copRedeEmpresarial: cacheLocal.copRedeEmpresarial,
-        alertas: cacheLocal.alertas
-      };
-    }
-  }
-
-  try {
-    const binId = await obterBinId();
-
-    console.log('[Storage] Carregando dados do bin:', binId);
-
-    const response = await fetch(`${JSONBIN_CONFIG.API_URL}/${binId}/latest`, {
-      headers: getHeaders()
-    });
-
-    if (!response.ok) {
-      if (response.status === 404) {
-        console.log('[Storage] Bin não encontrado, criando novo...');
-        await criarBin();
-        return { copRedeInforma: [], alertas: [] };
-      }
-      throw new Error(`Erro ao carregar dados: ${response.status}`);
-    }
-
-    const result = await response.json();
-    const dados = result.record;
-
-    // IMPORTANTE: Fazer MERGE dos dados do JSONBin com o cache local
-    // Isso preserva mensagens que foram adicionadas mas não salvas (ex: erro 403)
-
-    // Remover mensagemOriginal de dados já existentes no JSONBin para reduzir tamanho
-    // (dados antigos podem ter mensagemOriginal que pesam ~1KB por mensagem)
-    const limparMensagemOriginal = (msgs) => msgs.map(m => {
-      if (m.mensagemOriginal) {
-        const { mensagemOriginal, ...resto } = m;
-        return resto;
-      }
-      return m;
-    });
-
-    const dadosDoJSONBin = {
-      copRedeInforma: limparMensagemOriginal(dados.copRedeInforma || []),
-      copRedeEmpresarial: limparMensagemOriginal(dados.copRedeEmpresarial || []),
-      alertas: dados.alertas || []
-    };
-
-    // Criar mapa de IDs existentes no JSONBin para merge rápido
-    const idsJSONBinCop = new Set(dadosDoJSONBin.copRedeInforma.map(m => m.id || m.messageId));
-    const idsJSONBinEmpresarial = new Set(dadosDoJSONBin.copRedeEmpresarial.map(m => m.id || m.messageId));
-    const idsJSONBinAlertas = new Set(dadosDoJSONBin.alertas.map(a => a.id || a.messageId));
-
-    // Adicionar mensagens do cache local que não existem no JSONBin
-    // (são mensagens que foram adicionadas mas não persistidas)
-    const mensagensPendentes = (cacheLocal.copRedeInforma || []).filter(
-      m => !idsJSONBinCop.has(m.id) && !idsJSONBinCop.has(m.messageId)
-    );
-    const empresarialPendentes = (cacheLocal.copRedeEmpresarial || []).filter(
-      m => !idsJSONBinEmpresarial.has(m.id) && !idsJSONBinEmpresarial.has(m.messageId)
-    );
-    const alertasPendentes = (cacheLocal.alertas || []).filter(
-      a => !idsJSONBinAlertas.has(a.id) && !idsJSONBinAlertas.has(a.messageId)
-    );
-
-    if (mensagensPendentes.length > 0) {
-      console.log(`[Storage] Preservando ${mensagensPendentes.length} mensagens COP não salvas no cache`);
-    }
-    if (empresarialPendentes.length > 0) {
-      console.log(`[Storage] Preservando ${empresarialPendentes.length} mensagens Empresarial não salvas no cache`);
-    }
-    if (alertasPendentes.length > 0) {
-      console.log(`[Storage] Preservando ${alertasPendentes.length} alertas não salvos no cache`);
-    }
-
-    // Merge: dados do JSONBin + mensagens pendentes do cache
-    cacheLocal = {
-      copRedeInforma: [...dadosDoJSONBin.copRedeInforma, ...mensagensPendentes],
-      copRedeEmpresarial: [...dadosDoJSONBin.copRedeEmpresarial, ...empresarialPendentes],
-      alertas: [...dadosDoJSONBin.alertas, ...alertasPendentes],
-      ultimaAtualizacao: new Date().toISOString()
-    };
-
-    console.log('[Storage] Dados carregados (merge):', {
-      copRedeInforma: cacheLocal.copRedeInforma.length,
-      copRedeEmpresarial: cacheLocal.copRedeEmpresarial.length,
-      alertas: cacheLocal.alertas.length
-    });
-
-    return {
-      copRedeInforma: cacheLocal.copRedeInforma,
-      copRedeEmpresarial: cacheLocal.copRedeEmpresarial,
-      alertas: cacheLocal.alertas
-    };
-
-  } catch (error) {
-    console.error('[Storage] Erro ao carregar dados:', error);
-    // Retornar cache local em caso de erro
-    return {
-      copRedeInforma: cacheLocal.copRedeInforma || [],
-      copRedeEmpresarial: cacheLocal.copRedeEmpresarial || [],
-      alertas: cacheLocal.alertas || []
-    };
-  }
-}
-
-/**
- * Salva todos os dados no JSONBin
- * @param {object} dados - Dados a serem salvos
- * @param {number} tentativa - Número da tentativa atual (para retry)
- * @returns {Promise<boolean>} Sucesso da operação
- */
-async function salvarDados(dados, tentativa = 1) {
-  const MAX_TENTATIVAS = 3;
-
-  try {
-    const binId = await obterBinId();
-
-    console.log('[Storage] Salvando dados no bin:', binId);
-
-    const dadosParaSalvar = {
-      copRedeInforma: dados.copRedeInforma || cacheLocal.copRedeInforma || [],
-      copRedeEmpresarial: dados.copRedeEmpresarial || cacheLocal.copRedeEmpresarial || [],
-      alertas: dados.alertas || cacheLocal.alertas || [],
-      ultimaAtualizacao: new Date().toISOString(),
-      versao: '1.0'
-    };
-
-    const response = await fetch(`${JSONBIN_CONFIG.API_URL}/${binId}`, {
-      method: 'PUT',
-      headers: getHeaders(),
-      body: JSON.stringify(dadosParaSalvar)
-    });
-
-    if (!response.ok) {
-      // Retry para erros 403 (Forbidden) e 429 (Rate Limit)
-      if ((response.status === 403 || response.status === 429) && tentativa < MAX_TENTATIVAS) {
-        const tempoEspera = tentativa * 2000; // 2s, 4s, 6s
-        console.warn(`[Storage] Erro ${response.status}, aguardando ${tempoEspera/1000}s para retry ${tentativa}/${MAX_TENTATIVAS}...`);
-        await new Promise(resolve => setTimeout(resolve, tempoEspera));
-        return salvarDados(dados, tentativa + 1);
-      }
-
-      // Se erro 403 persistir após retries, tentar criar um novo bin
-      if (response.status === 403 && tentativa >= MAX_TENTATIVAS) {
-        console.warn('[Storage] Erro 403 persistente. Tentando criar novo bin...');
-        try {
-          const novoBinId = await criarNovoBinParaMensagens(dadosParaSalvar);
-          if (novoBinId) {
-            console.log('[Storage] Novo bin criado:', novoBinId);
-            console.log('[Storage] IMPORTANTE: Atualize WHATSAPP_BIN_ID=' + novoBinId + ' no Railway');
-            return true;
-          }
-        } catch (criarError) {
-          console.error('[Storage] Falha ao criar novo bin:', criarError.message);
-        }
-      }
-
-      throw new Error(`Erro ao salvar dados: ${response.status}`);
-    }
-
-    // Atualizar cache local
-    cacheLocal = {
-      ...dadosParaSalvar,
-      ultimaAtualizacao: new Date().toISOString()
-    };
-
-    console.log('[Storage] Dados salvos com sucesso');
-    return true;
-
-  } catch (error) {
-    console.error('[Storage] Erro ao salvar dados:', error);
-    return false;
-  }
-}
-
-/**
- * Cria um novo bin quando o atual está inacessível
- * Transfere os dados existentes para o novo bin
- */
-async function criarNovoBinParaMensagens(dados) {
-  console.log('[Storage] Criando novo bin para substituir o inacessível...');
-
-  // Limitar dados para caber no limite de 100KB do plano gratuito
-  const dadosLimitados = {
-    copRedeInforma: (dados.copRedeInforma || []).slice(0, 40),
-    copRedeEmpresarial: (dados.copRedeEmpresarial || []).slice(0, 40),
-    alertas: (dados.alertas || []).slice(0, 20), // Só últimos 20 alertas
-    ultimaAtualizacao: new Date().toISOString(),
-    versao: '1.0'
+function messageFromRow(row) {
+  return {
+    ...(row.payload || {}),
+    id: row.payload?.id || row.record_id || row.message_id,
+    messageId: row.payload?.messageId || row.message_id
   };
+}
 
-  console.log(`[Storage] Dados limitados: ${dadosLimitados.copRedeInforma.length} mensagens, ${dadosLimitados.alertas.length} alertas`);
-
-  const response = await fetch(JSONBIN_CONFIG.API_URL, {
-    method: 'POST',
-    headers: {
-      ...getHeaders(),
-      'X-Bin-Name': 'COP_REDE_INFORMA_WhatsApp_' + Date.now()
-    },
-    body: JSON.stringify(dadosLimitados)
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`Erro ao criar bin: ${response.status} - ${errorText}`);
-  }
-
-  const result = await response.json();
-  const novoBinId = result.metadata.id;
-
-  // Atualizar o ID em memória
-  whatsappBinId = novoBinId;
-
-  // Atualizar cache com dados limitados
-  cacheLocal = {
-    ...dadosLimitados
+function alertFromRow(row) {
+  return {
+    ...(row.payload || {}),
+    id: row.payload?.id || row.alert_id,
+    messageId: row.payload?.messageId || row.message_id,
+    statusAlerta: row.status,
+    atualizadoEm: row.updated_at
   };
-
-  console.log('========================================');
-  console.log('[Storage] NOVO BIN CRIADO COM SUCESSO!');
-  console.log('[Storage] Novo ID:', novoBinId);
-  console.log('[Storage] Configure no Railway: WHATSAPP_BIN_ID=' + novoBinId);
-  console.log('========================================');
-
-  return novoBinId;
 }
 
-/**
- * Adiciona uma mensagem COP REDE INFORMA
- * @param {object} mensagem - Dados da mensagem
- * @returns {Promise<boolean>} Sucesso da operação
- */
-async function adicionarCopRedeInforma(mensagem) {
-  try {
-    const dados = await carregarDados(true);
-
-    // Verificar duplicata pelo messageId
-    const indiceDuplicata = dados.copRedeInforma.findIndex(m => m.messageId === mensagem.messageId);
-
-    if (indiceDuplicata !== -1) {
-      const existente = dados.copRedeInforma[indiceDuplicata];
-      const existenteTemCluster = existente.resumo?.grupo && Object.keys(existente.resumo.grupo).length > 0;
-      const novaTemCluster = mensagem.resumo?.grupo && Object.keys(mensagem.resumo.grupo).length > 0;
-
-      // Se a nova versão tem clusters e a existente não, ATUALIZAR em vez de ignorar
-      if (novaTemCluster && !existenteTemCluster) {
-        console.log('[Storage] Atualizando mensagem existente com dados de cluster:', mensagem.messageId);
-        const mensagemAtualizada = { ...mensagem };
-        delete mensagemAtualizada.mensagemOriginal;
-        dados.copRedeInforma[indiceDuplicata] = mensagemAtualizada;
-
-        cacheLocal.copRedeInforma = dados.copRedeInforma;
-        cacheLocal.ultimaAtualizacao = new Date().toISOString();
-        await salvarDados(dados);
-        return true;
-      }
-
-      console.log('[Storage] Mensagem COP REDE INFORMA já existe:', mensagem.messageId);
-      return false;
-    }
-
-    // Remover mensagemOriginal antes de salvar para reduzir tamanho no JSONBin
-    // (causa do erro 403: 100 msgs × ~1KB de texto original = 100KB, bate no limite)
-    const mensagemParaSalvar = { ...mensagem };
-    delete mensagemParaSalvar.mensagemOriginal;
-
-    dados.copRedeInforma.unshift(mensagemParaSalvar); // Adiciona no início
-
-    // Limitar a 150 registros (sem mensagemOriginal, cada msg ocupa ~600 bytes → 90KB)
-    if (dados.copRedeInforma.length > 150) {
-      dados.copRedeInforma = dados.copRedeInforma.slice(0, 150);
-    }
-
-    // IMPORTANTE: Atualizar cache local ANTES de tentar salvar
-    // Isso garante que a mensagem fica disponível mesmo se o salvamento falhar
-    cacheLocal.copRedeInforma = dados.copRedeInforma;
-    cacheLocal.ultimaAtualizacao = new Date().toISOString();
-
-    // Tentar salvar (pode falhar com 403, mas mensagem já está no cache)
-    const salvou = await salvarDados(dados);
-    if (!salvou) {
-      console.log('[Storage] AVISO: Mensagem adicionada ao cache mas NÃO persistida no JSONBin');
-    }
-
-    console.log('[Storage] Mensagem COP REDE INFORMA adicionada:', mensagem.id);
-    return true;
-
-  } catch (error) {
-    console.error('[Storage] Erro ao adicionar COP REDE INFORMA:', error);
-    return false;
-  }
-}
-
-/**
- * Adiciona uma mensagem COP REDE EMPRESARIAL (Rio/ES e Leste)
- * @param {object} mensagem - Dados da mensagem
- * @returns {Promise<boolean>} Sucesso da operação
- */
-async function adicionarCopRedeEmpresarial(mensagem) {
-  try {
-    const dados = await carregarDados(true);
-
-    // Verificar duplicata pelo messageId
-    const indiceDuplicata = (dados.copRedeEmpresarial || []).findIndex(m => m.messageId === mensagem.messageId);
-
-    if (indiceDuplicata !== -1) {
-      const existente = dados.copRedeEmpresarial[indiceDuplicata];
-      const existenteTemCluster = existente.resumo?.grupo && Object.keys(existente.resumo.grupo).length > 0;
-      const novaTemCluster = mensagem.resumo?.grupo && Object.keys(mensagem.resumo.grupo).length > 0;
-
-      if (novaTemCluster && !existenteTemCluster) {
-        console.log('[Storage] Atualizando msg empresarial com dados de cluster:', mensagem.messageId);
-        const mensagemAtualizada = { ...mensagem };
-        delete mensagemAtualizada.mensagemOriginal;
-        dados.copRedeEmpresarial[indiceDuplicata] = mensagemAtualizada;
-
-        cacheLocal.copRedeEmpresarial = dados.copRedeEmpresarial;
-        cacheLocal.ultimaAtualizacao = new Date().toISOString();
-        await salvarDados(dados);
-        return true;
-      }
-
-      console.log('[Storage] Mensagem Empresarial já existe:', mensagem.messageId);
-      return false;
-    }
-
-    const mensagemParaSalvar = { ...mensagem };
-    delete mensagemParaSalvar.mensagemOriginal;
-
-    if (!dados.copRedeEmpresarial) dados.copRedeEmpresarial = [];
-    dados.copRedeEmpresarial.unshift(mensagemParaSalvar);
-
-    if (dados.copRedeEmpresarial.length > 80) {
-      dados.copRedeEmpresarial = dados.copRedeEmpresarial.slice(0, 80);
-    }
-
-    cacheLocal.copRedeEmpresarial = dados.copRedeEmpresarial;
-    cacheLocal.ultimaAtualizacao = new Date().toISOString();
-
-    const salvou = await salvarDados(dados);
-    if (!salvou) {
-      console.log('[Storage] AVISO: Mensagem Empresarial adicionada ao cache mas NÃO persistida no JSONBin');
-    }
-
-    console.log('[Storage] Mensagem Empresarial adicionada:', mensagem.id);
-    return true;
-
-  } catch (error) {
-    console.error('[Storage] Erro ao adicionar COP REDE EMPRESARIAL:', error);
-    return false;
-  }
-}
-
-/**
- * Obtém mensagens COP REDE EMPRESARIAL com filtros
- * @param {object} filtros - Filtros opcionais
- * @param {boolean} forcarAtualizacao - Forçar atualização do cache
- * @returns {Promise<array>} Lista de mensagens filtradas
- */
-async function obterCopRedeEmpresarial(filtros = {}, forcarAtualizacao = false) {
-  const dados = await carregarDados(forcarAtualizacao);
-  let mensagens = dados.copRedeEmpresarial || [];
-
-  if (filtros.dataInicio) {
-    const dataInicioRef = parsearData(filtros.dataInicio);
-    mensagens = mensagens.filter(m => {
-      const data = m.dataGeracao || m.dataRecebimento || m.dataMensagem;
-      return parsearData(data) >= dataInicioRef;
-    });
-  }
-
-  if (filtros.dataFim) {
-    const dataFimRef = parsearData(filtros.dataFim);
-    mensagens = mensagens.filter(m => {
-      const data = m.dataGeracao || m.dataRecebimento || m.dataMensagem;
-      return parsearData(data) <= dataFimRef;
-    });
-  }
-
-  // Ordenar por data decrescente
-  mensagens.sort((a, b) => {
-    const dataStrA = a.dataGeracao || a.dataRecebimento || a.dataMensagem;
-    const dataStrB = b.dataGeracao || b.dataRecebimento || b.dataMensagem;
-    const dateA = parsearData(dataStrA);
-    const dateB = parsearData(dataStrB);
+function sortByOperationalDate(items, dateFields) {
+  return items.sort((a, b) => {
+    const dateA = parsearData(dateFields.map(field => a[field]).find(Boolean));
+    const dateB = parsearData(dateFields.map(field => b[field]).find(Boolean));
     if (dateB.getTime() !== dateA.getTime()) return dateB - dateA;
-    const msgIdA = parseInt(a.messageId);
-    const msgIdB = parseInt(b.messageId);
-    if (!isNaN(msgIdA) && !isNaN(msgIdB)) return msgIdB - msgIdA;
-    return String(b.messageId || '').localeCompare(String(a.messageId || ''));
+
+    const idA = String(a.messageId || a.id || '');
+    const idB = String(b.messageId || b.id || '');
+    return idB.localeCompare(idA);
   });
-
-  return mensagens;
 }
 
-/**
- * Adiciona um alerta (Novo Evento)
- * @param {object} alerta - Dados do alerta
- * @returns {Promise<boolean>} Sucesso da operação
- */
-async function adicionarAlerta(alerta) {
+function cacheDisponivel() {
+  return Boolean(
+    cacheLocal.ultimaAtualizacao &&
+    (cacheLocal.copRedeInforma.length || cacheLocal.copRedeEmpresarial.length || cacheLocal.alertas.length)
+  );
+}
+
+async function carregarDados(forcarAtualizacao = false) {
+  if (!forcarAtualizacao && cacheLocal.ultimaAtualizacao) {
+    const idade = Date.now() - new Date(cacheLocal.ultimaAtualizacao).getTime();
+    if (idade < CACHE_TTL_MS) return { ...cacheLocal };
+  }
+
   try {
-    const dados = await carregarDados(true);
+    const [messageRows, alertRows] = await Promise.all([
+      supabase.selectAll('operational_messages', {
+        select: '*',
+        order: 'event_at.desc.nullslast,created_at.desc'
+      }),
+      supabase.selectAll('operational_alerts', {
+        select: '*',
+        order: 'event_at.desc.nullslast,created_at.desc'
+      })
+    ]);
 
-    // Verificar duplicata pelo messageId
-    const duplicata = dados.alertas.find(a => a.messageId === alerta.messageId);
-    if (duplicata) {
-      console.log('[Storage] Alerta já existe:', alerta.messageId);
-      return false;
-    }
+    cacheLocal = {
+      copRedeInforma: messageRows
+        .filter(row => row.channel === 'cop_rede_informa')
+        .map(messageFromRow),
+      copRedeEmpresarial: messageRows
+        .filter(row => row.channel === 'cop_rede_empresarial')
+        .map(messageFromRow),
+      alertas: alertRows.map(alertFromRow),
+      ultimaAtualizacao: new Date().toISOString()
+    };
 
-    dados.alertas.unshift(alerta); // Adiciona no início
-
-    // Limitar a 50 registros (plano gratuito JSONBin = máx 100KB)
-    if (dados.alertas.length > 50) {
-      dados.alertas = dados.alertas.slice(0, 50);
-    }
-
-    // IMPORTANTE: Atualizar cache local ANTES de tentar salvar
-    // Isso garante que o alerta fica disponível mesmo se o salvamento falhar
-    cacheLocal.alertas = dados.alertas;
-    cacheLocal.ultimaAtualizacao = new Date().toISOString();
-
-    // Tentar salvar (pode falhar com 403, mas alerta já está no cache)
-    const salvou = await salvarDados(dados);
-    if (!salvou) {
-      console.log('[Storage] AVISO: Alerta adicionado ao cache mas NÃO persistido no JSONBin');
-    }
-
-    console.log('[Storage] Alerta adicionado:', alerta.id);
-    return true;
-
+    return { ...cacheLocal };
   } catch (error) {
-    console.error('[Storage] Erro ao adicionar alerta:', error);
-    return false;
+    if (cacheDisponivel()) {
+      console.error('[Storage] Supabase indisponível; usando cache de leitura:', error.message);
+      return { ...cacheLocal };
+    }
+    throw error;
   }
 }
 
-/**
- * Atualiza o status de um alerta
- * @param {string} alertaId - ID do alerta
- * @param {string} novoStatus - Novo status
- * @returns {Promise<boolean>} Sucesso da operação
- */
-async function atualizarStatusAlerta(alertaId, novoStatus) {
-  try {
-    const dados = await carregarDados(true);
+async function salvarDados(dados) {
+  const messages = [
+    ...(dados.copRedeInforma || []).map(item => messageToRow(item, 'cop_rede_informa')),
+    ...(dados.copRedeEmpresarial || []).map(item => messageToRow(item, 'cop_rede_empresarial'))
+  ];
+  const alerts = (dados.alertas || []).map(alertToRow);
 
-    const alerta = dados.alertas.find(a => a.id === alertaId);
-    if (!alerta) {
-      console.log('[Storage] Alerta não encontrado:', alertaId);
-      return false;
-    }
-
-    alerta.statusAlerta = novoStatus;
-    alerta.atualizadoEm = new Date().toISOString();
-
-    await salvarDados(dados);
-    console.log('[Storage] Status do alerta atualizado:', alertaId, '->', novoStatus);
-    return true;
-
-  } catch (error) {
-    console.error('[Storage] Erro ao atualizar status do alerta:', error);
-    return false;
+  if (messages.length) {
+    await supabase.upsert('operational_messages', messages, 'channel,message_id');
   }
+  if (alerts.length) {
+    await supabase.upsert('operational_alerts', alerts, 'alert_id');
+  }
+
+  limparCache();
+  return true;
 }
 
-/**
- * Excluir um alerta
- * @param {string} alertaId - ID do alerta
- * @returns {Promise<boolean>} True se excluído com sucesso
- */
-async function excluirAlerta(alertaId) {
-  try {
-    const dados = await carregarDados(true);
-
-    const index = dados.alertas.findIndex(a => a.id === alertaId);
-    if (index === -1) {
-      console.log('[Storage] Alerta não encontrado:', alertaId);
-      return false;
-    }
-
-    dados.alertas.splice(index, 1);
-
-    await salvarDados(dados);
-    console.log('[Storage] Alerta excluído:', alertaId);
-    return true;
-
-  } catch (error) {
-    console.error('[Storage] Erro ao excluir alerta:', error);
-    return false;
-  }
+async function adicionarMensagem(message, channel) {
+  await supabase.upsert(
+    'operational_messages',
+    [messageToRow(message, channel)],
+    'channel,message_id'
+  );
+  limparCache();
+  return true;
 }
 
-/**
- * Excluir todos os alertas
- * @returns {Promise<boolean>} True se excluídos com sucesso
- */
+async function adicionarCopRedeInforma(message) {
+  return adicionarMensagem(message, 'cop_rede_informa');
+}
+
+async function adicionarCopRedeEmpresarial(message) {
+  return adicionarMensagem(message, 'cop_rede_empresarial');
+}
+
+async function adicionarAlerta(alert) {
+  await supabase.upsert('operational_alerts', [alertToRow(alert)], 'alert_id');
+  limparCache();
+  return true;
+}
+
+async function atualizarStatusAlerta(id, status) {
+  const result = await supabase.request('operational_alerts', {
+    method: 'PATCH',
+    query: { alert_id: `eq.${id}` },
+    headers: { Prefer: 'return=representation' },
+    body: { status, updated_at: new Date().toISOString() }
+  });
+  limparCache();
+  return Array.isArray(result.data) && result.data.length > 0;
+}
+
+async function excluirAlerta(id) {
+  const result = await supabase.request('operational_alerts', {
+    method: 'DELETE',
+    query: { alert_id: `eq.${id}` },
+    headers: { Prefer: 'return=representation' }
+  });
+  limparCache();
+  return Array.isArray(result.data) && result.data.length > 0;
+}
+
 async function excluirTodosAlertas() {
-  try {
-    const dados = await carregarDados(true);
-    const totalAntes = dados.alertas.length;
-
-    dados.alertas = [];
-
-    await salvarDados(dados);
-    console.log('[Storage] Todos os alertas excluídos. Total:', totalAntes);
-    return true;
-
-  } catch (error) {
-    console.error('[Storage] Erro ao excluir todos os alertas:', error);
-    return false;
-  }
+  await supabase.request('operational_alerts', {
+    method: 'DELETE',
+    query: { id: 'not.is.null' },
+    headers: { Prefer: 'return=minimal' }
+  });
+  limparCache();
+  return true;
 }
 
-/**
- * Obtém mensagens COP REDE INFORMA com filtros
- * @param {object} filtros - Filtros opcionais
- * @param {boolean} forcarAtualizacao - Forçar atualização do cache
- * @returns {Promise<array>} Lista de mensagens filtradas
- */
+function aplicarFiltroData(items, filtros, dateFields) {
+  let filtered = items;
+  if (filtros.dataInicio) {
+    const inicio = parsearData(filtros.dataInicio);
+    filtered = filtered.filter(item => {
+      const value = dateFields.map(field => item[field]).find(Boolean);
+      return parsearData(value) >= inicio;
+    });
+  }
+  if (filtros.dataFim) {
+    const fim = parsearData(filtros.dataFim);
+    filtered = filtered.filter(item => {
+      const value = dateFields.map(field => item[field]).find(Boolean);
+      return parsearData(value) <= fim;
+    });
+  }
+  return filtered;
+}
+
 async function obterCopRedeInforma(filtros = {}, forcarAtualizacao = false) {
   const dados = await carregarDados(forcarAtualizacao);
-  let mensagens = dados.copRedeInforma;
+  let messages = aplicarFiltroData(
+    [...dados.copRedeInforma],
+    filtros,
+    ['dataGeracao', 'dataRecebimento', 'dataMensagem']
+  );
 
-  // Aplicar filtros
-  if (filtros.dataInicio) {
-    const dataInicioRef = parsearData(filtros.dataInicio);
-    mensagens = mensagens.filter(m => {
-      const data = m.dataGeracao || m.dataRecebimento || m.dataMensagem;
-      return parsearData(data) >= dataInicioRef;
-    });
-  }
+  if (filtros.areaPainel) messages = messages.filter(item => item.areaPainel === filtros.areaPainel);
+  if (filtros.grupo) messages = messages.filter(item => item.grupoOriginal?.toLowerCase().includes(filtros.grupo.toLowerCase()));
+  if (filtros.responsavel) messages = messages.filter(item => item.responsavel?.toLowerCase().includes(filtros.responsavel.toLowerCase()));
+  if (filtros.tipo) messages = messages.filter(item => item.tipo?.toLowerCase().includes(filtros.tipo.toLowerCase()));
 
-  if (filtros.dataFim) {
-    const dataFimRef = parsearData(filtros.dataFim);
-    mensagens = mensagens.filter(m => {
-      const data = m.dataGeracao || m.dataRecebimento || m.dataMensagem;
-      return parsearData(data) <= dataFimRef;
-    });
-  }
-
-  if (filtros.areaPainel) {
-    mensagens = mensagens.filter(m => m.areaPainel === filtros.areaPainel);
-  }
-
-  if (filtros.grupo) {
-    mensagens = mensagens.filter(m =>
-      m.grupoOriginal?.toLowerCase().includes(filtros.grupo.toLowerCase())
-    );
-  }
-
-  if (filtros.responsavel) {
-    mensagens = mensagens.filter(m =>
-      m.responsavel?.toLowerCase().includes(filtros.responsavel.toLowerCase())
-    );
-  }
-
-  if (filtros.tipo) {
-    mensagens = mensagens.filter(m =>
-      m.tipo?.toLowerCase().includes(filtros.tipo.toLowerCase())
-    );
-  }
-
-  // Ordenar por data decrescente (mais recente primeiro)
-  // IMPORTANTE: Usar dataGeracao (quando a mensagem foi criada no COP) como prioridade,
-  // depois dataRecebimento, e messageId como desempate para consistência
-  mensagens.sort((a, b) => {
-    // Usar dataGeracao como prioridade (é a data real da mensagem COP)
-    const dataStrA = a.dataGeracao || a.dataRecebimento || a.dataMensagem;
-    const dataStrB = b.dataGeracao || b.dataRecebimento || b.dataMensagem;
-
-    // Usar parsearData para lidar com formato brasileiro "dd/mm/yyyy HH:mm:ss"
-    const dateA = parsearData(dataStrA);
-    const dateB = parsearData(dataStrB);
-
-    // Se as datas são diferentes, ordenar por data
-    if (dateB.getTime() !== dateA.getTime()) {
-      return dateB - dateA;
-    }
-
-    // Desempate melhorado: tenta parseInt primeiro, senão compara como string
-    // Isso garante ordenação estável mesmo com messageIds não numéricos (ex: WhatsApp)
-    const msgIdA = parseInt(a.messageId);
-    const msgIdB = parseInt(b.messageId);
-
-    // Se ambos são números válidos, comparar numericamente
-    if (!isNaN(msgIdA) && !isNaN(msgIdB)) {
-      return msgIdB - msgIdA;
-    }
-
-    // Fallback: comparar como string (ordem decrescente)
-    const strA = String(a.messageId || '');
-    const strB = String(b.messageId || '');
-    return strB.localeCompare(strA);
-  });
-
-  return mensagens;
+  return sortByOperationalDate(messages, ['dataGeracao', 'dataRecebimento', 'dataMensagem']);
 }
 
-/**
- * Obtém alertas com filtros
- * @param {object} filtros - Filtros opcionais
- * @returns {Promise<array>} Lista de alertas filtrados
- */
+async function obterCopRedeEmpresarial(filtros = {}, forcarAtualizacao = false) {
+  const dados = await carregarDados(forcarAtualizacao);
+  const messages = aplicarFiltroData(
+    [...dados.copRedeEmpresarial],
+    filtros,
+    ['dataGeracao', 'dataRecebimento', 'dataMensagem']
+  );
+  return sortByOperationalDate(messages, ['dataGeracao', 'dataRecebimento', 'dataMensagem']);
+}
+
 async function obterAlertas(filtros = {}) {
   const dados = await carregarDados();
-  let alertas = dados.alertas;
+  let alerts = aplicarFiltroData(
+    [...dados.alertas],
+    filtros,
+    ['dataRecebimento', 'dataMensagem']
+  );
 
-  // Aplicar filtros
-  if (filtros.dataInicio) {
-    const dataInicioRef = parsearData(filtros.dataInicio);
-    alertas = alertas.filter(a => {
-      const data = a.dataRecebimento || a.dataMensagem;
-      return parsearData(data) >= dataInicioRef;
-    });
-  }
+  if (filtros.areaPainel) alerts = alerts.filter(item => item.areaPainel === filtros.areaPainel);
+  if (filtros.statusAlerta) alerts = alerts.filter(item => item.statusAlerta === filtros.statusAlerta);
+  if (filtros.grupo) alerts = alerts.filter(item => item.grupoOriginal?.toLowerCase().includes(filtros.grupo.toLowerCase()));
 
-  if (filtros.dataFim) {
-    const dataFimRef = parsearData(filtros.dataFim);
-    alertas = alertas.filter(a => {
-      const data = a.dataRecebimento || a.dataMensagem;
-      return parsearData(data) <= dataFimRef;
-    });
-  }
-
-  if (filtros.areaPainel) {
-    alertas = alertas.filter(a => a.areaPainel === filtros.areaPainel);
-  }
-
-  if (filtros.statusAlerta) {
-    alertas = alertas.filter(a => a.statusAlerta === filtros.statusAlerta);
-  }
-
-  if (filtros.grupo) {
-    alertas = alertas.filter(a =>
-      a.grupoOriginal?.toLowerCase().includes(filtros.grupo.toLowerCase())
-    );
-  }
-
-  // Ordenar por data decrescente (mais recente primeiro)
-  alertas.sort((a, b) => {
-    const dataStrA = a.dataRecebimento || a.dataMensagem;
-    const dataStrB = b.dataRecebimento || b.dataMensagem;
-
-    const dateA = parsearData(dataStrA);
-    const dateB = parsearData(dataStrB);
-
-    if (dateB.getTime() !== dateA.getTime()) {
-      return dateB - dateA;
-    }
-
-    // Desempate melhorado: tenta parseInt primeiro, senão compara como string
-    const msgIdA = parseInt(a.messageId);
-    const msgIdB = parseInt(b.messageId);
-
-    if (!isNaN(msgIdA) && !isNaN(msgIdB)) {
-      return msgIdB - msgIdA;
-    }
-
-    // Fallback: comparar como string (ordem decrescente)
-    const strA = String(a.messageId || '');
-    const strB = String(b.messageId || '');
-    return strB.localeCompare(strA);
-  });
-
-  return alertas;
+  return sortByOperationalDate(alerts, ['dataRecebimento', 'dataMensagem']);
 }
 
-/**
- * Obtém estatísticas consolidadas
- * @returns {Promise<object>} Estatísticas
- */
 async function obterEstatisticas() {
   const dados = await carregarDados();
-
   const hoje = new Date();
   hoje.setHours(0, 0, 0, 0);
 
-  // COP REDE INFORMA do dia
-  const copHoje = dados.copRedeInforma.filter(m => {
-    const data = m.dataGeracao || m.dataRecebimento || m.dataMensagem;
-    if (!data) return false;
-    const dataMensagem = parsearData(data);
-    dataMensagem.setHours(0, 0, 0, 0);
-    return dataMensagem.getTime() === hoje.getTime();
+  const copHoje = dados.copRedeInforma.filter(message => {
+    const date = parsearData(message.dataGeracao || message.dataRecebimento || message.dataMensagem);
+    date.setHours(0, 0, 0, 0);
+    return date.getTime() === hoje.getTime();
+  });
+  const alertsHoje = dados.alertas.filter(alert => {
+    const date = parsearData(alert.dataRecebimento || alert.dataMensagem);
+    date.setHours(0, 0, 0, 0);
+    return date.getTime() === hoje.getTime();
   });
 
-  // Alertas do dia
-  const alertasHoje = dados.alertas.filter(a => {
-    const data = a.dataRecebimento || a.dataMensagem;
-    if (!data) return false;
-    const dataMensagem = parsearData(data);
-    dataMensagem.setHours(0, 0, 0, 0);
-    return dataMensagem.getTime() === hoje.getTime();
-  });
-
-  // Volume por área (hoje)
   const volumePorArea = {};
-  copHoje.forEach(m => {
-    if (!volumePorArea[m.areaPainel]) {
-      volumePorArea[m.areaPainel] = 0;
-    }
-    volumePorArea[m.areaPainel] += m.volume || 1;
-  });
-
-  // Alertas por status
-  const alertasPorStatus = {
-    novo: dados.alertas.filter(a => a.statusAlerta === 'novo').length,
-    em_analise: dados.alertas.filter(a => a.statusAlerta === 'em_analise').length,
-    tratado: dados.alertas.filter(a => a.statusAlerta === 'tratado').length
-  };
+  for (const message of copHoje) {
+    if (!message.areaPainel) continue;
+    volumePorArea[message.areaPainel] = (volumePorArea[message.areaPainel] || 0) + (message.volume || 1);
+  }
 
   return {
     totalCopRedeInforma: dados.copRedeInforma.length,
     copRedeInformaHoje: copHoje.length,
     totalAlertas: dados.alertas.length,
-    alertasHoje: alertasHoje.length,
-    alertasNovos: alertasPorStatus.novo,
-    alertasEmAnalise: alertasPorStatus.em_analise,
-    alertasTratados: alertasPorStatus.tratado,
+    alertasHoje: alertsHoje.length,
+    alertasNovos: dados.alertas.filter(item => item.statusAlerta === 'novo').length,
+    alertasEmAnalise: dados.alertas.filter(item => item.statusAlerta === 'em_analise').length,
+    alertasTratados: dados.alertas.filter(item => item.statusAlerta === 'tratado').length,
     volumePorArea,
     ultimaAtualizacao: cacheLocal.ultimaAtualizacao
   };
 }
 
-/**
- * Define o ID do bin manualmente
- * @param {string} binId - ID do bin
- */
-function setBinId(binId) {
-  whatsappBinId = binId;
-  console.log('[Storage] Bin ID definido:', binId);
-}
-
-/**
- * Obtém o ID do bin atual
- * @returns {string|null} ID do bin
- */
-function getBinId() {
-  return whatsappBinId;
-}
-
-/**
- * Limpa completamente o cache local
- * Força busca fresca do JSONBin na próxima requisição
- */
 function limparCache() {
-  console.log('[Storage] Limpando cache local...');
   cacheLocal = {
     copRedeInforma: [],
     copRedeEmpresarial: [],
     alertas: [],
     ultimaAtualizacao: null
   };
-  console.log('[Storage] Cache limpo com sucesso');
 }
 
-/**
- * Obtém o timestamp Unix da última mensagem armazenada
- * Usado pelo polling para não reprocessar mensagens já salvas
- * @returns {Promise<number>} Timestamp Unix em segundos (ou 0 se não houver mensagens)
- */
-async function obterUltimoTimestamp() {
-  try {
-    const dados = await carregarDados(true); // Forçar atualização do cache
-    const mensagens = dados.copRedeInforma || [];
+function getBinId() {
+  return supabase.isConfigured() ? 'supabase' : null;
+}
 
-    if (mensagens.length === 0) {
-      console.log('[Storage] Nenhuma mensagem encontrada, retornando timestamp 0');
-      return 0;
-    }
+function setBinId() {
+  console.warn('[Storage] BIN_ID ignorado: a persistência agora usa Supabase.');
+  return false;
+}
 
-    // Encontrar a mensagem mais recente baseada em dataMensagem (timestamp original do WhatsApp)
-    // NÃO usar dataRecebimento porque é quando processamos, não quando foi enviada
-    // O polling compara com messageTimestamp do WhatsApp, então precisamos usar a mesma base
-    let maxTimestamp = 0;
-
-    for (const msg of mensagens) {
-      // Prioridade: dataMensagem > dataGeracao > dataRecebimento
-      const dataStr = msg.dataMensagem || msg.dataGeracao || msg.dataRecebimento;
-      if (dataStr) {
-        const date = parsearData(dataStr);
-        const timestamp = Math.floor(date.getTime() / 1000);
-        if (timestamp > maxTimestamp) {
-          maxTimestamp = timestamp;
-        }
-      }
-    }
-
-    console.log(`[Storage] Último timestamp encontrado: ${maxTimestamp} (${new Date(maxTimestamp * 1000).toISOString()})`);
-    return maxTimestamp;
-  } catch (error) {
-    console.error('[Storage] Erro ao obter último timestamp:', error.message);
-    return 0;
+async function criarBin() {
+  if (!supabase.isConfigured()) {
+    throw new Error('Supabase não configurado');
   }
+  return 'supabase';
+}
+
+async function obterUltimoTimestamp() {
+  const messages = await obterCopRedeInforma({}, true);
+  let maxTimestamp = 0;
+  for (const message of messages) {
+    const value = message.dataMensagem || message.dataGeracao || message.dataRecebimento;
+    const timestamp = Math.floor(parsearData(value).getTime() / 1000);
+    if (timestamp > maxTimestamp) maxTimestamp = timestamp;
+  }
+  return maxTimestamp;
 }
 
 module.exports = {
@@ -940,5 +391,10 @@ module.exports = {
   getBinId,
   criarBin,
   limparCache,
-  obterUltimoTimestamp
+  obterUltimoTimestamp,
+  _internals: {
+    parsearData,
+    messageToRow,
+    alertToRow
+  }
 };

@@ -8,20 +8,34 @@ const cors = require('cors');
 const fetch = require('node-fetch');
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
+const bcrypt = require('bcryptjs');
 require('dotenv').config();
 
-const { SERVER_CONFIG, EVOLUTION_CONFIG, ALOCACAO_HUB_CONFIG, COP_REDE_EMPRESARIAL_CONFIG, JSONBIN_CONFIG } = require('./config');
+const { SERVER_CONFIG, EVOLUTION_CONFIG, ALOCACAO_HUB_CONFIG, COP_REDE_EMPRESARIAL_CONFIG } = require('./config');
+const { client: supabase } = require('./supabase');
 const storage = require('./storage');
 const storageHub = require('./storageHub');
 const whatsapp = require('./whatsapp');
+const { buscarMatrizOfensores } = require('../js/matriz-api');
 
 const app = express();
+app.set('trust proxy', 1);
+
+const ADMIN_PASSWORD_HASH = String(process.env.ADMIN_PASSWORD_HASH || '').trim();
+const ADMIN_SESSION_SECRET = String(process.env.ADMIN_SESSION_SECRET || '').trim();
+const ADMIN_SESSION_COOKIE = 'divisao_admin_session';
+const ADMIN_SESSION_TTL_SECONDS = 8 * 60 * 60;
+const ADMIN_LOGIN_MAX_FAILURES = 5;
+const ADMIN_LOGIN_LOCK_MS = 30 * 1000;
+const adminLoginAttempts = new Map();
 
 // Middlewares
 app.use(cors({
   origin: SERVER_CONFIG.CORS_ORIGIN,
-  methods: ['GET', 'POST', 'PUT', 'DELETE'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: true
 }));
 app.use(express.json());
 
@@ -29,6 +43,123 @@ app.use(express.json());
 app.use((req, res, next) => {
   console.log(`[API] ${req.method} ${req.path}`);
   next();
+});
+
+function adminAuthConfigured() {
+  return /^\$2[aby]\$/.test(ADMIN_PASSWORD_HASH) && ADMIN_SESSION_SECRET.length >= 32;
+}
+
+function parseCookies(req) {
+  return String(req.headers.cookie || '')
+    .split(';')
+    .map(item => item.trim())
+    .filter(Boolean)
+    .reduce((cookies, item) => {
+      const separator = item.indexOf('=');
+      if (separator > 0) {
+        cookies[item.slice(0, separator)] = item.slice(separator + 1);
+      }
+      return cookies;
+    }, {});
+}
+
+function signAdminSession(payload) {
+  return crypto
+    .createHmac('sha256', ADMIN_SESSION_SECRET)
+    .update(payload)
+    .digest('base64url');
+}
+
+function createAdminSession() {
+  const payload = Buffer.from(JSON.stringify({
+    exp: Date.now() + (ADMIN_SESSION_TTL_SECONDS * 1000),
+    nonce: crypto.randomBytes(16).toString('hex')
+  })).toString('base64url');
+  return `${payload}.${signAdminSession(payload)}`;
+}
+
+function hasValidAdminSession(req) {
+  if (!adminAuthConfigured()) return false;
+
+  const token = parseCookies(req)[ADMIN_SESSION_COOKIE];
+  if (!token) return false;
+
+  const [payload, signature] = token.split('.');
+  if (!payload || !signature) return false;
+
+  const expected = signAdminSession(payload);
+  const receivedBuffer = Buffer.from(signature);
+  const expectedBuffer = Buffer.from(expected);
+  if (receivedBuffer.length !== expectedBuffer.length || !crypto.timingSafeEqual(receivedBuffer, expectedBuffer)) {
+    return false;
+  }
+
+  try {
+    const session = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8'));
+    return Number.isFinite(session.exp) && session.exp > Date.now();
+  } catch {
+    return false;
+  }
+}
+
+function adminCookie(value, maxAgeSeconds) {
+  const secure = process.env.NODE_ENV === 'production' ? '; Secure' : '';
+  return `${ADMIN_SESSION_COOKIE}=${value}; Path=/; HttpOnly; SameSite=Strict; Max-Age=${maxAgeSeconds}${secure}`;
+}
+
+app.post('/api/admin/login', async (req, res) => {
+  if (!adminAuthConfigured()) {
+    return res.status(503).json({ sucesso: false, erro: 'Acesso administrativo nao configurado' });
+  }
+
+  const clientKey = req.ip || 'unknown';
+  const attempt = adminLoginAttempts.get(clientKey) || { failures: 0, lockedUntil: 0 };
+  if (attempt.lockedUntil > Date.now()) {
+    return res.status(429).json({
+      sucesso: false,
+      erro: 'Muitas tentativas. Aguarde 30 segundos.'
+    });
+  }
+
+  const password = typeof req.body?.password === 'string' ? req.body.password : '';
+  const authenticated = password.length > 0 && password.length <= 256 && await bcrypt.compare(password, ADMIN_PASSWORD_HASH);
+  if (!authenticated) {
+    attempt.failures += 1;
+    if (attempt.failures >= ADMIN_LOGIN_MAX_FAILURES) {
+      attempt.failures = 0;
+      attempt.lockedUntil = Date.now() + ADMIN_LOGIN_LOCK_MS;
+    }
+    adminLoginAttempts.set(clientKey, attempt);
+    return res.status(401).json({ sucesso: false, erro: 'Senha incorreta' });
+  }
+
+  adminLoginAttempts.delete(clientKey);
+  res.setHeader('Set-Cookie', adminCookie(createAdminSession(), ADMIN_SESSION_TTL_SECONDS));
+  res.json({ sucesso: true, expiraEmSegundos: ADMIN_SESSION_TTL_SECONDS });
+});
+
+app.get('/api/admin/session', (req, res) => {
+  if (!hasValidAdminSession(req)) {
+    return res.status(401).json({ sucesso: false, autenticado: false });
+  }
+  res.json({ sucesso: true, autenticado: true });
+});
+
+app.post('/api/admin/logout', (req, res) => {
+  res.setHeader('Set-Cookie', adminCookie('', 0));
+  res.json({ sucesso: true });
+});
+
+app.use('/api', (req, res, next) => {
+  if (['GET', 'HEAD', 'OPTIONS'].includes(req.method)) return next();
+  if (req.path === '/admin/login' || req.path === '/admin/logout') return next();
+  if (req.path === '/whatsapp/webhook' || req.path === '/webhook/mensagem') return next();
+  if (hasValidAdminSession(req)) return next();
+
+  return res.status(401).json({
+    sucesso: false,
+    erro: 'Autenticacao administrativa necessaria'
+  });
 });
 
 /**
@@ -132,7 +263,6 @@ app.post('/api/diagnostico/reprocessar-completo', async (req, res) => {
 app.get('/api/diagnostico/polling-status', async (req, res) => {
   try {
     const whatsappStatus = whatsapp.obterStatus();
-    const binId = storage.getBinId();
 
     res.json({
       sucesso: true,
@@ -143,8 +273,8 @@ app.get('/api/diagnostico/polling-status', async (req, res) => {
         intervalo: `${whatsappStatus.pollingIntervalo / 1000}s`
       },
       storage: {
-        binId: binId || 'NÃO CONFIGURADO',
-        binConfigurado: !!binId
+        provedor: 'supabase',
+        configurado: supabase.isConfigured()
       },
       whatsapp: {
         conectado: whatsappStatus.conectado,
@@ -179,8 +309,8 @@ app.post('/api/diagnostico/resetar-polling', async (req, res) => {
 });
 
 /**
- * Limpar mensagemOriginal de todos os registros no JSONBin
- * Reduz tamanho do bin para resolver erro 403
+ * Limpar mensagemOriginal dos registros persistidos
+ * Mantido como ferramenta de minimização de dados legados
  */
 app.post('/api/diagnostico/limpar-storage', async (req, res) => {
   try {
@@ -216,44 +346,64 @@ app.post('/api/diagnostico/limpar-storage', async (req, res) => {
 /**
  * Health check
  */
-app.get('/health', (req, res) => {
-  res.json({
-    status: 'ok',
-    timestamp: new Date().toISOString(),
-    whatsapp: whatsapp.obterStatus()
-  });
-});
+function obterCapacidades() {
+  const whatsappStatus = whatsapp.obterStatus();
+  const evolutionDisponivel = whatsappStatus.configurado && whatsappStatus.conectado;
+  const persistenciaDisponivel = supabase.isConfigured();
 
-// Alias para /api/health
-app.get('/api/health', (req, res) => {
-  res.json({
-    status: 'ok',
-    timestamp: new Date().toISOString(),
-    whatsapp: whatsapp.obterStatus()
-  });
-});
-
-/**
- * Estatísticas gerais
- */
-function getScaleBinId(binId = null) {
-  return binId || JSONBIN_CONFIG.SCALE_BIN_ID;
-}
-
-function getJsonBinHeaders(extraHeaders = {}) {
   return {
-    'Content-Type': 'application/json',
-    'X-Master-Key': JSONBIN_CONFIG.MASTER_KEY,
-    ...extraHeaders
+    persistencia: {
+      provedor: 'supabase',
+      configurada: persistenciaDisponivel
+    },
+    evolutionApi: {
+      habilitada: whatsappStatus.habilitado,
+      configurada: whatsappStatus.configurado,
+      conectada: whatsappStatus.conectado
+    },
+    funcionalidades: {
+      escala: persistenciaDisponivel,
+      matrizOfensores: true,
+      volumetriaPortal: true,
+      ingestaoCopWhatsappTempoReal: evolutionDisponivel,
+      volumeWhatsappTempoReal: evolutionDisponivel,
+      alocacaoHubTempoReal: evolutionDisponivel,
+      historicoHubPersistido: persistenciaDisponivel
+    }
   };
 }
 
+function responderHealth(req, res) {
+  const capacidades = obterCapacidades();
+  const degradado = !capacidades.persistencia.configurada || !capacidades.evolutionApi.conectada;
+
+  res.json({
+    status: degradado ? 'degraded' : 'ok',
+    timestamp: new Date().toISOString(),
+    ambiente: process.env.NODE_ENV || 'development',
+    capacidades
+  });
+}
+
+app.get('/health', responderHealth);
+
+// Alias para /api/health
+app.get('/api/health', responderHealth);
+
+app.get('/api/capacidades', (req, res) => {
+  res.json({
+    sucesso: true,
+    ...obterCapacidades(),
+    timestamp: new Date().toISOString()
+  });
+});
+
 const SCALE_CACHE_PATH = path.join(__dirname, 'data', 'escala-cache.json');
 
-function salvarEscalaEmCache(dados, binId) {
+function salvarEscalaEmCache(dados) {
   fs.mkdirSync(path.dirname(SCALE_CACHE_PATH), { recursive: true });
   fs.writeFileSync(SCALE_CACHE_PATH, JSON.stringify({
-    binId,
+    storageId: 'supabase',
     dados,
     atualizadoEm: new Date().toISOString()
   }, null, 2));
@@ -267,48 +417,14 @@ function carregarEscalaDoCache() {
   return JSON.parse(fs.readFileSync(SCALE_CACHE_PATH, 'utf8'));
 }
 
-async function jsonBinScaleRequest(method, binId, body = null) {
-  const options = {
-    method,
-    headers: getJsonBinHeaders(),
-    timeout: 8000
-  };
-
-  if (body !== null) {
-    options.body = JSON.stringify(body);
-  }
-
-  const response = await fetch(`${JSONBIN_CONFIG.API_URL}/${binId}${method === 'GET' ? '/latest' : ''}`, options);
-  const text = await response.text();
-  let json = null;
-  if (text) {
-    try {
-      json = JSON.parse(text);
-    } catch (parseError) {
-      json = { raw: text };
-    }
-  }
-
-  if (!response.ok) {
-    const error = new Error(`JSONBin ${response.status}: ${text.substring(0, 300)}`);
-    error.status = response.status;
-    error.details = json;
-    throw error;
-  }
-
-  return json;
-}
-
 app.get('/api/escala', async (req, res) => {
   try {
-    const binId = getScaleBinId(req.query.binId);
-    const result = await jsonBinScaleRequest('GET', binId);
+    const dados = await supabase.rpc('get_schedule_document');
     res.json({
       sucesso: true,
-      binId,
-      origem: 'jsonbin',
-      dados: result?.record || null,
-      metadata: result?.metadata || null
+      binId: 'supabase',
+      origem: 'supabase',
+      dados
     });
   } catch (error) {
     console.error('[API Escala] Erro ao carregar:', error.message);
@@ -316,9 +432,9 @@ app.get('/api/escala', async (req, res) => {
     if (cache?.dados) {
       return res.json({
         sucesso: true,
-        binId: cache.binId || getScaleBinId(req.query.binId),
+        binId: 'supabase',
         origem: 'backend-cache',
-        aviso: 'JSONBin indisponível; usando cache do backend',
+        aviso: 'Supabase indisponível; usando cache de leitura do backend',
         dados: cache.dados,
         atualizadoEm: cache.atualizadoEm
       });
@@ -334,31 +450,32 @@ app.get('/api/escala', async (req, res) => {
 
 app.put('/api/escala', async (req, res) => {
   try {
-    const binId = getScaleBinId(req.body?.binId);
     const dados = req.body?.dados;
 
     if (!dados || typeof dados !== 'object') {
       return res.status(400).json({ sucesso: false, erro: 'dados é obrigatório' });
     }
 
-    const result = await jsonBinScaleRequest('PUT', binId, dados);
-    salvarEscalaEmCache(dados, binId);
+    const metadata = await supabase.rpc('replace_schedule_document', { p_document: dados });
+    salvarEscalaEmCache(dados);
     res.json({
       sucesso: true,
-      binId,
-      origem: 'jsonbin',
-      metadata: result?.metadata || null
+      binId: 'supabase',
+      origem: 'supabase',
+      metadata
     });
   } catch (error) {
     console.error('[API Escala] Erro ao salvar:', error.message);
-    const binId = getScaleBinId(req.body?.binId);
-    salvarEscalaEmCache(req.body?.dados, binId);
-    res.json({
-      sucesso: true,
-      binId,
+    if (req.body?.dados && typeof req.body.dados === 'object') {
+      salvarEscalaEmCache(req.body.dados);
+    }
+    res.status(error.status || 503).json({
+      sucesso: false,
+      persistido: false,
       origem: 'backend-cache',
-      aviso: 'JSONBin indisponível; escala salva no cache do backend',
-      erroJsonBin: error.message
+      aviso: 'Supabase indisponível; uma cópia de emergência ficou somente no backend OCI',
+      erro: error.message,
+      detalhes: error.details || null
     });
   }
 });
@@ -1037,6 +1154,15 @@ app.get('/api/alocacao-hub', async (req, res) => {
  * Sincronizar alocações de HUB manualmente
  */
 app.post('/api/alocacao-hub/sincronizar', async (req, res) => {
+  const statusEvolution = whatsapp.obterStatus();
+  if (!statusEvolution.configurado) {
+    return res.status(503).json({
+      sucesso: false,
+      codigo: 'EVOLUTION_API_INDISPONIVEL',
+      erro: 'Sincronizacao do HUB indisponivel ate a migracao da Evolution API'
+    });
+  }
+
   try {
     const limite = req.body.limite || 50;
     const resultado = await whatsapp.buscarHistoricoHub(limite);
@@ -1078,9 +1204,8 @@ app.get('/api/alocacao-hub/diagnostico', async (req, res) => {
       diagnostico: {
         config: {
           CHAT_ID: ALOCACAO_HUB_CONFIG.CHAT_ID || 'NÃO CONFIGURADO',
-          BIN_ID: storageHub.getBinId() || 'NÃO CONFIGURADO',
-          MASTER_KEY: ALOCACAO_HUB_CONFIG.MASTER_KEY ? 'CONFIGURADO' : 'NÃO CONFIGURADO',
-          ACCESS_KEY: ALOCACAO_HUB_CONFIG.ACCESS_KEY ? 'CONFIGURADO' : 'NÃO CONFIGURADO'
+          STORAGE_PROVIDER: 'supabase',
+          STORAGE_CONFIGURED: supabase.isConfigured()
         },
         whatsapp: {
           conectado: whatsappStatus.conectado,
@@ -1120,31 +1245,25 @@ app.get('/api/alocacao-hub/mensagens-bruto', async (req, res) => {
 });
 
 /**
- * Configurar Bin ID do Alocação de HUB
+ * Rota legada de configuração do antigo armazenamento
  */
 app.post('/api/alocacao-hub/config/bin-id', async (req, res) => {
-  try {
-    const { binId } = req.body;
-    if (!binId) {
-      return res.status(400).json({ sucesso: false, erro: 'binId é obrigatório' });
-    }
-    storageHub.setBinId(binId);
-    res.json({ sucesso: true, mensagem: 'Bin ID do HUB configurado' });
-  } catch (error) {
-    res.status(500).json({ sucesso: false, erro: error.message });
-  }
+  res.status(410).json({
+    sucesso: false,
+    codigo: 'ARMAZENAMENTO_MIGRADO',
+    erro: 'BIN_ID não é mais usado; configure SUPABASE_URL e SUPABASE_SECRET_KEY no backend.'
+  });
 });
 
 /**
- * Criar novo bin para Alocação de HUB
+ * Rota legada de criação do antigo armazenamento
  */
 app.post('/api/alocacao-hub/config/criar-bin', async (req, res) => {
-  try {
-    const binId = await storageHub.criarBin();
-    res.json({ sucesso: true, binId });
-  } catch (error) {
-    res.status(500).json({ sucesso: false, erro: error.message });
-  }
+  res.status(410).json({
+    sucesso: false,
+    codigo: 'ARMAZENAMENTO_MIGRADO',
+    erro: 'A persistência do HUB agora usa tabelas do Supabase.'
+  });
 });
 
 // ============================================
@@ -1152,34 +1271,25 @@ app.post('/api/alocacao-hub/config/criar-bin', async (req, res) => {
 // ============================================
 
 /**
- * Configurar Bin ID do WhatsApp (para persistência)
+ * Rota legada de configuração do antigo armazenamento
  */
 app.post('/api/config/bin-id', async (req, res) => {
-  try {
-    const { binId } = req.body;
-
-    if (!binId) {
-      return res.status(400).json({ sucesso: false, erro: 'binId é obrigatório' });
-    }
-
-    storage.setBinId(binId);
-
-    res.json({ sucesso: true, mensagem: 'Bin ID configurado' });
-  } catch (error) {
-    res.status(500).json({ sucesso: false, erro: error.message });
-  }
+  res.status(410).json({
+    sucesso: false,
+    codigo: 'ARMAZENAMENTO_MIGRADO',
+    erro: 'BIN_ID não é mais usado; configure o Supabase no backend.'
+  });
 });
 
 /**
- * Criar novo bin para armazenamento
+ * Rota legada de criação do antigo armazenamento
  */
 app.post('/api/config/criar-bin', async (req, res) => {
-  try {
-    const binId = await storage.criarBin();
-    res.json({ sucesso: true, binId });
-  } catch (error) {
-    res.status(500).json({ sucesso: false, erro: error.message });
-  }
+  res.status(410).json({
+    sucesso: false,
+    codigo: 'ARMAZENAMENTO_MIGRADO',
+    erro: 'A persistência operacional agora usa tabelas do Supabase.'
+  });
 });
 
 /**
@@ -1198,9 +1308,6 @@ app.post('/api/cache/limpar', async (req, res) => {
 // ============================================
 // ROTA MATRIZ DE OFENSORES (Coprede / Supabase)
 // ============================================
-
-const SUPABASE_URL = 'https://wthzxrgifjtenaujhdbb.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind0aHp4cmdpZmp0ZW5hdWpoZGJiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjkwMjYwODIsImV4cCI6MjA4NDYwMjA4Mn0.MGhDMxfbbKGc69Mut8M7ESmULS8d10VgeIu_vXcorpc';
 
 const TOPOLOGIA_VALIDACAO_CACHE_PATH = path.join(__dirname, 'data', 'topologia-validacao-cache.json');
 const TOPOLOGIA_VALIDACAO_CACHE_VERSION = 7;
@@ -1549,39 +1656,19 @@ app.post('/api/topologia-validacao/registrar', (req, res) => {
 
 /**
  * Buscar Matriz de Ofensores do portal Coprede (Supabase)
- * Retorna top 100 incidentes mais antigos, agrupados por área
+ * Retorna os incidentes ativos mais antigos do portal, agrupados por área
  */
 app.get('/api/matriz-ofensores', async (req, res) => {
   try {
-    const limit = parseInt(req.query.limit) || 200;
-    // Busca todos os campos de mapeamento geográfico: grupo e cluster são os campos
-    // canônicos do portal de origem para identificar área (não usar só regional/cidade)
-    // Filtrar fora apenas status tratada/treated (igual ao portal de origem que exclui encerrados)
-    // Incidentes de quarentena continuam com status ativo, mas não devem entrar
-    // na volumetria. O portal usa a tag "#QRT#" e também há registro legado com
-    // a palavra "QUARENTENA"; o OR preserva resumos nulos.
-    // "%23" é o caractere "#" codificado para não virar fragmento da URL.
-    const url = `${SUPABASE_URL}/rest/v1/incidents?select=id_mostra,nm_tipo,nm_cidade,nm_status,topologia,dh_inicio,regional,grupo,cluster,ds_sumario&nm_status=not.in.(treated,tratada)&or=(ds_sumario.is.null,and(ds_sumario.not.ilike.*%23QRT%23*,ds_sumario.not.ilike.*QUARENTENA*))&order=dh_inicio.asc&limit=${limit}`;
-
-    const response = await fetch(url, {
-      headers: {
-        'apikey': SUPABASE_ANON_KEY,
-        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-        'Content-Type': 'application/json'
-      }
-    });
-
-    if (!response.ok) {
-      const errText = await response.text();
-      throw new Error(`Supabase ${response.status}: ${errText}`);
-    }
-
-    const ofensores = await response.json();
+    const limit = Number.parseInt(req.query.limit, 10) || 200;
+    const resultadoPortal = await buscarMatrizOfensores({ limit });
+    // O módulo compartilhado aplica os mesmos campos e filtros no backend e no fallback do navegador.
+    const ofensores = resultadoPortal.ofensores;
 
     // Agrupar por área e calcular estatísticas
     const areaMap = { 'RIO': [], 'MG/ES/BA': [], 'CO/NO/NE': [], 'OUTRO': [] };
     for (const inc of ofensores) {
-      const area = mapearRegionalParaArea(inc.regional, inc.nm_cidade);
+      const area = mapearRegionalParaArea(inc.grupo || inc.cluster || inc.regional, inc.nm_cidade);
       areaMap[area].push(inc);
     }
 
@@ -1597,7 +1684,8 @@ app.get('/api/matriz-ofensores', async (req, res) => {
       total: ofensores.length,
       ofensores,
       porArea,
-      timestamp: new Date().toISOString()
+      timestamp: resultadoPortal.timestamp,
+      origem: 'portal-coprede'
     });
   } catch (error) {
     console.error('[API] Erro ao buscar Matriz de Ofensores:', error.message);
@@ -1609,16 +1697,38 @@ app.get('/api/matriz-ofensores', async (req, res) => {
 // INICIALIZAÇÃO DO SERVIDOR
 // ============================================
 
+// Em producao OCI, o mesmo processo entrega o frontend e a API. Isso elimina
+// a URL fixa do Railway e evita CORS/mixed-content entre dois dominios.
+const publicDir = process.env.PUBLIC_DIR;
+if (publicDir && fs.existsSync(publicDir)) {
+  app.use(express.static(publicDir, {
+    etag: true,
+    maxAge: process.env.NODE_ENV === 'production' ? '10m' : 0
+  }));
+  app.get(['/admin', '/admin/'], (req, res) => {
+    res.sendFile(path.join(publicDir, 'index.html'));
+  });
+  console.log(`[Static] Frontend servido de ${publicDir}`);
+}
+
 app.listen(SERVER_CONFIG.PORT, async () => {
   console.log('============================================');
   console.log('   COP REDE INFORMA - Backend');
   console.log('============================================');
   console.log(`Servidor rodando na porta ${SERVER_CONFIG.PORT}`);
   console.log(`CORS permitido: ${SERVER_CONFIG.CORS_ORIGIN}`);
+  console.log(`Persistência Supabase: ${supabase.isConfigured() ? 'CONFIGURADA' : 'NÃO CONFIGURADA'}`);
   console.log('');
 
   // WhatsApp (Evolution API) - ÚNICA FONTE DE DADOS
-  if (EVOLUTION_CONFIG.API_KEY && EVOLUTION_CONFIG.INSTANCE_NAME) {
+  const evolutionConfigurada = Boolean(
+    EVOLUTION_CONFIG.ENABLED &&
+    EVOLUTION_CONFIG.API_URL &&
+    EVOLUTION_CONFIG.API_KEY &&
+    EVOLUTION_CONFIG.INSTANCE_NAME
+  );
+
+  if (evolutionConfigurada) {
     console.log('📱 Verificando WhatsApp (Evolution API)...');
     console.log(`   Instância: ${EVOLUTION_CONFIG.INSTANCE_NAME}`);
     console.log(`   SOURCE_CHAT_ID: ${EVOLUTION_CONFIG.SOURCE_CHAT_ID || 'NÃO CONFIGURADO'}`);
@@ -1639,7 +1749,7 @@ app.listen(SERVER_CONFIG.PORT, async () => {
 
         console.log('');
         console.log('   Para receber mensagens via webhook (mais rápido):');
-        console.log('   URL: https://seu-backend.railway.app/api/whatsapp/webhook');
+        console.log('   URL: https://seu-dominio.example/api/whatsapp/webhook');
         console.log('   Eventos: MESSAGES_UPSERT');
       } else {
         console.log('⚠️  WhatsApp não conectado:', status.estado || status.erro);
@@ -1650,6 +1760,7 @@ app.listen(SERVER_CONFIG.PORT, async () => {
   } else {
     console.log('❌ WhatsApp não configurado!');
     console.log('   Configure as variáveis:');
+    console.log('   - EVOLUTION_ENABLED=true');
     console.log('   - EVOLUTION_API_URL');
     console.log('   - EVOLUTION_API_KEY');
     console.log('   - EVOLUTION_INSTANCE_NAME');
@@ -1665,22 +1776,10 @@ app.listen(SERVER_CONFIG.PORT, async () => {
   console.log('');
   console.log('📋 Alocação de HUB:');
   console.log(`   CHAT_ID: ${ALOCACAO_HUB_CONFIG.CHAT_ID}`);
-
-  // Criar bin automaticamente se não existir
-  if (!storageHub.getBinId()) {
-    console.log('   BIN_ID: Criando automaticamente...');
-    try {
-      const novoBinId = await storageHub.criarBin();
-      console.log(`   ✅ Bin criado: ${novoBinId}`);
-    } catch (binError) {
-      console.log(`   ⚠️  Erro ao criar bin: ${binError.message}`);
-    }
-  } else {
-    console.log(`   BIN_ID: ${storageHub.getBinId()}`);
-  }
+  console.log(`   STORAGE: ${supabase.isConfigured() ? 'Supabase configurado' : 'Supabase não configurado'}`);
 
   // Carregar histórico de HUB automaticamente no startup
-  if (ALOCACAO_HUB_CONFIG.CHAT_ID && storageHub.getBinId()) {
+  if (evolutionConfigurada && supabase.isConfigured() && ALOCACAO_HUB_CONFIG.CHAT_ID) {
     try {
       console.log('   📥 Carregando histórico de alocações...');
       const resultadoHub = await whatsapp.buscarHistoricoHub(20);

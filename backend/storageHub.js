@@ -1,371 +1,225 @@
-/**
- * Storage para Alocação de HUB
- * Armazena dados em bin separado no JSONBin.io
- */
+/** Persistência das alocações de HUB no Supabase. */
 
-const { ALOCACAO_HUB_CONFIG } = require('./config');
-const fs = require('fs');
-const path = require('path');
+const crypto = require('crypto');
+const { client: supabase } = require('./supabase');
 
-// Cache local
+const CACHE_TTL_MS = 5000;
+const HUB_TIME_ZONE = 'America/Sao_Paulo';
 let cachedData = null;
 let cacheTimestamp = 0;
-const HUB_CACHE_PATH = path.join(__dirname, 'data', 'alocacao-hub-cache.json');
 
-// Validar BIN_ID: IDs do JSONBin são hex de 24 chars. Se parecer uma chave bcrypt ($2a$...), ignorar.
-const rawBinId = ALOCACAO_HUB_CONFIG.BIN_ID;
-let binId = (rawBinId && !rawBinId.startsWith('$2a$')) ? rawBinId : null;
-if (rawBinId && rawBinId.startsWith('$2a$')) {
-  console.log('[StorageHub] AVISO: ALOCACAO_HUB_BIN_ID parece ser uma chave BCrypt, não um Bin ID. Será criado um novo bin automaticamente.');
+function stableId(value) {
+  return `hub-${crypto.createHash('sha256').update(JSON.stringify(value)).digest('hex').slice(0, 24)}`;
 }
 
-/**
- * Define o Bin ID para persistência
- */
-function setBinId(id) {
-  binId = id;
-  cachedData = null;
-  cacheTimestamp = 0;
-  console.log(`[StorageHub] Bin ID configurado: ${id}`);
+function parseDate(value) {
+  if (!value) return null;
+  const br = String(value).match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:[\s,]+(\d{1,2}):(\d{2})(?::(\d{2}))?)?/);
+  const parsed = br
+    ? new Date(Number(br[3]), Number(br[2]) - 1, Number(br[1]), Number(br[4] || 0), Number(br[5] || 0), Number(br[6] || 0))
+    : new Date(value);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
 }
 
-/**
- * Obtém o Bin ID atual
- */
-function getBinId() {
-  return binId;
+function toIsoOrNull(value) {
+  const parsed = parseDate(value);
+  return parsed ? parsed.toISOString() : null;
 }
 
-/**
- * Limpa o cache
- */
+function toDateOnly(value) {
+  const br = value && String(value).match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (br) return `${br[3]}-${String(br[2]).padStart(2, '0')}-${String(br[1]).padStart(2, '0')}`;
+  const parsed = parseDate(value);
+  return parsed ? parsed.toISOString().slice(0, 10) : null;
+}
+
+function allocationToRow(allocation) {
+  const messageId = String(allocation.messageId || allocation.id || stableId(allocation));
+  return {
+    message_id: messageId,
+    record_id: allocation.id ? String(allocation.id) : null,
+    allocation_type: ['DIURNO', 'MADRUGADA'].includes(allocation.tipoAlocacao)
+      ? allocation.tipoAlocacao
+      : null,
+    allocation_date: toDateOnly(allocation.data),
+    received_at: toIsoOrNull(allocation.dataRecebimento),
+    payload: allocation,
+    updated_at: new Date().toISOString()
+  };
+}
+
+function allocationFromRow(row) {
+  return {
+    ...(row.payload || {}),
+    id: row.payload?.id || row.record_id || row.message_id,
+    messageId: row.payload?.messageId || row.message_id,
+    tipoAlocacao: row.payload?.tipoAlocacao || row.allocation_type,
+    data: row.payload?.data || row.allocation_date,
+    dataRecebimento: row.payload?.dataRecebimento || row.received_at
+  };
+}
+
+function uniqueAllocationRows(allocations) {
+  const rowsByMessageId = new Map();
+  for (const allocation of allocations || []) {
+    const row = allocationToRow(allocation);
+    // A Evolution pode devolver o mesmo evento mais de uma vez. O Postgres
+    // rejeita duas linhas com a mesma chave no mesmo comando de upsert.
+    rowsByMessageId.set(row.message_id, row);
+  }
+  return [...rowsByMessageId.values()];
+}
+
+function saoPauloDateParts(value) {
+  const date = value instanceof Date ? value : parseDate(value);
+  if (!date) return null;
+
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: HUB_TIME_ZONE,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23'
+  }).formatToParts(date);
+  const values = Object.fromEntries(parts.map(part => [part.type, part.value]));
+
+  return {
+    year: Number(values.year),
+    month: Number(values.month),
+    day: Number(values.day),
+    hour: Number(values.hour),
+    minute: Number(values.minute)
+  };
+}
+
+function dateKey(parts) {
+  return `${parts.year}-${String(parts.month).padStart(2, '0')}-${String(parts.day).padStart(2, '0')}`;
+}
+
+function nextDateKey(parts) {
+  const next = new Date(Date.UTC(parts.year, parts.month - 1, parts.day + 1));
+  return `${next.getUTCFullYear()}-${String(next.getUTCMonth() + 1).padStart(2, '0')}-${String(next.getUTCDate()).padStart(2, '0')}`;
+}
+
+function madrugadaEstaVigente(allocation, now = new Date()) {
+  const receivedAt = parseDate(allocation?.dataRecebimento);
+  const currentDate = now instanceof Date ? now : parseDate(now);
+  if (!receivedAt || !currentDate || receivedAt.getTime() > currentDate.getTime()) return false;
+
+  const receivedParts = saoPauloDateParts(receivedAt);
+  const currentParts = saoPauloDateParts(currentDate);
+  const currentKey = dateKey(currentParts);
+
+  if (currentKey === dateKey(receivedParts)) return true;
+  return currentKey === nextDateKey(receivedParts) && (currentParts.hour * 60 + currentParts.minute) < 5 * 60;
+}
+
+function selecionarAlocacaoAtual(allocations, now = new Date()) {
+  const ordered = [...(allocations || [])]
+    .sort((a, b) => (parseDate(b.dataRecebimento)?.getTime() || 0) - (parseDate(a.dataRecebimento)?.getTime() || 0));
+
+  const activeNightAllocation = ordered.find(item =>
+    item.tipoAlocacao === 'MADRUGADA' && madrugadaEstaVigente(item, now)
+  );
+  if (activeNightAllocation) return activeNightAllocation;
+
+  return ordered.find(item => item.tipoAlocacao === 'DIURNO') || null;
+}
+
 function limparCache() {
   cachedData = null;
   cacheTimestamp = 0;
-  console.log('[StorageHub] Cache limpo');
 }
 
-/**
- * Faz requisição ao JSONBin.io
- */
-function normalizarDadosHub(dados) {
-  return {
-    alocacoes: Array.isArray(dados?.alocacoes) ? dados.alocacoes : [],
-    ultimaAtualizacao: dados?.ultimaAtualizacao || null
-  };
-}
-
-function carregarCacheArquivo() {
-  try {
-    if (!fs.existsSync(HUB_CACHE_PATH)) return null;
-    return normalizarDadosHub(JSON.parse(fs.readFileSync(HUB_CACHE_PATH, 'utf8')));
-  } catch (error) {
-    console.error('[StorageHub] Erro ao carregar cache de arquivo:', error.message);
-    return null;
-  }
-}
-
-function salvarCacheArquivo(dados) {
-  const dadosNormalizados = normalizarDadosHub(dados);
-  dadosNormalizados.ultimaAtualizacao = dadosNormalizados.ultimaAtualizacao || new Date().toISOString();
-  fs.mkdirSync(path.dirname(HUB_CACHE_PATH), { recursive: true });
-  fs.writeFileSync(HUB_CACHE_PATH, JSON.stringify(dadosNormalizados, null, 2));
-  cachedData = dadosNormalizados;
-  cacheTimestamp = Date.now();
-  return dadosNormalizados;
-}
-
-async function jsonBinRequest(method, data = null) {
-  if (!binId) {
-    throw new Error('Bin ID não configurado para Alocação de HUB');
-  }
-
-  const url = `https://api.jsonbin.io/v3/b/${binId}`;
-
-  const headers = {
-    'Content-Type': 'application/json',
-    'X-Master-Key': ALOCACAO_HUB_CONFIG.MASTER_KEY
-  };
-
-  const options = {
-    method,
-    headers,
-    timeout: 8000
-  };
-
-  if (data && method !== 'GET') {
-    options.body = JSON.stringify(data);
-  }
-
-  const response = await fetch(url, options);
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`JSONBin error (${response.status}): ${errorText}`);
-  }
-
-  return response.json();
-}
-
-/**
- * Cria um novo bin para Alocação de HUB
- */
-async function criarBin() {
-  const url = 'https://api.jsonbin.io/v3/b';
-
-  const dadosIniciais = {
-    alocacoes: [],
-    ultimaAtualizacao: new Date().toISOString()
-  };
-
-  const headers = {
-    'Content-Type': 'application/json',
-    'X-Master-Key': ALOCACAO_HUB_CONFIG.MASTER_KEY,
-    'X-Bin-Name': 'alocacao-hub'
-  };
-
-  const response = await fetch(url, {
-    method: 'POST',
-    headers,
-    timeout: 8000,
-    body: JSON.stringify(dadosIniciais)
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`Erro ao criar bin: ${errorText}`);
-  }
-
-  const result = await response.json();
-  const novoBinId = result.metadata.id;
-
-  setBinId(novoBinId);
-  console.log(`[StorageHub] Novo bin criado: ${novoBinId}`);
-
-  return novoBinId;
-}
-
-/**
- * Carrega dados do JSONBin
- */
 async function carregarDados(forcarAtualizacao = false) {
-  if (!binId) {
-    const cacheArquivo = carregarCacheArquivo();
-    if (cacheArquivo) {
-      cachedData = cacheArquivo;
-      cacheTimestamp = Date.now();
-      return cacheArquivo;
-    }
-    return salvarCacheArquivo({ alocacoes: [], ultimaAtualizacao: null });
-  }
-
-  const agora = Date.now();
-  const idadeCache = agora - cacheTimestamp;
-
-  // Cache válido por 5 segundos
-  if (!forcarAtualizacao && cachedData && idadeCache < 5000) {
-    return cachedData;
-  }
-
-  if (!binId) {
-    console.log('[StorageHub] Bin ID não configurado, retornando dados vazios');
-    return { alocacoes: [], ultimaAtualizacao: null };
-  }
+  const idade = Date.now() - cacheTimestamp;
+  if (!forcarAtualizacao && cachedData && idade < CACHE_TTL_MS) return cachedData;
 
   try {
-    const result = await jsonBinRequest('GET');
-    cachedData = result.record || { alocacoes: [], ultimaAtualizacao: null };
-    cacheTimestamp = agora;
+    const rows = await supabase.selectAll('hub_allocations', {
+      select: '*',
+      order: 'received_at.desc.nullslast,created_at.desc'
+    });
+    cachedData = {
+      alocacoes: rows.map(allocationFromRow),
+      ultimaAtualizacao: new Date().toISOString()
+    };
+    cacheTimestamp = Date.now();
     return cachedData;
   } catch (error) {
-    console.error('[StorageHub] Erro ao carregar dados:', error.message);
     if (cachedData) {
+      console.error('[StorageHub] Supabase indisponível; usando cache de leitura:', error.message);
       return cachedData;
     }
-    return { alocacoes: [], ultimaAtualizacao: null };
+    throw error;
   }
 }
 
-/**
- * Salva dados no JSONBin
- */
 async function salvarDados(dados) {
-  dados.ultimaAtualizacao = new Date().toISOString();
-  salvarCacheArquivo(dados);
-
-  if (!binId) {
-    console.log('[StorageHub] Bin ID nao configurado; dados salvos no cache do backend');
-    return true;
+  const rows = uniqueAllocationRows(dados.alocacoes);
+  if (rows.length) {
+    await supabase.upsert('hub_allocations', rows, 'message_id');
   }
-
-  try {
-    await jsonBinRequest('PUT', dados);
-  } catch (error) {
-    console.error('[StorageHub] Falha ao publicar no JSONBin; mantendo cache do backend:', error.message);
-  }
-
-  return true;
-
-  if (!binId) {
-    throw new Error('Bin ID não configurado para Alocação de HUB');
-  }
-
-  dados.ultimaAtualizacao = new Date().toISOString();
-
-  await jsonBinRequest('PUT', dados);
-  cachedData = dados;
-  cacheTimestamp = Date.now();
-
+  limparCache();
   return true;
 }
 
-/**
- * Adiciona múltiplas alocações em lote (1 GET + 1 PUT total)
- * Muito mais eficiente que chamar adicionarAlocacao() repetidamente
- */
 async function adicionarAlocacoesBatch(novasAlocacoes) {
-  if (!novasAlocacoes || novasAlocacoes.length === 0) return 0;
-
-  const dados = await carregarDados(true);
-
-  // Upsert: substitui entradas existentes pelo messageId (para reprocessar com parser corrigido)
-  const mapaExistente = new Map(dados.alocacoes.map(a => [a.messageId, a]));
-  let adicionadas = 0;
-
-  for (const alocacao of novasAlocacoes) {
-    mapaExistente.set(alocacao.messageId, alocacao);
-    adicionadas++;
-  }
-
-  dados.alocacoes = Array.from(mapaExistente.values());
-
-  if (adicionadas === 0) {
-    console.log('[StorageHub] Nenhuma alocação nova no lote');
-    return 0;
-  }
-
-  // Mantém apenas as últimas 50
-  if (dados.alocacoes.length > 50) {
-    dados.alocacoes = dados.alocacoes.slice(0, 50);
-  }
-
-  await salvarDados(dados);
-  console.log(`[StorageHub] Batch: ${adicionadas} alocações salvas`);
-
-  return adicionadas;
+  if (!Array.isArray(novasAlocacoes) || novasAlocacoes.length === 0) return 0;
+  const rows = uniqueAllocationRows(novasAlocacoes);
+  await supabase.upsert(
+    'hub_allocations',
+    rows,
+    'message_id'
+  );
+  limparCache();
+  return rows.length;
 }
 
-/**
- * Adiciona uma nova alocação de HUB
- * Mantém apenas as últimas 50 alocações
- */
 async function adicionarAlocacao(alocacao) {
-  const dados = await carregarDados(true);
-
-  // Verifica duplicata por messageId
-  const existente = dados.alocacoes.find(a => a.messageId === alocacao.messageId);
-  if (existente) {
-    console.log(`[StorageHub] Alocação já existe: ${alocacao.messageId}`);
-    return false;
-  }
-
-  // Adiciona nova alocação no início
-  dados.alocacoes.unshift(alocacao);
-
-  // Mantém apenas as últimas 50
-  if (dados.alocacoes.length > 50) {
-    dados.alocacoes = dados.alocacoes.slice(0, 50);
-  }
-
-  await salvarDados(dados);
-  console.log(`[StorageHub] Alocação ${alocacao.tipoAlocacao} salva: ${alocacao.id}`);
-
+  await supabase.upsert('hub_allocations', [allocationToRow(alocacao)], 'message_id');
+  limparCache();
   return true;
 }
 
-/**
- * Obtém a alocação adequada para o momento atual, aplicando lógica de horário:
- * - Antes das 05h (horário de Brasília): exibe MADRUGADA (turno noturno ativo)
- * - Após as 05h: exibe DIURNO, exceto se uma nova MADRUGADA chegou depois do último DIURNO
- *   (nesse caso, a nova atualização de MADRUGADA é exibida imediatamente)
- */
-async function obterUltimaAlocacao() {
-  const dados = await carregarDados();
-
-  if (!dados.alocacoes || dados.alocacoes.length === 0) {
-    return null;
-  }
-
-  // Ordena por data de recebimento (mais recente primeiro)
-  const ordenadas = [...dados.alocacoes].sort((a, b) => {
-    return new Date(b.dataRecebimento) - new Date(a.dataRecebimento);
-  });
-
-  const ultimaMadrugada = ordenadas.find(a => a.tipoAlocacao === 'MADRUGADA') || null;
-  const ultimoDiurno = ordenadas.find(a => a.tipoAlocacao === 'DIURNO') || null;
-
-  // Hora atual em horário de Brasília (UTC-3, sem DST desde 2019)
-  const agora = new Date();
-  const horaBrasilia = (agora.getUTCHours() - 3 + 24) % 24;
-
-  if (horaBrasilia < 5) {
-    // Antes das 05h: turno noturno ativo, exibir MADRUGADA
-    return ultimaMadrugada || ultimoDiurno || ordenadas[0];
-  }
-
-  // Após as 05h: preferir DIURNO
-  if (ultimaMadrugada && ultimoDiurno) {
-    const tsMadrugada = new Date(ultimaMadrugada.dataRecebimento).getTime();
-    const tsDiurno = new Date(ultimoDiurno.dataRecebimento).getTime();
-    // Se nova MADRUGADA chegou depois do último DIURNO, atualizar na hora
-    if (tsMadrugada > tsDiurno) {
-      return ultimaMadrugada;
-    }
-    return ultimoDiurno;
-  }
-
-  return ultimoDiurno || ultimaMadrugada || ordenadas[0];
-}
-
-/**
- * Obtém todas as alocações
- */
 async function obterAlocacoes(filtros = {}) {
   const dados = await carregarDados();
-
-  let alocacoes = dados.alocacoes || [];
-
-  // Filtro por tipo (DIURNO/MADRUGADA)
-  if (filtros.tipo) {
-    alocacoes = alocacoes.filter(a => a.tipoAlocacao === filtros.tipo);
-  }
-
-  // Filtro por data
-  if (filtros.data) {
-    alocacoes = alocacoes.filter(a => a.data === filtros.data);
-  }
-
-  // Ordena por data de recebimento (mais recente primeiro)
-  alocacoes.sort((a, b) => {
-    return new Date(b.dataRecebimento) - new Date(a.dataRecebimento);
-  });
-
-  return alocacoes;
+  let alocacoes = [...dados.alocacoes];
+  if (filtros.tipo) alocacoes = alocacoes.filter(item => item.tipoAlocacao === filtros.tipo);
+  if (filtros.data) alocacoes = alocacoes.filter(item => item.data === filtros.data);
+  return alocacoes.sort((a, b) => (parseDate(b.dataRecebimento) || 0) - (parseDate(a.dataRecebimento) || 0));
 }
 
-/**
- * Obtém estatísticas
- */
+async function obterUltimaAlocacao(now = new Date()) {
+  const ordenadas = await obterAlocacoes();
+  if (!ordenadas.length) return null;
+  return selecionarAlocacaoAtual(ordenadas, now);
+}
+
 async function obterEstatisticas() {
   const dados = await carregarDados();
-  const alocacoes = dados.alocacoes || [];
-
   return {
-    total: alocacoes.length,
-    diurno: alocacoes.filter(a => a.tipoAlocacao === 'DIURNO').length,
-    madrugada: alocacoes.filter(a => a.tipoAlocacao === 'MADRUGADA').length,
+    total: dados.alocacoes.length,
+    diurno: dados.alocacoes.filter(item => item.tipoAlocacao === 'DIURNO').length,
+    madrugada: dados.alocacoes.filter(item => item.tipoAlocacao === 'MADRUGADA').length,
     ultimaAtualizacao: dados.ultimaAtualizacao
   };
+}
+
+function getBinId() {
+  return supabase.isConfigured() ? 'supabase' : null;
+}
+
+function setBinId() {
+  console.warn('[StorageHub] BIN_ID ignorado: a persistência agora usa Supabase.');
+  return false;
+}
+
+async function criarBin() {
+  if (!supabase.isConfigured()) throw new Error('Supabase não configurado');
+  return 'supabase';
 }
 
 module.exports = {
@@ -379,5 +233,12 @@ module.exports = {
   adicionarAlocacoesBatch,
   obterUltimaAlocacao,
   obterAlocacoes,
-  obterEstatisticas
+  obterEstatisticas,
+  _internals: {
+    allocationToRow,
+    uniqueAllocationRows,
+    parseDate,
+    madrugadaEstaVigente,
+    selecionarAlocacaoAtual
+  }
 };

@@ -39,8 +39,9 @@ const VISIUM_BROWSER_PROFILE_HFC = process.env.VISIUM_BROWSER_PROFILE_HFC ||
   `${VISIUM_BROWSER_PROFILE_BASE}-hfc`;
 const VISIUM_BROWSER_PROFILE_GPON = process.env.VISIUM_BROWSER_PROFILE_GPON ||
   `${VISIUM_BROWSER_PROFILE_BASE}-gpon`;
-const BACKEND_URL_DEFAULT = process.env.CENTRAL_BACKEND_URL || 'https://divisao-equipe-madrugada-production.up.railway.app';
-const CENTRAL_BACKEND_TLS_INSEGURO = String(process.env.CENTRAL_BACKEND_TLS_INSEGURO || '1') !== '0';
+const BACKEND_URL_DEFAULT = process.env.CENTRAL_BACKEND_URL || '';
+const CENTRAL_BACKEND_AUTH_TOKEN = process.env.CENTRAL_BACKEND_AUTH_TOKEN || '';
+const CENTRAL_BACKEND_TLS_INSEGURO = String(process.env.CENTRAL_BACKEND_TLS_INSEGURO || '0') !== '0';
 const ORIGEM_FRONTEND = 'admin-manual-v6';
 const ORIGEM_REGISTRO = 'local-helper-v1';
 const centralBackendAgent = CENTRAL_BACKEND_TLS_INSEGURO ? new https.Agent({ rejectUnauthorized: false }) : null;
@@ -1247,9 +1248,17 @@ async function validarTopologias(itens) {
 
 async function registrarNoBackendCentral(backendUrl, validacao) {
   const base = String(backendUrl || BACKEND_URL_DEFAULT).replace(/\/+$/, '');
+  if (!base) {
+    throw new Error('Backend central nao configurado. Defina CENTRAL_BACKEND_URL com o dominio OCI.');
+  }
   const response = await fetch(`${base}/api/topologia-validacao/registrar`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      ...(CENTRAL_BACKEND_AUTH_TOKEN
+        ? { Authorization: `Basic ${CENTRAL_BACKEND_AUTH_TOKEN}` }
+        : {})
+    },
     body: JSON.stringify({ origem: ORIGEM_REGISTRO, validacao }),
     agent: base.startsWith('https://') ? centralBackendAgent : undefined
   });

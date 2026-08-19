@@ -1,0 +1,10 @@
+region             = "sa-saopaulo-1"
+tenancy_ocid       = "ocid1.tenancy.oc1..substitua"
+compartment_ocid   = "ocid1.compartment.oc1..substitua"
+ssh_authorized_key = "ssh-ed25519 AAAA... seu-email"
+ssh_ingress_cidr   = "203.0.113.10/32"
+
+# Padrao compativel com Ampere A1. Ajuste somente se sua tenancy nao tiver capacidade.
+instance_shape     = "VM.Standard.A1.Flex"
+instance_ocpus     = 1
+instance_memory_gb = 6

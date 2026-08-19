@@ -1,8 +1,23 @@
+const path = require('path');
+const fs = require('fs');
+const vm = require('vm');
+
+const modulePath = path.resolve(__dirname, '..', '..', 'js', 'matriz-api.js');
+const browserModule = { exports: {} };
+vm.runInNewContext(fs.readFileSync(modulePath, 'utf8'), {
+  module: browserModule,
+  exports: browserModule.exports,
+  globalThis: {},
+  URL,
+  Date,
+  console
+}, { filename: modulePath });
+
 const {
   CAMPOS_INCIDENTE,
   criarUrlMatrizOfensores,
   buscarMatrizOfensores
-} = require('../../js/matriz-api');
+} = browserModule.exports;
 
 describe('fallback da matriz de ofensores no Supabase', () => {
   test('mantém os mesmos campos e filtros do endpoint do backend', () => {
@@ -42,7 +57,7 @@ describe('fallback da matriz de ofensores no Supabase', () => {
       sucesso: true,
       total: 1,
       ofensores: incidentes,
-      origem: 'supabase-direto'
+      origem: 'portal-coprede-direto'
     });
   });
 
@@ -55,5 +70,22 @@ describe('fallback da matriz de ofensores no Supabase', () => {
 
     await expect(buscarMatrizOfensores({ fetchImpl }))
       .rejects.toThrow('Supabase HTTP 403: sem permissão');
+  });
+
+  test('nao envia chave publishable opaca como Bearer JWT', async () => {
+    const fetchImpl = jest.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: jest.fn().mockResolvedValue([])
+    });
+
+    await buscarMatrizOfensores({
+      fetchImpl,
+      anonKey: 'sb_publishable_portal-test'
+    });
+
+    expect(fetchImpl.mock.calls[0][1].headers).toEqual({
+      apikey: 'sb_publishable_portal-test'
+    });
   });
 });

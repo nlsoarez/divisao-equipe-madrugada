@@ -24,6 +24,14 @@ const POLLING_INTERVAL_MS = parseInt(process.env.WHATSAPP_POLLING_INTERVAL || '3
  * Faz requisição para a Evolution API
  */
 async function evolutionRequest(endpoint, method = 'GET', body = null) {
+  if (!EVOLUTION_CONFIG.ENABLED) {
+    throw new Error('Evolution API desativada neste ambiente');
+  }
+
+  if (!EVOLUTION_CONFIG.API_URL || !EVOLUTION_CONFIG.API_KEY || !EVOLUTION_CONFIG.INSTANCE_NAME) {
+    throw new Error('Evolution API habilitada, mas incompletamente configurada');
+  }
+
   const url = `${EVOLUTION_CONFIG.API_URL}${endpoint}`;
 
   const options = {
@@ -383,10 +391,13 @@ async function configurarWebhook(webhookUrl) {
       `/webhook/set/${encodeURIComponent(EVOLUTION_CONFIG.INSTANCE_NAME)}`,
       'POST',
       {
-        url: webhookUrl,
-        webhook_by_events: false,
-        webhook_base64: false,
-        events: ['MESSAGES_UPSERT']
+        webhook: {
+          enabled: true,
+          url: webhookUrl,
+          webhookByEvents: false,
+          webhookBase64: false,
+          events: ['MESSAGES_UPSERT']
+        }
       }
     );
 
@@ -405,7 +416,9 @@ async function configurarWebhook(webhookUrl) {
 async function listarChats() {
   try {
     const chats = await evolutionRequest(
-      `/chat/findChats/${encodeURIComponent(EVOLUTION_CONFIG.INSTANCE_NAME)}`
+      `/chat/findChats/${encodeURIComponent(EVOLUTION_CONFIG.INSTANCE_NAME)}`,
+      'POST',
+      {}
     );
     return chats;
   } catch (error) {
@@ -419,6 +432,13 @@ async function listarChats() {
  */
 function obterStatus() {
   return {
+    habilitado: EVOLUTION_CONFIG.ENABLED,
+    configurado: Boolean(
+      EVOLUTION_CONFIG.ENABLED &&
+      EVOLUTION_CONFIG.API_URL &&
+      EVOLUTION_CONFIG.API_KEY &&
+      EVOLUTION_CONFIG.INSTANCE_NAME
+    ),
     conectado: isConnected,
     instancia: EVOLUTION_CONFIG.INSTANCE_NAME,
     apiUrl: EVOLUTION_CONFIG.API_URL,
@@ -767,7 +787,7 @@ async function buscarHistoricoHub(limite = 50) {
 
     console.log(`[WhatsApp HUB] Total de ${messages.length} mensagens para processar`);
 
-    // Coletar todas as alocações em memória antes de salvar (evita N chamadas ao JSONBin)
+    // Coletar todas as alocações em memória antes do upsert em lote
     const alocacoesParaSalvar = [];
     let ignorados = 0;
     let semTexto = 0;
@@ -816,7 +836,7 @@ async function buscarHistoricoHub(limite = 50) {
       }
     }
 
-    // Salvar tudo em um único GET + PUT no JSONBin
+    // Salvar o lote em uma única operação no Supabase
     const salvas = await storageHub.adicionarAlocacoesBatch(alocacoesParaSalvar);
 
     console.log(`[WhatsApp HUB] Histórico: ${salvas} alocações salvas, ${ignorados} ignoradas, ${semTexto} sem texto`);
