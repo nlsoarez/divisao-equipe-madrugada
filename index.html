@@ -2049,6 +2049,31 @@
       margin-top: 0.25rem;
     }
 
+    .cluster-volume-summary {
+      display: none;
+      align-items: center;
+      gap: 0.65rem;
+      margin-top: 0.6rem;
+      padding-top: 0.5rem;
+      border-top: 1px solid rgba(18, 140, 126, 0.18);
+      color: #60706b;
+      font-size: 0.72rem;
+      line-height: 1.2;
+      white-space: nowrap;
+      overflow-x: auto;
+      scrollbar-width: thin;
+    }
+
+    .cluster-volume-summary .cluster-summary-label {
+      color: #128c7e;
+      font-weight: 600;
+    }
+
+    .cluster-volume-summary .cluster-summary-item strong {
+      color: #37474f;
+      font-weight: 700;
+    }
+
     .area-volume-item .area-count {
       color: #888;
     }
@@ -2983,6 +3008,7 @@
         <div class="area-summary-grid" id="areaSummaryGrid">
           <!-- Preenchido via JavaScript -->
         </div>
+        <div class="cluster-volume-summary" id="clusterVolumeSummary" aria-label="Outages por cluster"></div>
       </div>
 
       <!-- Seção de Incidentes Ativos por Analista (integrada — sem aba separada) -->
@@ -3656,6 +3682,7 @@
 <script src="js/config.js"></script>
 <script src="js/api.js"></script>
 <script src="js/area-editor.js"></script>
+<script src="js/volume-cluster.js"></script>
 <script src="js/matriz-api.js"></script>
 <script src="js/backup-recovery.js"></script>
 <script src="js/escala-api.js"></script>
@@ -4522,7 +4549,7 @@ function mostrarDetalhesDiaEmpresarial(subEscala, dia) {
 
       html += `
         <div class="area-item">
-          <span class="area-label">${area}</span>
+          <span class="area-label">${escapeHtml(area)}</span>
           <div class="funcionario-name" title="${pessoa}">
             ${nomeExibir}
             ${pessoaEmTroca ? ' <i class="bi bi-arrow-left-right text-purple"></i>' : ''}
@@ -8610,7 +8637,7 @@ function mostrarDetalhesDia(dia) {
 
       html += `
         <div class="area-item">
-          <span class="area-label">${area}</span>
+          <span class="area-label">${escapeHtml(area)}</span>
           <div class="funcionario-name" title="${pessoa}">
             ${nomeExibir}
             ${pessoaEmTroca ? ' <i class="bi bi-arrow-left-right text-purple"></i>' : ''}
@@ -8830,8 +8857,9 @@ function editarDivisaoAreas(dia) {
     <form id="formEditarDivisao" class="edit-divisao-form">
       <div class="alert alert-light border small py-2 mb-3">
         <i class="bi bi-info-circle me-1"></i>
-        Edite as combinações usando <strong>CO, NO, NE, BA, ES, RIO e MG</strong>, separadas por <strong>/</strong>.
-        Cada área deve aparecer uma única vez.
+        Digite livremente o nome do bloco. Para somar a volumetria, mantenha as siglas
+        <strong>CO, NO, NE, BA, ES, RIO e MG</strong> separadas por <strong>/</strong>.
+        Deixe a área em branco para desconsiderar essa linha e reduzir a quantidade de blocos.
       </div>`;
 
   Object.entries(dadosDia.divisao).forEach(([area, pessoaAtual], indice) => {
@@ -8846,7 +8874,7 @@ function editarDivisaoAreas(dia) {
         <label class="form-label fw-bold mb-1" for="area-manual-${dia}-${indice}">${grupoFixo ? 'Atribuição fixa' : 'Áreas'}</label>
         ${grupoFixo
           ? `<div class="fw-bold mb-2">${area}</div><input type="hidden" data-role="area" value="${area}">`
-          : `<input type="text" class="form-control form-control-sm area-manual-input mb-2" id="area-manual-${dia}-${indice}" data-role="area" value="${area}" placeholder="Ex.: CO/MG" autocomplete="off" spellcheck="false">`
+          : `<input type="text" class="form-control form-control-sm area-manual-input mb-2" id="area-manual-${dia}-${indice}" data-role="area" value="${escapeHtml(area)}" placeholder="Ex.: BA/CO ou APOIO BACKBONE" maxlength="80" autocomplete="off" spellcheck="false">`
         }
         <div class="d-flex gap-2 align-items-center">
           <select class="form-select form-select-sm" data-role="pessoa1" style="flex: 1;">
@@ -10274,6 +10302,29 @@ function formatarNomeEscala(nomeCompleto) {
 }
 
 /**
+ * Exibe os outages por cluster atômico, antes da divisão manual em blocos.
+ * A contagem usa a mesma lista de incidentes dos cartões, mas não depende da
+ * forma como o administrador combinou CO, NO, BA etc.
+ */
+function atualizarResumoOutagesPorCluster() {
+  const resumo = document.getElementById('clusterVolumeSummary');
+  if (!resumo || typeof VolumeCluster === 'undefined') return;
+
+  const ofensores = window.dadosMatrizOfensores?.ofensores || [];
+  const contagem = VolumeCluster.contarOutagesPorCluster(ofensores, obterClusterIncidente);
+  const itens = VolumeCluster.ORDEM_CLUSTERS.map(cluster =>
+    `<span class="cluster-summary-item">${cluster} <strong>${contagem.clusters[cluster]}</strong></span>`
+  );
+
+  if (contagem.outros > 0) {
+    itens.push(`<span class="cluster-summary-item">OUTROS <strong>${contagem.outros}</strong></span>`);
+  }
+
+  resumo.innerHTML = `<span class="cluster-summary-label">Outages por cluster:</span>${itens.join('<span aria-hidden="true">·</span>')}`;
+  resumo.style.display = 'flex';
+}
+
+/**
  * Renderiza o painel "Volume por Área" a partir dos incidentes ativos do
  * portal CopRede (window.dadosMatrizOfensores) — MESMA fonte da seção
  * "Incidentes ativos por analista". Não depende de mensagens do COP,
@@ -10283,6 +10334,7 @@ function formatarNomeEscala(nomeCompleto) {
 function atualizarVolumePorAreaIncidentes() {
   const resumoDiv = document.getElementById('resumoAreasCop');
   const summaryGrid = document.getElementById('areaSummaryGrid');
+  const clusterSummary = document.getElementById('clusterVolumeSummary');
   if (!summaryGrid) return;
 
   // Escala de AGORA (com trocas/edições aplicadas)
@@ -10294,14 +10346,19 @@ function atualizarVolumePorAreaIncidentes() {
 
   const ofPorArea = calcularOfensoresPorArea(numPessoas);
 
-  // Áreas: todas da escala de hoje + as que têm incidentes (exceto OUTRO)
-  const areas = Object.keys(divisaoHoje);
-  for (const k of Object.keys(ofPorArea)) {
-    if (k !== 'OUTRO' && !areas.includes(k)) areas.push(k);
+  // Em uma divisão manual, a quantidade de cartões deve ser exatamente a
+  // quantidade de blocos preenchidos. Linhas vazias já foram removidas ao
+  // salvar e não podem reaparecer pela regra automática de agrupamento.
+  const areas = Object.keys(divisaoHoje).filter(area => String(area).trim());
+  if (!dadosDia?.divisaoManual) {
+    for (const k of Object.keys(ofPorArea)) {
+      if (k !== 'OUTRO' && !areas.includes(k)) areas.push(k);
+    }
   }
 
   if (areas.length === 0) {
     if (resumoDiv) resumoDiv.style.display = 'none';
+    if (clusterSummary) clusterSummary.style.display = 'none';
     return;
   }
 
@@ -10312,13 +10369,15 @@ function atualizarVolumePorAreaIncidentes() {
       : obterResponsavelPorArea(area, new Date());
     return `
       <div class="area-summary-item ${getCorOfensores(total)}">
-        <span class="area-name">${area}</span>
+        <span class="area-name">${escapeHtml(area)}</span>
         <span class="area-volume">${total}</span>
-        <span class="area-responsible"><i class="bi bi-person me-1"></i>${responsavel}</span>
+        <span class="area-responsible"><i class="bi bi-person me-1"></i>${escapeHtml(responsavel)}</span>
       </div>`;
   }).join('');
 
   if (resumoDiv) resumoDiv.style.display = 'block';
+
+  atualizarResumoOutagesPorCluster();
 
   // Badge de ofensores (>6h) nos cards
   atualizarAreaCardsComOfensores();

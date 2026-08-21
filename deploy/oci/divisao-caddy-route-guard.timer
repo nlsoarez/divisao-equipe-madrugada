@@ -1,0 +1,12 @@
+[Unit]
+Description=Verifica periodicamente a rota HTTPS do portal Divisao
+
+[Timer]
+OnBootSec=30s
+OnUnitActiveSec=30s
+AccuracySec=5s
+Unit=divisao-caddy-route-guard.service
+
+[Install]
+WantedBy=timers.target
+

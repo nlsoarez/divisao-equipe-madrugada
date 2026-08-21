@@ -14,8 +14,16 @@ describe('edição manual de áreas residenciais', () => {
     });
   });
 
-  test.each(['SIR', 'CO//MG', 'CO/MG/MG'])('rejeita grupo inválido: %s', grupo => {
+  test.each(['CO//MG', 'CO/MG/MG'])('rejeita grupo inválido: %s', grupo => {
     expect(normalizarAreaManual(grupo).valido).toBe(false);
+  });
+
+  test('aceita texto livre fora das siglas conhecidas', () => {
+    expect(normalizarAreaManual(' apoio backbone ')).toEqual({
+      valido: true,
+      area: 'APOIO BACKBONE',
+      areas: []
+    });
   });
 
   test('monta uma configuração manual completa com CO/MG', () => {
@@ -37,7 +45,7 @@ describe('edição manual de áreas residenciais', () => {
     });
   });
 
-  test('exige cada uma das sete áreas exatamente uma vez', () => {
+  test('impede que uma sigla conhecida apareça em mais de um bloco', () => {
     const duplicada = montarDivisaoManual([
       { area: 'CO/MG', pessoa1: 'Cristiane' },
       { area: 'CO/NO/ES', pessoa1: 'Leonardo' },
@@ -46,15 +54,23 @@ describe('edição manual de áreas residenciais', () => {
     ]);
     expect(duplicada.valido).toBe(false);
     expect(duplicada.erro).toContain('CO aparece em mais de um grupo');
+  });
 
-    const ausente = montarDivisaoManual([
-      { area: 'CO/MG', pessoa1: 'Cristiane' },
-      { area: 'ES', pessoa1: 'Leonardo' },
-      { area: 'NE/BA', pessoa1: 'Raissa' },
-      { area: 'RIO', pessoa1: 'Thiago' }
+  test('ignora linha com área vazia e mantém somente três blocos', () => {
+    const resultado = montarDivisaoManual([
+      { area: 'BA/CO', pessoa1: 'Cristiane' },
+      { area: 'NO/NE', pessoa1: 'Leonardo' },
+      { area: 'MG/ES/RIO', pessoa1: 'Raissa', pessoa2: 'Thiago' },
+      { area: '   ', pessoa1: 'Thiago' }
     ]);
-    expect(ausente.valido).toBe(false);
-    expect(ausente.erro).toContain('Faltando: NO');
+
+    expect(resultado.valido).toBe(true);
+    expect(resultado.divisao).toEqual({
+      'BA/CO': 'Cristiane',
+      'NO/NE': 'Leonardo',
+      'MG/ES/RIO': 'Raissa / Thiago'
+    });
+    expect(Object.keys(resultado.divisao)).toHaveLength(3);
   });
 
   test('localiza a combinação manual responsável por uma área', () => {

@@ -1,0 +1,9 @@
+[Unit]
+Description=Garante a rota HTTPS do portal Divisao no Caddy compartilhado
+After=docker.service
+Wants=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/opt/divisao/bin/ensure-caddy-route.sh
+

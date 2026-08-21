@@ -4,25 +4,70 @@
   const AREAS_RESIDENCIAIS = Object.freeze(['CO', 'NO', 'NE', 'BA', 'ES', 'RIO', 'MG']);
   const GRUPOS_FIXOS_RESIDENCIAIS = Object.freeze(['SIR/APOIO']);
 
+  const ALIASES_AREAS = Object.freeze({
+    CO: 'CO',
+    'CENTRO OESTE': 'CO',
+    'CENTRO-OESTE': 'CO',
+    NO: 'NO',
+    NORTE: 'NO',
+    NE: 'NE',
+    NORDESTE: 'NE',
+    BA: 'BA',
+    BAHIA: 'BA',
+    SERGIPE: 'BA',
+    ES: 'ES',
+    'ESPIRITO SANTO': 'ES',
+    RIO: 'RIO',
+    'RIO DE JANEIRO': 'RIO',
+    MG: 'MG',
+    'MINAS GERAIS': 'MG'
+  });
+
+  function removerAcentos(valor) {
+    return String(valor || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  }
+
+  function extrairAreasConhecidas(segmentos) {
+    const encontradas = [];
+
+    segmentos.forEach(segmento => {
+      const alias = removerAcentos(segmento).toUpperCase().replace(/\s+/g, ' ').trim();
+      const area = ALIASES_AREAS[alias];
+      if (area) encontradas.push(area);
+    });
+
+    return encontradas;
+  }
+
   function normalizarAreaManual(valor) {
-    const segmentos = String(valor || '')
+    const areaLivre = String(valor || '')
+      .trim()
       .toUpperCase()
+      .replace(/\s+/g, ' ');
+
+    if (!areaLivre) {
+      return { valido: false, vazio: true, erro: 'Informe a área ou deixe a linha em branco para desconsiderá-la.' };
+    }
+
+    if (areaLivre.length > 80) {
+      return { valido: false, erro: 'O texto da área deve ter no máximo 80 caracteres.' };
+    }
+
+    if (/[<>]/.test(areaLivre)) {
+      return { valido: false, erro: 'Não use os caracteres < ou > no texto da área.' };
+    }
+
+    const segmentos = areaLivre
       .split('/')
       .map(area => area.trim());
 
     if (segmentos.length === 0 || segmentos.some(area => !area)) {
-      return { valido: false, erro: 'Informe uma ou mais áreas separadas por /.' };
+      return { valido: false, erro: 'Não deixe trechos vazios entre as barras (/).' };
     }
 
-    const invalidas = segmentos.filter(area => !AREAS_RESIDENCIAIS.includes(area));
-    if (invalidas.length > 0) {
-      return {
-        valido: false,
-        erro: `Área inválida: ${invalidas[0]}. Use apenas ${AREAS_RESIDENCIAIS.join(', ')}.`
-      };
-    }
+    const areasConhecidas = extrairAreasConhecidas(segmentos);
 
-    const repetida = segmentos.find((area, indice) => segmentos.indexOf(area) !== indice);
+    const repetida = areasConhecidas.find((area, indice) => areasConhecidas.indexOf(area) !== indice);
     if (repetida) {
       return { valido: false, erro: `A área ${repetida} está repetida no mesmo grupo.` };
     }
@@ -30,7 +75,7 @@
     return {
       valido: true,
       area: segmentos.join('/'),
-      areas: segmentos
+      areas: areasConhecidas
     };
   }
 
@@ -41,12 +86,17 @@
 
     const divisao = {};
     const areasUtilizadas = new Set();
+    let gruposRegionais = 0;
 
     for (let indice = 0; indice < linhas.length; indice++) {
       const linha = linhas[indice] || {};
       const areaInformada = String(linha.area || '').trim().toUpperCase();
       const pessoa1 = String(linha.pessoa1 || '').trim();
       const pessoa2 = String(linha.pessoa2 || '').trim();
+
+      // Uma linha sem área não representa um bloco e não participa da divisão,
+      // mesmo que ainda haja uma pessoa selecionada no formulário.
+      if (!linha.fixa && !areaInformada) continue;
 
       if (!pessoa1 && !pessoa2) {
         return { valido: false, erro: `Selecione ao menos uma pessoa para ${areaInformada || `o grupo ${indice + 1}`}.` };
@@ -87,14 +137,11 @@
       divisao[resultadoArea.area] = pessoa1 && pessoa2
         ? `${pessoa1} / ${pessoa2}`
         : pessoa1 || pessoa2;
+      gruposRegionais++;
     }
 
-    const areasAusentes = AREAS_RESIDENCIAIS.filter(area => !areasUtilizadas.has(area));
-    if (areasAusentes.length > 0) {
-      return {
-        valido: false,
-        erro: `Inclua todas as áreas na divisão. Faltando: ${areasAusentes.join(', ')}.`
-      };
+    if (gruposRegionais === 0) {
+      return { valido: false, erro: 'A divisão precisa ter pelo menos um bloco de área preenchido.' };
     }
 
     return { valido: true, divisao };
