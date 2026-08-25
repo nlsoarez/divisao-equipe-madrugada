@@ -92,10 +92,10 @@ describe('edição manual de áreas residenciais', () => {
       { area: 'NE/BA', pessoa1: 'Raissa' },
       { area: 'MG/ES', pessoa1: 'Leonardo' },
       { area: 'RIO', pessoa1: 'Thiago', pessoa2: 'Alan' },
-      { area: 'SIR/APOIO', pessoa1: 'Maristella', fixa: true }
+      { area: 'SIR/APOIO', pessoa1: 'Marcelo Almeida', fixa: true }
     ]);
 
     expect(resultado.valido).toBe(true);
-    expect(resultado.divisao['SIR/APOIO']).toBe('Maristella');
+    expect(resultado.divisao['SIR/APOIO']).toBe('Marcelo Almeida');
   });
 });

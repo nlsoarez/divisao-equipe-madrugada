@@ -6577,7 +6577,7 @@ function processarDadosCarregados(dados) {
   if (anoSelect) anoSelect.value = anoSelecionado;
 
   // Recalcular divisões usando prioridades atuais do CONFIG
-  // Isso garante que as prioridades de RIO (Thiago/Alan), MG (Raissa) e NE/BA (Maristela) sejam aplicadas
+  // Isso garante que as prioridades de RIO (Thiago/Alan), MG (Raissa) e NE/BA (Marcelo) sejam aplicadas
   recalcularDivisoesOriginais();
 
   dadosProcessados = JSON.parse(JSON.stringify(dadosOriginais));
@@ -8154,7 +8154,7 @@ function normalizarDivisaoRIO(divisao) {
 
   Object.entries(divisao).forEach(([area, pessoa]) => {
     if (area === 'RIO' || area === 'RIO 2' || area === '_RIO_2') {
-      // Pode ter múltiplos responsáveis já concatenados (ex: "THIAGO / MARISTELLA")
+      // Pode ter múltiplos responsáveis já concatenados (ex: "THIAGO / MARCELO")
       if (pessoa) {
         const pessoas = pessoa.split(' / ').map(p => p.trim()).filter(p => p);
         rioResponsaveis.push(...pessoas);
