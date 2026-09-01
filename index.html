@@ -1199,7 +1199,8 @@
       font-weight: 600;
     }
 
-    .edit-divisao-form .form-select {
+    .edit-divisao-form .form-select,
+    .edit-divisao-form .person-manual-input {
       border-color: #ef9a9a;
       border-radius: var(--ds-border-radius-md, 6px);
       transition: var(--ds-transition-smooth, 0.25s ease);
@@ -1213,7 +1214,8 @@
     }
 
     .edit-divisao-form .form-select:focus,
-    .edit-divisao-form .area-manual-input:focus {
+    .edit-divisao-form .area-manual-input:focus,
+    .edit-divisao-form .person-manual-input:focus {
       border-color: #d32f2f;
       box-shadow: 0 0 0 3px rgba(211,47,47,0.12);
     }
@@ -2640,10 +2642,6 @@
       <i class="bi bi-cloud-arrow-up"></i>
     </button>
 
-    <button class="refresh-btn escalonamento-upload-admin" id="btnUploadEscalonamentoAdmin" onclick="document.getElementById('fileInputEscalonamento').click()" title="Upload do escalonamento" style="display: none;">
-      <i class="bi bi-telephone"></i>
-    </button>
-
     <!-- Botão Refresh -->
     <button class="refresh-btn" onclick="location.reload()" title="Recarregar página">
       <i class="bi bi-arrow-clockwise"></i>
@@ -2741,32 +2739,6 @@
 
   <!-- Alocacao de HUB embarcada (somente visualizadores; admin usa aba Alocação HUB) -->
   <div id="hubEmbedResidencial" class="mt-3"></div>
-
-  <!-- Admin: Painel de upload do escalonamento -->
-  <div class="config-accordion mt-3" id="escalonamentoPanelResidencial" style="display: none;">
-    <div class="config-header collapsed" data-bs-toggle="collapse" data-bs-target="#escalonamentoPanelBody">
-      <span><i class="bi bi-telephone me-2"></i>Gerenciar Escalonamento</span>
-      <i class="bi bi-chevron-down"></i>
-    </div>
-    <div id="escalonamentoPanelBody" class="collapse">
-      <div class="config-body">
-        <div class="d-flex gap-2 align-items-center flex-wrap">
-          <button class="btn btn-sm btn-outline-primary" onclick="document.getElementById('fileInputEscalonamento').click()">
-            <i class="bi bi-upload me-1"></i>Upload planilha de escalonamento
-          </button>
-          <input type="file" id="fileInputEscalonamento" accept=".xlsx,.xls" style="display: none;" onchange="uploadEscalonamento(this)">
-          <button class="btn btn-sm btn-outline-danger" id="btnLimparEscalonamento" onclick="limparEscalonamento()" style="display: none;">
-            <i class="bi bi-trash me-1"></i>Remover
-          </button>
-        </div>
-        <span class="text-muted small d-block mt-2" id="escalonamentoInfo">Nenhuma planilha carregada</span>
-        <small class="text-muted">Cada aba da planilha será exibida como uma sub-aba de região</small>
-      </div>
-    </div>
-  </div>
-
-  <!-- Escalonamento foi movido para fora de tabResidencial para aparecer
-       tambem em Empresarial (Rio/ES e Leste). Ver bloco apos tabLeste. -->
 
   </div><!-- Fim tabResidencial -->
 
@@ -2938,26 +2910,6 @@
   </div>
 
   </div><!-- Fim tabLeste -->
-
-  <!-- Escalonamento: visivel em Residencial, Empresarial Rio/ES e Empresarial Leste.
-       JS controla a exibicao via trocarAbaAdmin(). -->
-  <div id="escalonamentoSection" class="mt-3" style="display: none;">
-    <div id="escalonamentoHeader" onclick="toggleEscalonamento()" style="background: linear-gradient(135deg, #d32f2f 0%, #b71c1c 100%); color: white; padding: 0.75rem 1rem; border-radius: 8px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; user-select: none;">
-      <span><i class="bi bi-telephone me-2"></i>Escalonamento</span>
-      <i class="bi bi-chevron-down" id="escalonamentoChevron" style="transition: transform 0.2s;"></i>
-    </div>
-    <div id="escalonamentoBody" style="display: none;">
-      <div style="background: #ffebee; padding: 0.5rem 0.75rem; border-left: 1px solid #ffebee; border-right: 1px solid #ffebee; overflow-x: auto;">
-        <div id="escalonamentoTabs" style="display: flex; gap: 0.25rem; flex-wrap: wrap;"></div>
-      </div>
-      <div id="escalonamentoContent" style="padding: 1rem; background: white; border-radius: 0 0 8px 8px; border: 1px solid #ffebee; border-top: none; max-height: 70vh; overflow-y: auto;">
-        <div class="text-center text-muted py-4">
-          <i class="bi bi-hand-index" style="font-size: 2rem;"></i>
-          <p class="mt-2">Selecione uma região acima</p>
-        </div>
-      </div>
-    </div>
-  </div>
 
   <!-- Conteúdo da Aba WhatsApp -->
   <div class="admin-tab-content" id="tabTelegram">
@@ -3393,9 +3345,6 @@
     <div class="action-buttons">
       <button class="btn-compact btn-warning-compact" onclick="mostrarPainelTrocas()">
         <i class="bi bi-arrow-left-right"></i> Ver trocas
-      </button>
-      <button class="btn-compact btn-danger-compact" id="btnExportarPDF">
-        <i class="bi bi-filetype-pdf"></i> Exportar PDF
       </button>
     </div>
 
@@ -4688,8 +4637,12 @@ function editarDivisaoAreasEmpresarial(subEscala, dia) {
 
   // Usar áreas do config ou da divisão existente
   const areasParaEditar = areasConfig.length > 0 ? areasConfig : Object.keys(dadosDia.divisao || {});
+  const listaPessoasId = `pessoas-empresarial-${subEscala}-${dia}`;
 
-  let formHtml = `<form id="formEditarDivisaoEmpresarial" class="edit-divisao-form" data-subescala="${subEscala}" data-dia="${dia}">`;
+  let formHtml = `<form id="formEditarDivisaoEmpresarial" class="edit-divisao-form" data-subescala="${subEscala}" data-dia="${dia}">
+    <datalist id="${listaPessoasId}">
+      ${funcionariosDisponiveis.map(func => `<option value="${escapeHtml(func)}"></option>`).join('')}
+    </datalist>`;
 
   areasParaEditar.forEach(area => {
     const pessoaAtual = dadosDia.divisao?.[area] || '';
@@ -4703,30 +4656,8 @@ function editarDivisaoAreasEmpresarial(subEscala, dia) {
       <div class="area-edit-item mb-3">
         <label class="form-label fw-bold mb-1">${area}</label>
         <div class="d-flex gap-2 align-items-center">
-          <select class="form-select form-select-sm" name="area1-${areaId}" data-area="${area}" data-position="1" style="flex: 1;">
-            <option value="">-- Pessoa 1 --</option>
-    `;
-
-    funcionariosDisponiveis.forEach(func => {
-      const primeiroNome = obterPrimeiroNome(func);
-      const selected = func === pessoa1 || primeiroNome === pessoa1 ? 'selected' : '';
-      formHtml += `<option value="${func}" ${selected}>${primeiroNome}</option>`;
-    });
-
-    formHtml += `
-          </select>
-          <select class="form-select form-select-sm" name="area2-${areaId}" data-area="${area}" data-position="2" style="flex: 1;">
-            <option value="">-- Pessoa 2 (opcional) --</option>
-    `;
-
-    funcionariosDisponiveis.forEach(func => {
-      const primeiroNome = obterPrimeiroNome(func);
-      const selected = func === pessoa2 || primeiroNome === pessoa2 ? 'selected' : '';
-      formHtml += `<option value="${func}" ${selected}>${primeiroNome}</option>`;
-    });
-
-    formHtml += `
-          </select>
+          <input type="text" class="form-control form-control-sm person-manual-input" name="area1-${areaId}" data-area="${escapeHtml(area)}" data-position="1" list="${listaPessoasId}" value="${escapeHtml(pessoa1)}" placeholder="Pessoa 1" autocomplete="off" style="flex: 1;">
+          <input type="text" class="form-control form-control-sm person-manual-input" name="area2-${areaId}" data-area="${escapeHtml(area)}" data-position="2" list="${listaPessoasId}" value="${escapeHtml(pessoa2)}" placeholder="Pessoa 2 (opcional)" autocomplete="off" style="flex: 1;">
         </div>
       </div>
     `;
@@ -4766,19 +4697,19 @@ function salvarDivisaoAreasEmpresarial(subEscala, dia) {
     return;
   }
 
-  const selects = form.querySelectorAll('select');
-  console.log('📋 Selects encontrados:', selects.length);
+  const camposPessoa = form.querySelectorAll('[data-area][data-position]');
+  console.log('📋 Campos de pessoa encontrados:', camposPessoa.length);
 
   const novaDivisao = {};
   const pessoasPorArea = {};
 
   // Agrupar pessoas por área
-  selects.forEach(select => {
-    const area = select.dataset.area;
-    const pessoa = select.value;
-    const position = select.dataset.position;
+  camposPessoa.forEach(campo => {
+    const area = campo.dataset.area;
+    const pessoa = campo.value.trim();
+    const position = campo.dataset.position;
 
-    console.log(`  Select: area=${area}, position=${position}, value=${pessoa}`);
+    console.log(`  Campo: area=${area}, position=${position}, value=${pessoa}`);
 
     if (area) {
       if (!pessoasPorArea[area]) {
@@ -6664,12 +6595,6 @@ document.addEventListener('DOMContentLoaded', function() {
   if (mesSelect) mesSelect.value = mesSelecionado;
   if (anoSelect) anoSelect.value = anoSelecionado;
   
-  // Adicionar listener para o botão de PDF
-  const btnPDF = document.getElementById('btnExportarPDF');
-  if (btnPDF) {
-    btnPDF.addEventListener('click', gerarPDF);
-  }
-  
   // Função toggleModoTroca foi removida daqui para ser definida globalmente
   
   // Configurar botão de upload admin - abre o painel de calendários
@@ -6872,19 +6797,13 @@ function iniciarComoAdmin() {
   // Mostrar painel de gerenciamento baseado no calendário ativo
   const calendarioPanelResidencial = document.getElementById('calendarioPanelResidencial');
   const calendarioPanelEmpresarial = document.getElementById('calendarioPanelEmpresarial');
-  const escalonamentoPanelResidencial = document.getElementById('escalonamentoPanelResidencial');
-  const btnUploadEscalonamentoAdmin = document.getElementById('btnUploadEscalonamentoAdmin');
 
   if (calendarioAtivo === 'calendario1') {
     if (calendarioPanelResidencial) calendarioPanelResidencial.style.display = 'block';
     if (calendarioPanelEmpresarial) calendarioPanelEmpresarial.style.display = 'none';
-    if (escalonamentoPanelResidencial) escalonamentoPanelResidencial.style.display = 'block';
-    if (btnUploadEscalonamentoAdmin) btnUploadEscalonamentoAdmin.style.display = 'inline-flex';
   } else {
     if (calendarioPanelResidencial) calendarioPanelResidencial.style.display = 'none';
     if (calendarioPanelEmpresarial) calendarioPanelEmpresarial.style.display = 'block';
-    if (escalonamentoPanelResidencial) escalonamentoPanelResidencial.style.display = 'none';
-    if (btnUploadEscalonamentoAdmin) btnUploadEscalonamentoAdmin.style.display = 'none';
   }
 
   showToast('👑 Modo administrador ativado', 'warning');
@@ -6960,10 +6879,8 @@ function iniciarComoVisualizador() {
   // Esconder painéis de gerenciamento (somente admin)
   const calendarioPanelResidencial = document.getElementById('calendarioPanelResidencial');
   const calendarioPanelEmpresarial = document.getElementById('calendarioPanelEmpresarial');
-  const escalonamentoPanelResidencial = document.getElementById('escalonamentoPanelResidencial');
   if (calendarioPanelResidencial) calendarioPanelResidencial.style.display = 'none';
   if (calendarioPanelEmpresarial) calendarioPanelEmpresarial.style.display = 'none';
-  if (escalonamentoPanelResidencial) escalonamentoPanelResidencial.style.display = 'none';
 
   showToast('👁️ Modo visualização ativado', 'info');
 }
@@ -8818,8 +8735,9 @@ function editarDivisaoAreas(dia) {
   const areaGrid = document.getElementById(`areaGrid-${dia}`);
   if (!areaGrid) return;
 
-  // Lista de funcionários que estão trabalhando no dia
+  // A lista serve apenas como sugestão. O campo aceita qualquer nome, inclusive folguistas.
   const funcionariosDisponiveis = dadosDia.trabalhando || [];
+  const listaPessoasId = `pessoas-residencial-${dia}`;
 
   // Criar HTML do formulário de edição
   let formHtml = `
@@ -8829,7 +8747,10 @@ function editarDivisaoAreas(dia) {
         Digite livremente o nome do bloco. Para somar a volumetria, mantenha as siglas
         <strong>CO, NO, NE, BA, ES, RIO e MG</strong> separadas por <strong>/</strong>.
         Deixe a área em branco para desconsiderar essa linha e reduzir a quantidade de blocos.
-      </div>`;
+      </div>
+      <datalist id="${listaPessoasId}">
+        ${funcionariosDisponiveis.map(func => `<option value="${escapeHtml(func)}"></option>`).join('')}
+      </datalist>`;
 
   Object.entries(dadosDia.divisao).forEach(([area, pessoaAtual], indice) => {
     // Verificar se já tem 2 pessoas (formato "Pessoa1 / Pessoa2")
@@ -8846,30 +8767,8 @@ function editarDivisaoAreas(dia) {
           : `<input type="text" class="form-control form-control-sm area-manual-input mb-2" id="area-manual-${dia}-${indice}" data-role="area" value="${escapeHtml(area)}" placeholder="Ex.: BA/CO ou APOIO BACKBONE" maxlength="80" autocomplete="off" spellcheck="false">`
         }
         <div class="d-flex gap-2 align-items-center">
-          <select class="form-select form-select-sm" data-role="pessoa1" style="flex: 1;">
-            <option value="">-- Pessoa 1 --</option>
-    `;
-
-    funcionariosDisponiveis.forEach(func => {
-      const primeiroNome = obterPrimeiroNome(func);
-      const selected = func === pessoa1 || primeiroNome === pessoa1 ? 'selected' : '';
-      formHtml += `<option value="${func}" ${selected}>${primeiroNome}</option>`;
-    });
-
-    formHtml += `
-          </select>
-          <select class="form-select form-select-sm" data-role="pessoa2" style="flex: 1;">
-            <option value="">-- Pessoa 2 (opcional) --</option>
-    `;
-
-    funcionariosDisponiveis.forEach(func => {
-      const primeiroNome = obterPrimeiroNome(func);
-      const selected = func === pessoa2 || primeiroNome === pessoa2 ? 'selected' : '';
-      formHtml += `<option value="${func}" ${selected}>${primeiroNome}</option>`;
-    });
-
-    formHtml += `
-          </select>
+          <input type="text" class="form-control form-control-sm person-manual-input" data-role="pessoa1" list="${listaPessoasId}" value="${escapeHtml(pessoa1)}" placeholder="Pessoa 1" autocomplete="off" style="flex: 1;">
+          <input type="text" class="form-control form-control-sm person-manual-input" data-role="pessoa2" list="${listaPessoasId}" value="${escapeHtml(pessoa2)}" placeholder="Pessoa 2 (opcional)" autocomplete="off" style="flex: 1;">
         </div>
       </div>
     `;
@@ -9754,12 +9653,7 @@ function trocarAbaAdmin(abaId) {
   const tabBtn = document.querySelector(`[data-admin-tab="${abaId}"]`);
   if (tabBtn) tabBtn.classList.add('active');
 
-  // Registrar a aba ativa para que componentes externos (ex: secao Escalonamento)
-  // possam decidir sua visibilidade.
   localStorage.setItem('escala_aba_ativa', abaId);
-  if (typeof atualizarVisibilidadeEscalonamento === 'function') {
-    atualizarVisibilidadeEscalonamento();
-  }
 
   // Obter elementos das abas
   const tabResidencial = document.getElementById('tabResidencial');
@@ -9773,20 +9667,6 @@ function trocarAbaAdmin(abaId) {
   const calendarioPanelRioEs = document.getElementById('calendarioPanelRioEs');
   const calendarioPanelLeste = document.getElementById('calendarioPanelLeste');
   const telegramPanel = document.getElementById('telegramPanel');
-  const escalonamentoSection = document.getElementById('escalonamentoSection');
-  const btnUploadEscalonamentoAdmin = document.getElementById('btnUploadEscalonamentoAdmin');
-
-  if (btnUploadEscalonamentoAdmin) {
-    btnUploadEscalonamentoAdmin.style.display = isAdmin && abaId === 'residencial' ? 'inline-flex' : 'none';
-  }
-
-  if (escalonamentoSection && abaId === 'residencial' && tabResidencial && tabRioEs) {
-    tabResidencial.parentNode.insertBefore(escalonamentoSection, tabRioEs);
-  } else if (escalonamentoSection && abaId === 'rio_es' && tabRioEs && calendarSectionRioEs) {
-    tabRioEs.insertBefore(escalonamentoSection, calendarSectionRioEs);
-  } else if (escalonamentoSection && abaId === 'leste' && tabLeste && calendarSectionLeste) {
-    tabLeste.insertBefore(escalonamentoSection, calendarSectionLeste);
-  }
 
   // Parar auto-refresh quando sair da aba Telegram
   if (abaId !== 'telegram') {
