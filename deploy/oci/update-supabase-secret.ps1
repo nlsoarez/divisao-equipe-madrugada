@@ -2,7 +2,8 @@
 param(
     [string]$HostIp = '163.176.155.119',
     [string]$RemoteUser = 'ubuntu',
-    [string]$KeyFile = 'C:\Users\nlsoa\.ssh\dashboard-oci-20260808'
+    [string]$KeyFile = 'C:\Users\nlsoa\.ssh\dashboard-oci-20260808',
+    [string]$SupabaseUrl = 'https://otmozorvzkjjiynwyqqf.supabase.co'
 )
 
 $ErrorActionPreference = 'Stop'
@@ -35,10 +36,14 @@ if (-not (Test-Path -LiteralPath $remoteScript)) {
 if (-not (Test-Path -LiteralPath $KeyFile)) {
     throw "Chave SSH nao encontrada: $KeyFile"
 }
+if ($SupabaseUrl -notmatch '^https://[a-z0-9]+\.supabase\.co/?$') {
+    throw "URL do Supabase invalida: $SupabaseUrl"
+}
+$SupabaseUrl = $SupabaseUrl.TrimEnd('/')
 
 Write-Host ''
-Write-Host 'Correcao segura da Secret key do Supabase' -ForegroundColor Cyan
-Write-Host 'Projeto correto: divisao-equipe-madrugada (aaxdcpftynjphzitigrv)' -ForegroundColor DarkGray
+Write-Host 'Atualizacao segura do projeto Supabase' -ForegroundColor Cyan
+Write-Host "Novo projeto: $SupabaseUrl" -ForegroundColor DarkGray
 Write-Host ''
 
 do {
@@ -72,6 +77,7 @@ $processInfo.RedirectStandardInput = $true
 Write-Host 'Atualizando a VM e validando /api/escala...' -ForegroundColor Cyan
 $process = [Diagnostics.Process]::Start($processInfo)
 $process.StandardInput.NewLine = "`n"
+$process.StandardInput.WriteLine($SupabaseUrl)
 $process.StandardInput.WriteLine($secretPlain)
 $process.StandardInput.Close()
 
@@ -84,4 +90,4 @@ if ($process.ExitCode -ne 0) {
 }
 
 Write-Host ''
-Write-Host 'Supabase validado: leitura da escala confirmada pela API em producao.' -ForegroundColor Green
+Write-Host 'Supabase migrado: URL, chave e leitura da escala confirmadas em producao.' -ForegroundColor Green

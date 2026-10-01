@@ -11,12 +11,19 @@ ENV_BACKUP="$(mktemp)"
 
 cleanup() {
   rm -f "$ENV_TEMP" "$ENV_BACKUP" /tmp/update-divisao-supabase-secret.sh
+  unset SUPABASE_URL
   unset SUPABASE_SECRET_KEY
 }
 trap cleanup EXIT
 
+IFS= read -r SUPABASE_URL
 IFS= read -r SUPABASE_SECRET_KEY
+SUPABASE_URL="$(printf '%s' "$SUPABASE_URL" | tr -d '[:space:]')"
 SUPABASE_SECRET_KEY="$(printf '%s' "$SUPABASE_SECRET_KEY" | tr -d '[:space:]')"
+if [[ ! "$SUPABASE_URL" =~ ^https://[a-z0-9]+\.supabase\.co$ ]]; then
+  echo "ERRO: URL do Supabase invalida." >&2
+  exit 2
+fi
 if [[ "$SUPABASE_SECRET_KEY" != sb_secret_* ]]; then
   echo "ERRO: a chave precisa ser uma Supabase Secret key (sb_secret_...)." >&2
   exit 2
@@ -34,9 +41,14 @@ if [[ -z "$IMAGE_TAG" ]]; then
 fi
 
 cp -a "$APP_ENV_FILE" "$ENV_BACKUP"
+URL_REPLACED=false
 SECRET_REPLACED=false
 while IFS= read -r line || [[ -n "$line" ]]; do
   case "$line" in
+    SUPABASE_URL=*)
+      printf 'SUPABASE_URL=%s\n' "$SUPABASE_URL" >> "$ENV_TEMP"
+      URL_REPLACED=true
+      ;;
     SUPABASE_SECRET_KEY=*)
       printf 'SUPABASE_SECRET_KEY=%s\n' "$SUPABASE_SECRET_KEY" >> "$ENV_TEMP"
       SECRET_REPLACED=true
@@ -47,9 +59,13 @@ while IFS= read -r line || [[ -n "$line" ]]; do
   esac
 done < "$APP_ENV_FILE"
 
+if [[ "$URL_REPLACED" != "true" ]]; then
+  printf 'SUPABASE_URL=%s\n' "$SUPABASE_URL" >> "$ENV_TEMP"
+fi
 if [[ "$SECRET_REPLACED" != "true" ]]; then
   printf 'SUPABASE_SECRET_KEY=%s\n' "$SUPABASE_SECRET_KEY" >> "$ENV_TEMP"
 fi
+unset SUPABASE_URL
 unset SUPABASE_SECRET_KEY
 
 cp "$ENV_TEMP" "$APP_ENV_FILE"
@@ -103,4 +119,4 @@ if ! docker exec "$APP_CONTAINER" wget -qO- http://127.0.0.1:3001/api/escala | g
   exit 5
 fi
 
-echo "SUPABASE_SECRET_OK container=${APP_CONTAINER} api_escala=ok"
+echo "SUPABASE_MIGRATION_OK container=${APP_CONTAINER} api_escala=ok"
