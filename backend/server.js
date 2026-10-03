@@ -37,6 +37,12 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization'],
   credentials: true
 }));
+// A escala mensal processada no navegador pode ultrapassar o limite padrao
+// de 100 KB do body-parser. Aumente somente esta rota administrativa e
+// mantenha o limite global reduzido para os demais endpoints/webhooks.
+app.use('/api/escala', express.json({
+  limit: process.env.ESCALA_BODY_LIMIT || '2mb'
+}));
 app.use(express.json());
 
 // Logging middleware
