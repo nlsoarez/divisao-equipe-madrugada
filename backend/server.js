@@ -1709,9 +1709,17 @@ const publicDir = process.env.PUBLIC_DIR;
 if (publicDir && fs.existsSync(publicDir)) {
   app.use(express.static(publicDir, {
     etag: true,
-    maxAge: process.env.NODE_ENV === 'production' ? '10m' : 0
+    maxAge: process.env.NODE_ENV === 'production' ? '10m' : 0,
+    setHeaders: (res, filePath) => {
+      // O HTML referencia versões dos assets. Revalidá-lo impede que um
+      // deploy deixe usuários presos ao JavaScript antigo por dez minutos.
+      if (path.extname(filePath).toLowerCase() === '.html') {
+        res.setHeader('Cache-Control', 'no-cache');
+      }
+    }
   }));
   app.get(['/admin', '/admin/'], (req, res) => {
+    res.setHeader('Cache-Control', 'no-cache');
     res.sendFile(path.join(publicDir, 'index.html'));
   });
   console.log(`[Static] Frontend servido de ${publicDir}`);
