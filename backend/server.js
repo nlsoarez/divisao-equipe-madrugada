@@ -462,8 +462,12 @@ app.put('/api/escala', async (req, res) => {
       return res.status(400).json({ sucesso: false, erro: 'dados é obrigatório' });
     }
 
-    const metadata = await supabase.rpc('replace_schedule_document', { p_document: dados });
-    salvarEscalaEmCache(dados);
+    // Liderança possui endpoint atômico próprio. Ignorar esse campo aqui evita
+    // que uma aba administrativa antiga apague ou restaure uma escala obsoleta.
+    const { lideranca: _liderancaIgnorada, ...documentoSemLideranca } = dados;
+    const metadata = await supabase.rpc('replace_schedule_document', { p_document: documentoSemLideranca });
+    const documentoPublicado = await supabase.rpc('get_schedule_document');
+    salvarEscalaEmCache(documentoPublicado);
     res.json({
       sucesso: true,
       binId: 'supabase',
@@ -473,13 +477,60 @@ app.put('/api/escala', async (req, res) => {
   } catch (error) {
     console.error('[API Escala] Erro ao salvar:', error.message);
     if (req.body?.dados && typeof req.body.dados === 'object') {
-      salvarEscalaEmCache(req.body.dados);
+      const cacheAtual = carregarEscalaDoCache();
+      const { lideranca: _liderancaIgnorada, ...documentoSemLideranca } = req.body.dados;
+      salvarEscalaEmCache({
+        ...documentoSemLideranca,
+        ...(cacheAtual?.dados?.lideranca ? { lideranca: cacheAtual.dados.lideranca } : {})
+      });
     }
     res.status(error.status || 503).json({
       sucesso: false,
       persistido: false,
       origem: 'backend-cache',
       aviso: 'Supabase indisponível; uma cópia de emergência ficou somente no backend OCI',
+      erro: error.message,
+      detalhes: error.details || null
+    });
+  }
+});
+
+app.put('/api/escala/lideranca', async (req, res) => {
+  try {
+    const lideranca = req.body?.lideranca;
+    if (!lideranca || typeof lideranca !== 'object' || !lideranca.dias || typeof lideranca.dias !== 'object') {
+      return res.status(400).json({ sucesso: false, erro: 'lideranca.dias é obrigatório' });
+    }
+
+    const totalDias = Object.keys(lideranca.dias).length;
+    if (totalDias === 0) {
+      return res.status(400).json({ sucesso: false, erro: 'A escala de líderes está vazia' });
+    }
+
+    const metadata = await supabase.rpc('set_schedule_leadership', { p_leadership: lideranca });
+    const documentoPublicado = await supabase.rpc('get_schedule_document');
+    const liderancaPublicada = documentoPublicado?.lideranca;
+    const totalDiasPublicados = Object.keys(liderancaPublicada?.dias || {}).length;
+    const marcadorEnviado = lideranca.fonte?.dataUpload || null;
+    const marcadorPublicado = liderancaPublicada?.fonte?.dataUpload || null;
+
+    if (totalDiasPublicados !== totalDias || (marcadorEnviado && marcadorPublicado !== marcadorEnviado)) {
+      throw new Error(`Confirmação da liderança falhou: enviados ${totalDias}, publicados ${totalDiasPublicados}`);
+    }
+
+    salvarEscalaEmCache(documentoPublicado);
+    res.json({
+      sucesso: true,
+      persistido: true,
+      origem: 'supabase',
+      metadata,
+      lideranca: liderancaPublicada
+    });
+  } catch (error) {
+    console.error('[API Escala Liderança] Erro ao salvar:', error.message);
+    res.status(error.status || 503).json({
+      sucesso: false,
+      persistido: false,
       erro: error.message,
       detalhes: error.details || null
     });

@@ -3873,6 +3873,32 @@ function converterLinhasPlanilhaEmObjetos(linhas) {
   }).filter(objeto => String(objeto[cabecalhos[0]] || '').trim());
 }
 
+async function publicarEscalaLideranca(lideranca) {
+  const response = await fetch(`${ESCALA_BACKEND_URL}/api/escala/lideranca`, {
+    method: 'PUT',
+    credentials: 'same-origin',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ lideranca })
+  });
+  const resultado = await response.json().catch(() => null);
+
+  if (response.status === 401) {
+    throw new Error('Sua sessão administrativa expirou. Entre novamente como administrador e repita o upload.');
+  }
+  if (!response.ok || !resultado?.sucesso || !resultado?.persistido) {
+    throw new Error(resultado?.erro || `Falha ao publicar a liderança (HTTP ${response.status})`);
+  }
+
+  const enviados = Object.keys(lideranca?.dias || {}).length;
+  const confirmados = Object.keys(resultado.lideranca?.dias || {}).length;
+  const marcadorEnviado = lideranca?.fonte?.dataUpload || null;
+  const marcadorConfirmado = resultado.lideranca?.fonte?.dataUpload || null;
+  if (enviados !== confirmados || (marcadorEnviado && marcadorConfirmado !== marcadorEnviado)) {
+    throw new Error(`A confirmação remota divergiu: ${enviados} dias enviados e ${confirmados} confirmados`);
+  }
+  return resultado;
+}
+
 function uploadEscalaLideranca(inputElement) {
   if (!isAdmin) return;
   const file = inputElement.files?.[0];
@@ -3918,17 +3944,14 @@ function uploadEscalaLideranca(inputElement) {
       carregarCalendarioEmpresarialGrid('rio_es');
       carregarCalendarioEmpresarialGrid('leste');
 
-      const resultado = await salvarConfiguracaoCalendarios();
-      if (!resultado?.sucesso || !resultado?.salvouRemoto) {
-        liderancaEscala = liderancaAnterior;
-        atualizarStatusUploadLideranca();
-        atualizarCalendario();
-        carregarCalendarioEmpresarialGrid('rio_es');
-        carregarCalendarioEmpresarialGrid('leste');
-        throw new Error('A planilha foi processada, mas não foi publicada no Supabase');
-      }
+      await publicarEscalaLideranca(normalizarLiderancaDocumento(liderancaEscala));
       showToast(`Escala de líderes ${MESES[mes]}/${ano} publicada para todos.`, 'success');
     } catch (erro) {
+      liderancaEscala = liderancaAnterior;
+      atualizarStatusUploadLideranca();
+      atualizarCalendario();
+      carregarCalendarioEmpresarialGrid('rio_es');
+      carregarCalendarioEmpresarialGrid('leste');
       console.error('Erro ao importar escala de líderes:', erro);
       alert(erro.message);
       showToast('Erro no upload da escala de líderes.', 'danger');
@@ -6425,7 +6448,6 @@ async function salvarConfiguracaoCalendarios(tentativa = 1) {
     calendarioAtivo: calendarioAtivo,
     calendario1: calendariosParaSalvar.calendario1,
     calendario2: calendariosParaSalvar.calendario2,
-    lideranca: normalizarLiderancaDocumento(liderancaEscala),
     escalonamento: Object.keys(escalonamentoDados).length > 0 ? escalonamentoDados : null,
     ultima_atualizacao: new Date().toISOString()
   };
