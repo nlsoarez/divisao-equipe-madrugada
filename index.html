@@ -756,13 +756,25 @@
     }
 
     .lideranca-resumo {
+      grid-column: 1 / -1;
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 0.25rem;
       background: #ecfdf5;
       border: 1px solid #bbf7d0;
-      border-left: 4px solid #15803d;
+      border-left: 3px solid #15803d;
       border-radius: 8px;
-      padding: 0.7rem 0.85rem;
-      margin-bottom: 1rem;
+      padding: 0.5rem 0.75rem;
+      margin: 0;
       color: #14532d;
+      font-size: 0.8rem;
+      line-height: 1.25;
+    }
+
+    .lideranca-resumo .badge {
+      font-size: 0.68rem;
+      margin-left: 0.35rem !important;
     }
 
     /* Animação de pulse do design system */
@@ -988,13 +1000,18 @@
     /* Conteúdo do Modal */
     .day-content {
       display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 1.5rem;
+      grid-template-columns: minmax(0, 1.15fr) minmax(260px, 0.85fr);
+      gap: 1rem;
     }
     
     @media (max-width: 768px) {
       .day-content {
         grid-template-columns: 1fr;
+        gap: 0.85rem;
+      }
+
+      .lideranca-resumo {
+        grid-column: auto;
       }
 
       .calendar-day {
