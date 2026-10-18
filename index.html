@@ -740,6 +740,54 @@
       box-shadow: 0 1px 3px rgba(245,158,11,0.15);
     }
 
+    .calendar-day-leader {
+      font-size: 0.68rem;
+      color: #1f5f46;
+      background: #ecfdf5;
+      border: 1px solid #bbf7d0;
+      border-radius: 10px;
+      padding: 0.18rem 0.4rem;
+      margin-top: 0.25rem;
+      font-weight: 700;
+      line-height: 1.2;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .lideranca-resumo {
+      background: #ecfdf5;
+      border: 1px solid #bbf7d0;
+      border-left: 4px solid #15803d;
+      border-radius: 8px;
+      padding: 0.7rem 0.85rem;
+      margin-bottom: 1rem;
+      color: #14532d;
+    }
+
+    .lideranca-editor-table {
+      min-width: 920px;
+      font-size: 0.78rem;
+    }
+
+    .lideranca-editor-table th {
+      white-space: nowrap;
+      position: sticky;
+      top: 0;
+      z-index: 1;
+      background: #f8f9fa;
+    }
+
+    .lideranca-folgas {
+      display: flex;
+      gap: 0.45rem;
+      flex-wrap: wrap;
+    }
+
+    .lideranca-folgas label {
+      white-space: nowrap;
+    }
+
     /* Animação de pulse do design system */
     @keyframes ds-pulse {
       0%, 100% {
@@ -2740,6 +2788,9 @@
         <button class="btn btn-success btn-sm mt-2" onclick="salvarConfiguracaoCalendarios()">
           <i class="bi bi-cloud-arrow-up me-1"></i>Salvar e publicar
         </button>
+        <button class="btn btn-outline-success btn-sm mt-2 ms-1" onclick="abrirEditorLideranca('residencial')">
+          <i class="bi bi-person-badge me-1"></i>Escala de líderes
+        </button>
       </div>
     </div>
   </div>
@@ -2804,6 +2855,9 @@
 
         <button class="btn btn-success btn-sm mt-3" onclick="salvarConfiguracaoCalendarios()">
           <i class="bi bi-cloud-arrow-up me-1"></i>Salvar e publicar
+        </button>
+        <button class="btn btn-outline-success btn-sm mt-3 ms-1" onclick="abrirEditorLideranca('rio_es')">
+          <i class="bi bi-person-badge me-1"></i>Escala de líderes
         </button>
       </div>
     </div>
@@ -2890,6 +2944,9 @@
 
         <button class="btn btn-success btn-sm mt-3" onclick="salvarConfiguracaoCalendarios()">
           <i class="bi bi-cloud-arrow-up me-1"></i>Salvar e publicar
+        </button>
+        <button class="btn btn-outline-success btn-sm mt-3 ms-1" onclick="abrirEditorLideranca('leste')">
+          <i class="bi bi-person-badge me-1"></i>Escala de líderes
         </button>
       </div>
     </div>
@@ -3432,6 +3489,51 @@
   </div>
 </div>
 
+<!-- Modal para montar e publicar a escala de liderança técnica -->
+<div class="modal fade" id="liderancaModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-xl modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header text-white" style="background: linear-gradient(135deg, #166534 0%, #14532d 100%);">
+        <h5 class="modal-title"><i class="bi bi-person-badge me-2"></i>Escala de liderança técnica</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="alert alert-light border small mb-3">
+          <strong>Dias úteis:</strong> Leste — Bruno; RJ/ES — Leandro; Residencial — Kelly / Marley.
+          Se Bruno ou Leandro folgar, o outro assume todo o Empresarial. Se ambos folgarem, Marley assume o Empresarial e Kelly o Residencial.
+          <strong>Fins de semana e feriados:</strong> selecione um único líder geral.
+        </div>
+        <div class="d-flex justify-content-between align-items-center mb-2 flex-wrap gap-2">
+          <h6 class="mb-0" id="liderancaMesTitulo"></h6>
+          <small class="text-muted">Marque as folgas dos líderes e os feriados.</small>
+        </div>
+        <div class="table-responsive" style="max-height: 62vh;">
+          <table class="table table-sm table-hover align-middle lideranca-editor-table">
+            <thead>
+              <tr>
+                <th>Dia</th>
+                <th>Feriado</th>
+                <th>Folgas</th>
+                <th>Líder geral</th>
+                <th>Residencial</th>
+                <th>RJ/ES</th>
+                <th>Leste</th>
+              </tr>
+            </thead>
+            <tbody id="liderancaEditorBody"></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-success btn-sm" id="btnSalvarLideranca" onclick="salvarEscalaLideranca()">
+          <i class="bi bi-cloud-arrow-up me-1"></i>Salvar e publicar
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- Modal para Confirmar Troca -->
 <div class="modal fade" id="swapModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog">
@@ -3686,6 +3788,7 @@
 <script src="js/matriz-api.js"></script>
 <script src="js/backup-recovery.js"></script>
 <script src="js/escala-api.js?v=backend-oci-2"></script>
+<script src="js/lideranca.js?v=1"></script>
 <script>
 // ============================================
 // VARIÁVEIS GLOBAIS E ALIASES
@@ -3752,6 +3855,184 @@ let calendarioAtivo = 'calendario1';  // Qual calendário está sendo visualizad
 // Dados do escalonamento (planilha de contatos por região)
 let escalonamentoDados = {};  // { sheetName: [ {nivel, subtitulo, headers, dados} ] }
 let escalonamentoAbaAtiva = '';
+
+// Escala de liderança técnica. Os registros guardam apenas feriados, folgas
+// e o líder geral; os responsáveis por área são derivados das regras oficiais.
+let liderancaEscala = { versao: '1.0', dias: {} };
+let liderancaEditor = { ano: null, mes: null, dias: {} };
+
+function normalizarLiderancaDocumento(valor) {
+  const origem = valor && typeof valor === 'object' ? valor : {};
+  const diasOrigem = origem.dias && typeof origem.dias === 'object' ? origem.dias : {};
+  const dias = {};
+  Object.entries(diasOrigem).forEach(([chave, registro]) => {
+    dias[chave] = LiderancaEscala.normalizarRegistro(registro);
+  });
+  return { versao: '1.0', dias };
+}
+
+function obterReferenciaCalendarioLideranca(areaPreferida) {
+  const referencias = {
+    residencial: calendarios.calendario1,
+    rio_es: calendarios.calendario2?.rio_es,
+    leste: calendarios.calendario2?.leste
+  };
+  const preferida = referencias[areaPreferida];
+  if (preferida && Number.isInteger(preferida.mes) && preferida.ano) return preferida;
+
+  return Object.values(referencias).find(ref => ref && Number.isInteger(ref.mes) && ref.ano) || {
+    mes: mesSelecionado,
+    ano: anoSelecionado
+  };
+}
+
+function obterChaveLideranca(ano, mes, dia) {
+  return LiderancaEscala.chaveData(ano, mes, dia);
+}
+
+function obterLiderDia(area, ano, mes, dia) {
+  const chave = obterChaveLideranca(ano, mes, dia);
+  return LiderancaEscala.liderDaArea(chave, area, liderancaEscala.dias[chave]);
+}
+
+function obterResumoLiderDia(area, ano, mes, dia) {
+  const chave = obterChaveLideranca(ano, mes, dia);
+  const registro = liderancaEscala.dias[chave];
+  const resolvido = LiderancaEscala.resolverDia(chave, registro);
+  return {
+    chave,
+    nome: resolvido[area] || 'A definir',
+    tipo: resolvido.tipo,
+    feriado: registro?.feriado === true
+  };
+}
+
+function opcoesLiderGeral(selecionado) {
+  const nomes = ['Bruno', 'Leandro', 'Kelly', 'Marley'];
+  return `<option value="">-- Escolha --</option>${nomes.map(nome =>
+    `<option value="${nome}" ${selecionado === nome ? 'selected' : ''}>${nome}</option>`
+  ).join('')}`;
+}
+
+function abrirEditorLideranca(areaPreferida) {
+  if (!isAdmin) return;
+  const referencia = obterReferenciaCalendarioLideranca(areaPreferida);
+  const ano = Number(referencia.ano);
+  const mes = Number(referencia.mes);
+  const diasNoMes = new Date(ano, mes + 1, 0).getDate();
+
+  liderancaEditor = { ano, mes, dias: {} };
+  for (let dia = 1; dia <= diasNoMes; dia++) {
+    const chave = obterChaveLideranca(ano, mes, dia);
+    liderancaEditor.dias[chave] = LiderancaEscala.normalizarRegistro(liderancaEscala.dias[chave]);
+  }
+
+  const titulo = document.getElementById('liderancaMesTitulo');
+  if (titulo) titulo.textContent = `${MESES[mes]} de ${ano}`;
+  renderEditorLideranca();
+  bootstrap.Modal.getOrCreateInstance(document.getElementById('liderancaModal')).show();
+}
+
+function renderEditorLideranca() {
+  const corpo = document.getElementById('liderancaEditorBody');
+  if (!corpo || liderancaEditor.ano === null) return;
+
+  const { ano, mes } = liderancaEditor;
+  const diasNoMes = new Date(ano, mes + 1, 0).getDate();
+  const nomesDia = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+  let html = '';
+
+  for (let dia = 1; dia <= diasNoMes; dia++) {
+    const chave = obterChaveLideranca(ano, mes, dia);
+    const registro = liderancaEditor.dias[chave];
+    const data = new Date(ano, mes, dia, 12, 0, 0);
+    const fimDeSemana = LiderancaEscala.ehFimDeSemana(data);
+    const unificado = fimDeSemana || registro.feriado;
+    const resolvido = LiderancaEscala.resolverDia(chave, registro);
+    const folgaCheck = nome => registro.folgas.includes(nome) ? 'checked' : '';
+
+    html += `
+      <tr data-lideranca-dia="${chave}" class="${unificado ? 'table-warning' : ''}">
+        <td><strong>${String(dia).padStart(2, '0')}</strong> <span class="text-muted">${nomesDia[data.getDay()]}</span></td>
+        <td>
+          <input class="form-check-input lideranca-feriado" type="checkbox" ${registro.feriado ? 'checked' : ''}
+                 onchange="atualizarPreviewLiderancaDia('${chave}')" aria-label="Marcar ${dia} como feriado">
+        </td>
+        <td>
+          <div class="lideranca-folgas">
+            ${['Bruno', 'Leandro', 'Kelly', 'Marley'].map(nome => `
+              <label><input class="form-check-input lideranca-folga" type="checkbox" value="${nome}" ${folgaCheck(nome)}
+                            onchange="atualizarPreviewLiderancaDia('${chave}')" ${unificado ? 'disabled' : ''}> ${nome}</label>
+            `).join('')}
+          </div>
+        </td>
+        <td>
+          <select class="form-select form-select-sm lideranca-geral" onchange="atualizarPreviewLiderancaDia('${chave}')" ${unificado ? '' : 'disabled'}>
+            ${opcoesLiderGeral(registro.liderGeral)}
+          </select>
+        </td>
+        <td class="lideranca-preview-residencial fw-semibold">${escapeHtml(resolvido.residencial)}</td>
+        <td class="lideranca-preview-rio_es fw-semibold">${escapeHtml(resolvido.rio_es)}</td>
+        <td class="lideranca-preview-leste fw-semibold">${escapeHtml(resolvido.leste)}</td>
+      </tr>`;
+  }
+  corpo.innerHTML = html;
+}
+
+function atualizarPreviewLiderancaDia(chave) {
+  const linha = document.querySelector(`[data-lideranca-dia="${chave}"]`);
+  if (!linha) return;
+  const feriado = linha.querySelector('.lideranca-feriado')?.checked === true;
+  const folgas = [...linha.querySelectorAll('.lideranca-folga:checked')].map(el => el.value);
+  const liderGeral = linha.querySelector('.lideranca-geral')?.value || '';
+  const unificado = LiderancaEscala.ehFimDeSemana(chave) || feriado;
+  const registro = { feriado, folgas: unificado ? [] : folgas, liderGeral };
+  liderancaEditor.dias[chave] = registro;
+
+  linha.classList.toggle('table-warning', unificado);
+  linha.querySelectorAll('.lideranca-folga').forEach(el => {
+    el.disabled = unificado;
+    if (unificado) el.checked = false;
+  });
+  const selectGeral = linha.querySelector('.lideranca-geral');
+  if (selectGeral) selectGeral.disabled = !unificado;
+
+  const resolvido = LiderancaEscala.resolverDia(chave, registro);
+  ['residencial', 'rio_es', 'leste'].forEach(area => {
+    const celula = linha.querySelector(`.lideranca-preview-${area}`);
+    if (celula) celula.textContent = resolvido[area];
+  });
+}
+
+async function salvarEscalaLideranca() {
+  if (!isAdmin) return;
+  const indefinidos = Object.entries(liderancaEditor.dias).filter(([chave, registro]) => {
+    const unificado = LiderancaEscala.ehFimDeSemana(chave) || registro.feriado;
+    return unificado && !String(registro.liderGeral || '').trim();
+  });
+  if (indefinidos.length > 0) {
+    showToast(`Escolha o líder geral de ${indefinidos.length} fim(ns) de semana/feriado(s).`, 'warning');
+    const primeiraLinha = document.querySelector(`[data-lideranca-dia="${indefinidos[0][0]}"]`);
+    primeiraLinha?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    return;
+  }
+
+  Object.entries(liderancaEditor.dias).forEach(([chave, registro]) => {
+    liderancaEscala.dias[chave] = LiderancaEscala.normalizarRegistro(registro);
+  });
+
+  const botao = document.getElementById('btnSalvarLideranca');
+  if (botao) botao.disabled = true;
+  try {
+    await salvarConfiguracaoCalendarios();
+    bootstrap.Modal.getInstance(document.getElementById('liderancaModal'))?.hide();
+    atualizarCalendario();
+    carregarCalendarioEmpresarialGrid('rio_es');
+    carregarCalendarioEmpresarialGrid('leste');
+  } finally {
+    if (botao) botao.disabled = false;
+  }
+}
 
 // ============================================
 // FUNÇÕES AUXILIARES
@@ -4280,6 +4561,9 @@ function carregarCalendarioEmpresarialGrid(subEscala) {
         content += `<div class="calendar-day-absent">${numAusentes} ausente(s)</div>`;
       }
 
+      const liderDia = obterLiderDia(subEscala, ano, mes, dia);
+      content += `<div class="calendar-day-leader" title="Líder técnico: ${escapeHtml(liderDia)}"><i class="bi bi-person-badge me-1"></i>${escapeHtml(liderDia)}</div>`;
+
       // Verificar se há trocas ativas para este dia (inclui movimentos)
       const trocasAtivas = (subEscalaDados.trocas || []).filter(t =>
         t.status === 'ativa' &&
@@ -4519,8 +4803,15 @@ function mostrarDetalhesDiaEmpresarial(subEscala, dia) {
 
   modalTitle.innerHTML = `Dia ${dia} (${dadosDia.diaSemana}) - ${nomeSubEscala} - ${dadosDia.numPessoas} pessoa(s)${tituloExtra}`;
 
+  const resumoLider = obterResumoLiderDia(subEscala, subEscalaDados.ano, mes, dia);
+
   let html = `
     <div class="day-content">
+      <div class="lideranca-resumo">
+        <i class="bi bi-person-badge me-1"></i><strong>Líder técnico de ${nomeSubEscala}:</strong>
+        ${escapeHtml(resumoLider.nome)}
+        ${resumoLider.tipo !== 'dia_util' ? '<span class="badge bg-success ms-2">Líder geral</span>' : ''}
+      </div>
       <div class="area-section">
         <div class="area-title">
           <i class="bi bi-diagram-3"></i>
@@ -6172,6 +6463,7 @@ function baixarEscalaJson() {
     calendarioAtivo: calendarioAtivo,
     calendario1: calendariosParaSalvar.calendario1,
     calendario2: calendariosParaSalvar.calendario2,
+    lideranca: normalizarLiderancaDocumento(liderancaEscala),
     escalonamento: Object.keys(escalonamentoDados).length > 0 ? escalonamentoDados : null,
     ultima_atualizacao: new Date().toISOString(),
     origem: 'repositorio-estatico'
@@ -6222,6 +6514,7 @@ async function salvarConfiguracaoCalendarios(tentativa = 1) {
     calendarioAtivo: calendarioAtivo,
     calendario1: calendariosParaSalvar.calendario1,
     calendario2: calendariosParaSalvar.calendario2,
+    lideranca: normalizarLiderancaDocumento(liderancaEscala),
     escalonamento: Object.keys(escalonamentoDados).length > 0 ? escalonamentoDados : null,
     ultima_atualizacao: new Date().toISOString()
   };
@@ -6523,6 +6816,7 @@ function processarDadosCarregados(dados) {
     calendarios.calendario1 = dados.calendario1 || null;
     calendarios.calendario2 = dados.calendario2 || null;
     calendarioAtivo = dados.calendarioAtivo || 'calendario1';
+    liderancaEscala = normalizarLiderancaDocumento(dados.lideranca);
 
     // Restaurar escalonamento se disponível
     if (dados.escalonamento && typeof dados.escalonamento === 'object') {
@@ -8550,6 +8844,9 @@ function atualizarCalendario() {
       if (dadosDia.ausentes.length > 0) {
         content += `<div class="calendar-day-absent">${dadosDia.ausentes.length} ausente(s)</div>`;
       }
+
+      const liderDia = obterLiderDia('residencial', anoSelecionado, mesSelecionado, dia);
+      content += `<div class="calendar-day-leader" title="Líder técnico: ${escapeHtml(liderDia)}"><i class="bi bi-person-badge me-1"></i>${escapeHtml(liderDia)}</div>`;
       
       // Adicionar ícone de troca se houver
       const temTrocas = trocasRegistradas.some(troca => 
@@ -8597,9 +8894,16 @@ function mostrarDetalhesDia(dia) {
   }
   
   modalTitle.innerHTML = `Dia ${dia} (${dadosDia.diaSemana}) - ${dadosDia.numPessoas} pessoa(s) trabalhando${tituloExtra}`;
+
+  const resumoLider = obterResumoLiderDia('residencial', anoSelecionado, mesSelecionado, dia);
   
   let html = `
     <div class="day-content">
+      <div class="lideranca-resumo">
+        <i class="bi bi-person-badge me-1"></i><strong>Líder técnico do Residencial:</strong>
+        ${escapeHtml(resumoLider.nome)}
+        ${resumoLider.tipo !== 'dia_util' ? '<span class="badge bg-success ms-2">Líder geral</span>' : ''}
+      </div>
       <div class="area-section">
         <div class="area-title">
           <i class="bi bi-diagram-3"></i>
