@@ -44,4 +44,39 @@ describe('escala de liderança técnica', () => {
     expect(dia.rio_es).toBe('Kelly');
     expect(dia.leste).toBe('Kelly');
   });
+
+  test('importa a mesma estrutura processada da planilha dos analistas', () => {
+    const dados = {};
+    for (let dia = 1; dia <= 31; dia++) {
+      const fimDeSemana = [0, 6].includes(new Date(2026, 9, dia, 12).getDay());
+      dados[dia] = {
+        trabalhando: fimDeSemana ? ['Kelly Lira'] : ['Bruno Silva', 'Leandro Souza', 'Kelly Lira', 'Marley Lima'],
+        ausentes: fimDeSemana
+          ? [{ nome: 'Bruno Silva' }, { nome: 'Leandro Souza' }, { nome: 'Marley Lima' }]
+          : []
+      };
+    }
+    dados[19] = {
+      trabalhando: ['Kelly Lira', 'Marley Lima'],
+      ausentes: [{ nome: 'Bruno Silva' }, { nome: 'Leandro Souza' }]
+    };
+
+    const resultado = LiderancaEscala.importarCalendario(dados, 2026, 9);
+    expect(resultado.erros).toEqual([]);
+    expect(resultado.dias['2026-10-18'].liderGeral).toBe('Kelly');
+    expect(resultado.dias['2026-10-19'].folgas).toEqual(['Bruno', 'Leandro']);
+    expect(LiderancaEscala.resolverDia('2026-10-19', resultado.dias['2026-10-19']).leste).toBe('Marley');
+  });
+
+  test('recusa fim de semana com mais de um líder trabalhando', () => {
+    const dados = {};
+    for (let dia = 1; dia <= 31; dia++) {
+      dados[dia] = {
+        trabalhando: ['Bruno', 'Leandro', 'Kelly', 'Marley'],
+        ausentes: []
+      };
+    }
+    const resultado = LiderancaEscala.importarCalendario(dados, 2026, 9);
+    expect(resultado.erros).toContain('Dia 3: fim de semana deve ter exatamente 1 líder, mas foram encontrados 4');
+  });
 });

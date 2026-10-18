@@ -765,29 +765,6 @@
       color: #14532d;
     }
 
-    .lideranca-editor-table {
-      min-width: 920px;
-      font-size: 0.78rem;
-    }
-
-    .lideranca-editor-table th {
-      white-space: nowrap;
-      position: sticky;
-      top: 0;
-      z-index: 1;
-      background: #f8f9fa;
-    }
-
-    .lideranca-folgas {
-      display: flex;
-      gap: 0.45rem;
-      flex-wrap: wrap;
-    }
-
-    .lideranca-folgas label {
-      white-space: nowrap;
-    }
-
     /* Animação de pulse do design system */
     @keyframes ds-pulse {
       0%, 100% {
@@ -2788,9 +2765,11 @@
         <button class="btn btn-success btn-sm mt-2" onclick="salvarConfiguracaoCalendarios()">
           <i class="bi bi-cloud-arrow-up me-1"></i>Salvar e publicar
         </button>
-        <button class="btn btn-outline-success btn-sm mt-2 ms-1" onclick="abrirEditorLideranca('residencial')">
-          <i class="bi bi-person-badge me-1"></i>Escala de líderes
+        <button class="btn btn-outline-success btn-sm mt-2 ms-1" onclick="document.getElementById('fileInputLideranca').click()">
+          <i class="bi bi-upload me-1"></i>Upload escala de líderes
         </button>
+        <input type="file" id="fileInputLideranca" accept=".xlsx,.xls,.csv" style="display: none;" onchange="uploadEscalaLideranca(this)">
+        <span class="text-muted small d-block mt-2 lideranca-upload-info">Nenhuma planilha de líderes carregada</span>
       </div>
     </div>
   </div>
@@ -2856,9 +2835,10 @@
         <button class="btn btn-success btn-sm mt-3" onclick="salvarConfiguracaoCalendarios()">
           <i class="bi bi-cloud-arrow-up me-1"></i>Salvar e publicar
         </button>
-        <button class="btn btn-outline-success btn-sm mt-3 ms-1" onclick="abrirEditorLideranca('rio_es')">
-          <i class="bi bi-person-badge me-1"></i>Escala de líderes
+        <button class="btn btn-outline-success btn-sm mt-3 ms-1" onclick="document.getElementById('fileInputLideranca').click()">
+          <i class="bi bi-upload me-1"></i>Upload escala de líderes
         </button>
+        <span class="text-muted small d-block mt-2 lideranca-upload-info">Nenhuma planilha de líderes carregada</span>
       </div>
     </div>
   </div>
@@ -2945,9 +2925,10 @@
         <button class="btn btn-success btn-sm mt-3" onclick="salvarConfiguracaoCalendarios()">
           <i class="bi bi-cloud-arrow-up me-1"></i>Salvar e publicar
         </button>
-        <button class="btn btn-outline-success btn-sm mt-3 ms-1" onclick="abrirEditorLideranca('leste')">
-          <i class="bi bi-person-badge me-1"></i>Escala de líderes
+        <button class="btn btn-outline-success btn-sm mt-3 ms-1" onclick="document.getElementById('fileInputLideranca').click()">
+          <i class="bi bi-upload me-1"></i>Upload escala de líderes
         </button>
+        <span class="text-muted small d-block mt-2 lideranca-upload-info">Nenhuma planilha de líderes carregada</span>
       </div>
     </div>
   </div>
@@ -3489,51 +3470,6 @@
   </div>
 </div>
 
-<!-- Modal para montar e publicar a escala de liderança técnica -->
-<div class="modal fade" id="liderancaModal" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog modal-xl modal-dialog-scrollable">
-    <div class="modal-content">
-      <div class="modal-header text-white" style="background: linear-gradient(135deg, #166534 0%, #14532d 100%);">
-        <h5 class="modal-title"><i class="bi bi-person-badge me-2"></i>Escala de liderança técnica</h5>
-        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-      </div>
-      <div class="modal-body">
-        <div class="alert alert-light border small mb-3">
-          <strong>Dias úteis:</strong> Leste — Bruno; RJ/ES — Leandro; Residencial — Kelly / Marley.
-          Se Bruno ou Leandro folgar, o outro assume todo o Empresarial. Se ambos folgarem, Marley assume o Empresarial e Kelly o Residencial.
-          <strong>Fins de semana e feriados:</strong> selecione um único líder geral.
-        </div>
-        <div class="d-flex justify-content-between align-items-center mb-2 flex-wrap gap-2">
-          <h6 class="mb-0" id="liderancaMesTitulo"></h6>
-          <small class="text-muted">Marque as folgas dos líderes e os feriados.</small>
-        </div>
-        <div class="table-responsive" style="max-height: 62vh;">
-          <table class="table table-sm table-hover align-middle lideranca-editor-table">
-            <thead>
-              <tr>
-                <th>Dia</th>
-                <th>Feriado</th>
-                <th>Folgas</th>
-                <th>Líder geral</th>
-                <th>Residencial</th>
-                <th>RJ/ES</th>
-                <th>Leste</th>
-              </tr>
-            </thead>
-            <tbody id="liderancaEditorBody"></tbody>
-          </table>
-        </div>
-      </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancelar</button>
-        <button type="button" class="btn btn-success btn-sm" id="btnSalvarLideranca" onclick="salvarEscalaLideranca()">
-          <i class="bi bi-cloud-arrow-up me-1"></i>Salvar e publicar
-        </button>
-      </div>
-    </div>
-  </div>
-</div>
-
 <!-- Modal para Confirmar Troca -->
 <div class="modal fade" id="swapModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog">
@@ -3788,7 +3724,7 @@
 <script src="js/matriz-api.js"></script>
 <script src="js/backup-recovery.js"></script>
 <script src="js/escala-api.js?v=backend-oci-2"></script>
-<script src="js/lideranca.js?v=1"></script>
+<script src="js/lideranca.js?v=2"></script>
 <script>
 // ============================================
 // VARIÁVEIS GLOBAIS E ALIASES
@@ -3856,10 +3792,8 @@ let calendarioAtivo = 'calendario1';  // Qual calendário está sendo visualizad
 let escalonamentoDados = {};  // { sheetName: [ {nivel, subtitulo, headers, dados} ] }
 let escalonamentoAbaAtiva = '';
 
-// Escala de liderança técnica. Os registros guardam apenas feriados, folgas
-// e o líder geral; os responsáveis por área são derivados das regras oficiais.
+// Escala de liderança técnica importada da planilha mensal.
 let liderancaEscala = { versao: '1.0', dias: {} };
-let liderancaEditor = { ano: null, mes: null, dias: {} };
 
 function normalizarLiderancaDocumento(valor) {
   const origem = valor && typeof valor === 'object' ? valor : {};
@@ -3868,22 +3802,8 @@ function normalizarLiderancaDocumento(valor) {
   Object.entries(diasOrigem).forEach(([chave, registro]) => {
     dias[chave] = LiderancaEscala.normalizarRegistro(registro);
   });
-  return { versao: '1.0', dias };
-}
-
-function obterReferenciaCalendarioLideranca(areaPreferida) {
-  const referencias = {
-    residencial: calendarios.calendario1,
-    rio_es: calendarios.calendario2?.rio_es,
-    leste: calendarios.calendario2?.leste
-  };
-  const preferida = referencias[areaPreferida];
-  if (preferida && Number.isInteger(preferida.mes) && preferida.ano) return preferida;
-
-  return Object.values(referencias).find(ref => ref && Number.isInteger(ref.mes) && ref.ano) || {
-    mes: mesSelecionado,
-    ano: anoSelecionado
-  };
+  const fonte = origem.fonte && typeof origem.fonte === 'object' ? { ...origem.fonte } : null;
+  return { versao: '1.0', dias, fonte };
 }
 
 function obterChaveLideranca(ano, mes, dia) {
@@ -3907,131 +3827,105 @@ function obterResumoLiderDia(area, ano, mes, dia) {
   };
 }
 
-function opcoesLiderGeral(selecionado) {
-  const nomes = ['Bruno', 'Leandro', 'Kelly', 'Marley'];
-  return `<option value="">-- Escolha --</option>${nomes.map(nome =>
-    `<option value="${nome}" ${selecionado === nome ? 'selected' : ''}>${nome}</option>`
-  ).join('')}`;
+function atualizarStatusUploadLideranca() {
+  const fonte = liderancaEscala.fonte;
+  const texto = fonte?.nomeArquivo
+    ? `${fonte.nomeArquivo} — ${MESES[fonte.mes]}/${fonte.ano}`
+    : 'Nenhuma planilha de líderes carregada';
+  document.querySelectorAll('.lideranca-upload-info').forEach(el => {
+    el.textContent = texto;
+  });
 }
 
-function abrirEditorLideranca(areaPreferida) {
+function converterLinhasPlanilhaEmObjetos(linhas) {
+  let indiceCabecalho = 0;
+  for (let i = 0; i < Math.min(5, linhas.length); i++) {
+    if ((linhas[i] || []).some(celula => String(celula).toUpperCase().includes('NOME'))) {
+      indiceCabecalho = i;
+      break;
+    }
+  }
+  const cabecalhos = (linhas[indiceCabecalho] || []).map(item => String(item).trim());
+  if (!cabecalhos.length) return [];
+  return linhas.slice(indiceCabecalho + 1).map(linha => {
+    const objeto = {};
+    cabecalhos.forEach((cabecalho, indice) => {
+      objeto[cabecalho || `Col${indice + 1}`] = linha?.[indice] ?? '';
+    });
+    return objeto;
+  }).filter(objeto => String(objeto[cabecalhos[0]] || '').trim());
+}
+
+function uploadEscalaLideranca(inputElement) {
   if (!isAdmin) return;
-  const referencia = obterReferenciaCalendarioLideranca(areaPreferida);
-  const ano = Number(referencia.ano);
-  const mes = Number(referencia.mes);
-  const diasNoMes = new Date(ano, mes + 1, 0).getDate();
+  const file = inputElement.files?.[0];
+  if (!file) return;
+  const liderancaAnterior = normalizarLiderancaDocumento(liderancaEscala);
+  showLoading();
 
-  liderancaEditor = { ano, mes, dias: {} };
-  for (let dia = 1; dia <= diasNoMes; dia++) {
-    const chave = obterChaveLideranca(ano, mes, dia);
-    liderancaEditor.dias[chave] = LiderancaEscala.normalizarRegistro(liderancaEscala.dias[chave]);
-  }
+  const reader = new FileReader();
+  reader.onload = async function(evento) {
+    try {
+      const workbook = XLSX.read(new Uint8Array(evento.target.result), { type: 'array' });
+      const planilha = workbook.Sheets[workbook.SheetNames[0]];
+      const linhas = XLSX.utils.sheet_to_json(planilha, { header: 1, defval: '' });
+      const dadosPlanilhaLideres = converterLinhasPlanilhaEmObjetos(linhas);
+      if (!dadosPlanilhaLideres.length) throw new Error('Planilha vazia ou sem a coluna NOME');
 
-  const titulo = document.getElementById('liderancaMesTitulo');
-  if (titulo) titulo.textContent = `${MESES[mes]} de ${ano}`;
-  renderEditorLideranca();
-  bootstrap.Modal.getOrCreateInstance(document.getElementById('liderancaModal')).show();
-}
+      const { mes, ano } = extrairMesAnoDoNomeArquivo(file.name);
+      const calendarioLideres = processarPlanilhaParaCalendario(dadosPlanilhaLideres, mes, ano, 'residencial');
+      const importacao = LiderancaEscala.importarCalendario(calendarioLideres, ano, mes);
+      if (importacao.erros.length > 0) {
+        const detalhes = importacao.erros.slice(0, 12).join('\n');
+        const restantes = importacao.erros.length > 12 ? `\n... e mais ${importacao.erros.length - 12} erro(s)` : '';
+        throw new Error(`A escala de líderes não foi publicada:\n${detalhes}${restantes}`);
+      }
 
-function renderEditorLideranca() {
-  const corpo = document.getElementById('liderancaEditorBody');
-  if (!corpo || liderancaEditor.ano === null) return;
+      const prefixoMes = `${ano}-${String(mes + 1).padStart(2, '0')}-`;
+      const diasOutrosMeses = Object.fromEntries(
+        Object.entries(liderancaEscala.dias || {}).filter(([chave]) => !chave.startsWith(prefixoMes))
+      );
+      liderancaEscala = {
+        versao: '1.0',
+        dias: { ...diasOutrosMeses, ...importacao.dias },
+        fonte: {
+          nomeArquivo: file.name,
+          mes,
+          ano,
+          dataUpload: new Date().toISOString()
+        }
+      };
 
-  const { ano, mes } = liderancaEditor;
-  const diasNoMes = new Date(ano, mes + 1, 0).getDate();
-  const nomesDia = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
-  let html = '';
+      atualizarStatusUploadLideranca();
+      atualizarCalendario();
+      carregarCalendarioEmpresarialGrid('rio_es');
+      carregarCalendarioEmpresarialGrid('leste');
 
-  for (let dia = 1; dia <= diasNoMes; dia++) {
-    const chave = obterChaveLideranca(ano, mes, dia);
-    const registro = liderancaEditor.dias[chave];
-    const data = new Date(ano, mes, dia, 12, 0, 0);
-    const fimDeSemana = LiderancaEscala.ehFimDeSemana(data);
-    const unificado = fimDeSemana || registro.feriado;
-    const resolvido = LiderancaEscala.resolverDia(chave, registro);
-    const folgaCheck = nome => registro.folgas.includes(nome) ? 'checked' : '';
-
-    html += `
-      <tr data-lideranca-dia="${chave}" class="${unificado ? 'table-warning' : ''}">
-        <td><strong>${String(dia).padStart(2, '0')}</strong> <span class="text-muted">${nomesDia[data.getDay()]}</span></td>
-        <td>
-          <input class="form-check-input lideranca-feriado" type="checkbox" ${registro.feriado ? 'checked' : ''}
-                 onchange="atualizarPreviewLiderancaDia('${chave}')" aria-label="Marcar ${dia} como feriado">
-        </td>
-        <td>
-          <div class="lideranca-folgas">
-            ${['Bruno', 'Leandro', 'Kelly', 'Marley'].map(nome => `
-              <label><input class="form-check-input lideranca-folga" type="checkbox" value="${nome}" ${folgaCheck(nome)}
-                            onchange="atualizarPreviewLiderancaDia('${chave}')" ${unificado ? 'disabled' : ''}> ${nome}</label>
-            `).join('')}
-          </div>
-        </td>
-        <td>
-          <select class="form-select form-select-sm lideranca-geral" onchange="atualizarPreviewLiderancaDia('${chave}')" ${unificado ? '' : 'disabled'}>
-            ${opcoesLiderGeral(registro.liderGeral)}
-          </select>
-        </td>
-        <td class="lideranca-preview-residencial fw-semibold">${escapeHtml(resolvido.residencial)}</td>
-        <td class="lideranca-preview-rio_es fw-semibold">${escapeHtml(resolvido.rio_es)}</td>
-        <td class="lideranca-preview-leste fw-semibold">${escapeHtml(resolvido.leste)}</td>
-      </tr>`;
-  }
-  corpo.innerHTML = html;
-}
-
-function atualizarPreviewLiderancaDia(chave) {
-  const linha = document.querySelector(`[data-lideranca-dia="${chave}"]`);
-  if (!linha) return;
-  const feriado = linha.querySelector('.lideranca-feriado')?.checked === true;
-  const folgas = [...linha.querySelectorAll('.lideranca-folga:checked')].map(el => el.value);
-  const liderGeral = linha.querySelector('.lideranca-geral')?.value || '';
-  const unificado = LiderancaEscala.ehFimDeSemana(chave) || feriado;
-  const registro = { feriado, folgas: unificado ? [] : folgas, liderGeral };
-  liderancaEditor.dias[chave] = registro;
-
-  linha.classList.toggle('table-warning', unificado);
-  linha.querySelectorAll('.lideranca-folga').forEach(el => {
-    el.disabled = unificado;
-    if (unificado) el.checked = false;
-  });
-  const selectGeral = linha.querySelector('.lideranca-geral');
-  if (selectGeral) selectGeral.disabled = !unificado;
-
-  const resolvido = LiderancaEscala.resolverDia(chave, registro);
-  ['residencial', 'rio_es', 'leste'].forEach(area => {
-    const celula = linha.querySelector(`.lideranca-preview-${area}`);
-    if (celula) celula.textContent = resolvido[area];
-  });
-}
-
-async function salvarEscalaLideranca() {
-  if (!isAdmin) return;
-  const indefinidos = Object.entries(liderancaEditor.dias).filter(([chave, registro]) => {
-    const unificado = LiderancaEscala.ehFimDeSemana(chave) || registro.feriado;
-    return unificado && !String(registro.liderGeral || '').trim();
-  });
-  if (indefinidos.length > 0) {
-    showToast(`Escolha o líder geral de ${indefinidos.length} fim(ns) de semana/feriado(s).`, 'warning');
-    const primeiraLinha = document.querySelector(`[data-lideranca-dia="${indefinidos[0][0]}"]`);
-    primeiraLinha?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    return;
-  }
-
-  Object.entries(liderancaEditor.dias).forEach(([chave, registro]) => {
-    liderancaEscala.dias[chave] = LiderancaEscala.normalizarRegistro(registro);
-  });
-
-  const botao = document.getElementById('btnSalvarLideranca');
-  if (botao) botao.disabled = true;
-  try {
-    await salvarConfiguracaoCalendarios();
-    bootstrap.Modal.getInstance(document.getElementById('liderancaModal'))?.hide();
-    atualizarCalendario();
-    carregarCalendarioEmpresarialGrid('rio_es');
-    carregarCalendarioEmpresarialGrid('leste');
-  } finally {
-    if (botao) botao.disabled = false;
-  }
+      const resultado = await salvarConfiguracaoCalendarios();
+      if (!resultado?.sucesso || !resultado?.salvouRemoto) {
+        liderancaEscala = liderancaAnterior;
+        atualizarStatusUploadLideranca();
+        atualizarCalendario();
+        carregarCalendarioEmpresarialGrid('rio_es');
+        carregarCalendarioEmpresarialGrid('leste');
+        throw new Error('A planilha foi processada, mas não foi publicada no Supabase');
+      }
+      showToast(`Escala de líderes ${MESES[mes]}/${ano} publicada para todos.`, 'success');
+    } catch (erro) {
+      console.error('Erro ao importar escala de líderes:', erro);
+      alert(erro.message);
+      showToast('Erro no upload da escala de líderes.', 'danger');
+    } finally {
+      inputElement.value = '';
+      hideLoading();
+    }
+  };
+  reader.onerror = () => {
+    inputElement.value = '';
+    hideLoading();
+    showToast('Erro ao ler a planilha de líderes.', 'danger');
+  };
+  reader.readAsArrayBuffer(file);
 }
 
 // ============================================
@@ -6545,7 +6439,7 @@ async function salvarConfiguracaoCalendarios(tentativa = 1) {
         showToast(msg, resSalvar.salvouRemoto ? 'success' : 'warning');
         salvarBackupLocalSeguro(dadosParaSalvar, !resSalvar.salvouRemoto);
         if (!resSalvar.salvouRemoto) mostrarBotaoRepublicar();
-        return;
+        return resSalvar;
       }
     }
 
@@ -6555,7 +6449,7 @@ async function salvarConfiguracaoCalendarios(tentativa = 1) {
       if (resultadoBackend?.binId) salvarBinId(resultadoBackend.binId);
       showToast('✅ Escalas salvas e publicadas para todos!', 'success');
       salvarBackupLocalSeguro(dadosParaSalvar, false);
-      return;
+      return { sucesso: true, salvouRemoto: true, resultados: { backend: resultadoBackend } };
     } catch (backendError) {
       console.warn('⚠️ Backend/Supabase não conseguiu salvar a escala.', backendError);
     }
@@ -6563,11 +6457,13 @@ async function salvarConfiguracaoCalendarios(tentativa = 1) {
     salvarBackupLocalSeguro(dadosParaSalvar, true);
     showToast('⚠️ Salvo apenas localmente. Use "Baixar escala.json" para commitar no GitHub.', 'warning');
     mostrarBotaoRepublicar();
+    return { sucesso: false, salvouRemoto: false };
   } catch (error) {
     console.error('❌ Erro ao salvar calendários:', error);
     salvarBackupLocalSeguro(dadosParaSalvar, true);
     showToast('⚠️ Salvo no cache local: ' + error.message, 'warning');
     mostrarBotaoRepublicar();
+    return { sucesso: false, salvouRemoto: false, erro: error.message };
   } finally {
     hideLoading();
   }
@@ -6817,6 +6713,7 @@ function processarDadosCarregados(dados) {
     calendarios.calendario2 = dados.calendario2 || null;
     calendarioAtivo = dados.calendarioAtivo || 'calendario1';
     liderancaEscala = normalizarLiderancaDocumento(dados.lideranca);
+    atualizarStatusUploadLideranca();
 
     // Restaurar escalonamento se disponível
     if (dados.escalonamento && typeof dados.escalonamento === 'object') {

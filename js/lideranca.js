@@ -88,6 +88,76 @@
     return resolvido[area] || 'A definir';
   }
 
+  function nomeCanonico(nome) {
+    const primeiroNome = String(nome || '').trim().split(/\s+/)[0]
+      .normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase();
+    return {
+      BRUNO: 'Bruno',
+      LEANDRO: 'Leandro',
+      KELLY: 'Kelly',
+      MARLEY: 'Marley'
+    }[primeiroNome] || '';
+  }
+
+  function importarCalendario(dadosCalendario, ano, mes) {
+    const dados = dadosCalendario && typeof dadosCalendario === 'object' ? dadosCalendario : {};
+    const diasNoMes = new Date(ano, mes + 1, 0).getDate();
+    const lideresEsperados = ['Bruno', 'Leandro', 'Kelly', 'Marley'];
+    const nomesEncontrados = new Set();
+    const dias = {};
+    const erros = [];
+
+    Object.values(dados).forEach(dia => {
+      [...(dia?.trabalhando || []), ...(dia?.ausentes || []).map(item => item?.nome)].forEach(nome => {
+        const canonico = nomeCanonico(nome);
+        if (canonico) nomesEncontrados.add(canonico);
+      });
+    });
+
+    const ausentesDaPlanilha = lideresEsperados.filter(nome => !nomesEncontrados.has(nome));
+    if (ausentesDaPlanilha.length > 0) {
+      erros.push(`Líder(es) não encontrado(s) na planilha: ${ausentesDaPlanilha.join(', ')}`);
+    }
+
+    for (let dia = 1; dia <= diasNoMes; dia++) {
+      const chave = chaveData(ano, mes, dia);
+      const registroDia = dados[dia];
+      if (!registroDia) {
+        erros.push(`Dia ${dia}: sem nenhum líder trabalhando`);
+        continue;
+      }
+
+      const presentes = [...new Set((registroDia.trabalhando || []).map(nomeCanonico).filter(Boolean))];
+      if (presentes.length === 0) {
+        erros.push(`Dia ${dia}: sem nenhum líder trabalhando`);
+        continue;
+      }
+
+      if (ehFimDeSemana(chave)) {
+        if (presentes.length !== 1) {
+          erros.push(`Dia ${dia}: fim de semana deve ter exatamente 1 líder, mas foram encontrados ${presentes.length}`);
+          continue;
+        }
+        dias[chave] = { feriado: false, folgas: [], liderGeral: presentes[0] };
+        continue;
+      }
+
+      // Um único líder trabalhando em dia útil caracteriza a escala unificada
+      // de feriado. Nos demais dias, as ausências alimentam as substituições.
+      if (presentes.length === 1) {
+        dias[chave] = { feriado: true, folgas: [], liderGeral: presentes[0] };
+      } else {
+        dias[chave] = {
+          feriado: false,
+          folgas: lideresEsperados.filter(nome => !presentes.includes(nome)),
+          liderGeral: ''
+        };
+      }
+    }
+
+    return { dias, erros, lideresEncontrados: [...nomesEncontrados] };
+  }
+
   return {
     LIDERES,
     chaveData,
@@ -95,6 +165,8 @@
     ehFimDeSemana,
     normalizarRegistro,
     resolverDia,
-    liderDaArea
+    liderDaArea,
+    nomeCanonico,
+    importarCalendario
   };
 });
