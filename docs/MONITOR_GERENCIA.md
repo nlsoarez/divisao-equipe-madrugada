@@ -1,22 +1,22 @@
-# Monitoramento da Gerência (preparação, sem ativação)
+# Monitoramento da Gerência
 
 Escopo: o coordenador decide manualmente quando abrir o monitor do grupo de gestão.
 A funcionalidade é **desligada por padrão**. Não há consulta de mensagens antigas.
-O código desta funcionalidade vive em branch isolada, aguardando ID do grupo e segredos privados.
+O grupo e os segredos privados são configurados apenas no ambiente de produção, fora do Git.
 
 ## Como funciona
 
 - Uma nova aba **Monitoramento da Gerência** aparece somente no modo `/admin`.
-- Somente quem tiver sessão administrativa **e** informar a **senha exclusiva** pode ler as mensagens ou ativar/desativar o monitor. Não existe função de resposta.
-- A senha exclusiva é diferente da senha administrativa compartilhada; o desbloqueio dura 15 minutos e fica vinculado à sessão administrativa atual. Ao expirar ou bloquear, as mensagens deixam de ser entregues ao navegador.
+- Todo supervisor com uma sessão administrativa válida vê automaticamente as mensagens enquanto o monitor está ativo. Não existe função de resposta.
+- A senha exclusiva é diferente da senha administrativa compartilhada e protege somente o controle de ativar/desativar. O painel do coordenador fica recolhido; o desbloqueio dura 15 minutos e fica vinculado à sessão administrativa atual.
 - É possível armar antes das 21h, mas somente mensagens novas recebidas de **21:00 até 06:59:59**, horário de Brasília, entram na lista.
 - A ativação termina automaticamente às **07:00** da manhã seguinte (ou da manhã corrente se ativado após meia-noite); desativar antes limpa imediatamente as mensagens.
 - O máximo é de 80 mensagens em **memória do servidor**. Não há armazenamento em Supabase, localStorage ou histórico. Reinícios do servidor desligam o monitor (*fail closed*).
 - Aviso sonoro toca no navegador depois de o supervisor clicar uma vez em **Ativar som neste navegador**; isso é exigido pelas políticas de autoplay dos navegadores. É necessário manter a página aberta e autenticada.
-- `GET /api/gerencia/estado` exige a sessão administrativa atual e só inclui mensagens quando a sessão também possui o desbloqueio exclusivo. As rotas de controle aplicam a mesma exigência.
+- `GET /api/gerencia/estado` exige a sessão administrativa atual e inclui as mensagens temporárias para os supervisores enquanto o monitor estiver ativo. As rotas de controle exigem, além dessa sessão, o desbloqueio exclusivo do coordenador.
 - O backend só aceita mensagens do chat ID permitido e mensagens publicadas depois da ativação, via `messages.upsert`, autenticadas pelo token do webhook. Nunca faz `findMessages` nem lê histórico.
 
-## Configuração pendente
+## Configuração privada
 
 No arquivo **privado** `deploy/oci/.env` em produção (nunca no repositório):
 
@@ -42,6 +42,8 @@ O procedimento transacional para instalar os três valores e acrescentar o heade
 O script pede a senha duas vezes em campos ocultos, gera hash e token na VM, preserva a configuração completa do webhook antes da alteração e mantém o monitor desligado. Em falha de saúde ou validação, restaura ambiente, webhook e container anteriores.
 
 **Atenção**: o endpoint existente `/api/whatsapp/webhook` continua com comportamento legado para os demais grupos. A autenticação adicional protege somente a ingestão de mensagens do grupo gerencial. Faça auditoria independente do endpoint legado antes de expor mais dados.
+
+**Limitação de auditoria**: como o acesso administrativo é compartilhado, o sistema não identifica qual supervisor leu cada mensagem. Para rastreabilidade individual seria necessário substituir a senha compartilhada por contas pessoais.
 
 ## Código
 

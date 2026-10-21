@@ -99,17 +99,18 @@ describe('monitor de gerencia - isolamento e janela', () => {
     expect((await monitorWithRealTimers.authenticate('SENHA-PRIVADA-FORTE', '192.0.2.50')).ok).toBe(true);
   });
 
-  it('nao entrega mensagens sem a autenticacao exclusiva de leitura', () => {
+  it('entrega mensagens ao supervisor administrativo sem liberar o controle', () => {
     monitor.setEnabled(true);
     receive('sigilosa', Date.now());
 
     const secret = 'um-segredo-com-no-minimo-trinta-e-dois-caracteres';
     const adminCookie = 'cookie-admin-1';
     const unauthorized = { headers: { cookie: 'divisao_admin_session=' + adminCookie } };
-    const hidden = monitor.clientState(unauthorized, secret, 'divisao_admin_session');
-    expect(hidden.controlAuthorized).toBe(false);
-    expect(hidden.active).toBe(true);
-    expect(hidden.messages).toEqual([]);
+    const supervisor = monitor.clientState(unauthorized, secret, 'divisao_admin_session');
+    expect(supervisor.controlAuthorized).toBe(false);
+    expect(supervisor.active).toBe(true);
+    expect(supervisor.messages).toHaveLength(1);
+    expect(supervisor.messages[0].id).toBe('sigilosa');
 
     const token = monitor.controlToken(adminCookie, secret);
     const authorized = { headers: { cookie: 'divisao_admin_session=' + adminCookie +
@@ -120,7 +121,7 @@ describe('monitor de gerencia - isolamento e janela', () => {
     expect(visible.messages[0].id).toBe('sigilosa');
   });
 
-  it('oculta novamente as mensagens quando o desbloqueio exclusivo expira', () => {
+  it('mantem a leitura dos supervisores quando o controle exclusivo expira', () => {
     monitor.setEnabled(true);
     receive('temporaria', Date.now());
     const secret = 'um-segredo-com-no-minimo-trinta-e-dois-caracteres';
@@ -133,7 +134,8 @@ describe('monitor de gerencia - isolamento e janela', () => {
     jest.advanceTimersByTime(monitor.CONTROL_SESSION_MS + 1);
     const expired = monitor.clientState(request, secret, 'divisao_admin_session');
     expect(expired.controlAuthorized).toBe(false);
-    expect(expired.messages).toEqual([]);
+    expect(expired.messages).toHaveLength(1);
+    expect(expired.messages[0].id).toBe('temporaria');
   });
 
   it('sessao de controle esta vinculada ao cookie administrativo original', () => {

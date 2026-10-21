@@ -194,7 +194,9 @@ function validControl(req, secret, adminCookieName) {
 function clientState(req, secret, adminCookieName) {
   const controlAuthorized = validControl(req, secret, adminCookieName);
   return {
-    ...state({ includeMessages: controlAuthorized }),
+    // O chamador desta função deve validar antes a sessão administrativa.
+    // A senha exclusiva protege somente as ações de ligar/desligar o monitor.
+    ...state({ includeMessages: true }),
     controlAuthorized
   };
 }
