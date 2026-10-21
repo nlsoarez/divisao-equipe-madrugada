@@ -55,8 +55,8 @@ O script pede a senha duas vezes em campos ocultos, gera hash e token na VM, pre
 ## Verificação de integração pendente
 
 - Verificação somente de leitura em 21/10/2026: a API pública respondeu como **2.3.7**. O webhook da instância estava habilitado, apontando para `https://divisao.163-176-155-119.sslip.io/api/whatsapp/webhook`, com apenas `MESSAGES_UPSERT`, `byEvents=false`, `base64=false` e **sem headers personalizados**.
-- O container de produção ainda não possui `GERENCIA_GROUP_CHAT_ID`, `GERENCIA_CONTROL_PASSWORD_HASH` nem `GERENCIA_WEBHOOK_TOKEN`. Isso é um bloqueio intencional: a função não pode ser habilitada no estado atual.
-- Depois de implantar esta branch e instalar os três valores privados, acrescente o header pela configuração por instância. Valide por leitura que URL, evento e demais campos acima foram preservados. Sem o header, o monitor descarta as mensagens do grupo gerencial, mesmo que a instância esteja conectada.
+- Configuração concluída em 21/10/2026: `GERENCIA_GROUP_CHAT_ID`, `GERENCIA_CONTROL_PASSWORD_HASH` e `GERENCIA_WEBHOOK_TOKEN` estão presentes no ambiente privado. Os valores não foram exibidos nem versionados.
+- O header `X-Gerencia-Webhook-Token` foi acrescentado e validado sem revelar seu valor. A leitura posterior confirmou que URL, evento, `byEvents=false` e `base64=false` foram preservados. O monitor permaneceu desligado e sem mensagens após o reinício.
 - Não alterar webhooks de HUB/escala para testar; primeiro validar em homologação e conferir se o outro endpoint `/api/webhook/mensagem` pode receber conteúdo do grupo gerencial.
 - Senha exclusiva e token devem ser gerados e instalados **somente no servidor**, nunca no Git ou nesta conversa.
 
