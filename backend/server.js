@@ -170,33 +170,18 @@ app.get('/api/gerencia/estado', (req, res) => {
   res.setHeader('Cache-Control', 'no-store');
   res.json({
     sucesso: true,
-    ...gerencia.clientState(req, ADMIN_SESSION_SECRET, ADMIN_SESSION_COOKIE)
+    ...gerencia.clientState()
   });
 });
 
-app.post('/api/gerencia/desbloquear', async (req, res) => {
+app.post('/api/gerencia/alternar', async (req, res) => {
   if (!hasValidAdminSession(req)) return res.status(401).json({ erro: 'Acesso administrativo necessario' });
-  const result = await gerencia.authenticate(req.body?.password, req.ip);
-  if (!result.ok) return res.status(result.status).json({ sucesso: false, erro: result.error });
-  const adminCookie = gerencia.parseCookie(req.headers.cookie, ADMIN_SESSION_COOKIE);
-  res.setHeader('Set-Cookie', gerencia.cookie(gerencia.controlToken(adminCookie, ADMIN_SESSION_SECRET), gerencia.CONTROL_SESSION_MS / 1000));
-  res.setHeader('Cache-Control', 'no-store');
-  res.json({ sucesso: true });
-});
-
-app.post('/api/gerencia/bloquear', (req, res) => {
-  if (!hasValidAdminSession(req)) return res.status(401).json({ erro: 'Acesso administrativo necessario' });
-  res.setHeader('Set-Cookie', gerencia.cookie('', 0));
-  res.json({ sucesso: true });
-});
-
-app.post('/api/gerencia/alternar', (req, res) => {
-  if (!hasValidAdminSession(req)) return res.status(401).json({ erro: 'Acesso administrativo necessario' });
-  if (!gerencia.validControl(req, ADMIN_SESSION_SECRET, ADMIN_SESSION_COOKIE)) {
-    return res.status(403).json({ sucesso: false, erro: 'Desbloqueio exclusivo necessario' });
-  }
   if (typeof req.body?.enabled !== 'boolean') {
     return res.status(400).json({ sucesso: false, erro: 'Informe enabled como booleano' });
+  }
+  const authorization = await gerencia.authenticate(req.body?.password, req.ip);
+  if (!authorization.ok) {
+    return res.status(authorization.status).json({ sucesso: false, erro: authorization.error });
   }
   try {
     const estado = gerencia.setEnabled(req.body.enabled);

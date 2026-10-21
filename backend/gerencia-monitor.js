@@ -8,9 +8,7 @@ const TIMEZONE = 'America/Sao_Paulo';
 const GROUP_ID = String(process.env.GERENCIA_GROUP_CHAT_ID || '').trim();
 const PASSWORD_HASH = String(process.env.GERENCIA_CONTROL_PASSWORD_HASH || '').trim();
 const WEBHOOK_TOKEN = String(process.env.GERENCIA_WEBHOOK_TOKEN || '').trim();
-const COOKIE_NAME = 'divisao_gerencia_control';
 const MAX_MESSAGES = 80;
-const CONTROL_SESSION_MS = 15 * 60 * 1000;
 const attempts = new Map();
 let active = false;
 let activatedAt = 0;
@@ -156,54 +154,9 @@ function receiveWebhook(body, providedToken) {
   return true;
 }
 
-function parseCookie(header, name = COOKIE_NAME) {
-  const prefix = name + '=';
-  return String(header || '').split(';').map(s => s.trim()).find(s => s.startsWith(prefix))?.slice(prefix.length) || '';
-}
-
-function signature(value, secret) {
-  return crypto.createHmac('sha256', secret).update(value).digest('base64url');
-}
-
-function controlToken(adminCookie, secret) {
-  const payload = Buffer.from(JSON.stringify({
-    expires: Date.now() + CONTROL_SESSION_MS,
-    adminBind: signature(adminCookie, secret),
-    nonce: crypto.randomBytes(12).toString('hex')
-  })).toString('base64url');
-  return payload + '.' + signature(payload, secret + PASSWORD_HASH);
-}
-
-function validControl(req, secret, adminCookieName) {
-  if (!configured() || !secret) return false;
-  const token = parseCookie(req.headers.cookie);
-  const adminCookie = parseCookie(req.headers.cookie, adminCookieName);
-  if (!token || !adminCookie) return false;
-  const [payload, mac] = token.split('.');
-  if (!payload || !mac) return false;
-  const expected = signature(payload, secret + PASSWORD_HASH);
-  if (Buffer.byteLength(mac) !== Buffer.byteLength(expected) ||
-      !crypto.timingSafeEqual(Buffer.from(mac), Buffer.from(expected))) return false;
-  try {
-    const value = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8'));
-    return value.expires > Date.now() &&
-      value.adminBind === signature(adminCookie, secret);
-  } catch { return false; }
-}
-
-function clientState(req, secret, adminCookieName) {
-  const controlAuthorized = validControl(req, secret, adminCookieName);
-  return {
-    // O chamador desta função deve validar antes a sessão administrativa.
-    // A senha exclusiva protege somente as ações de ligar/desligar o monitor.
-    ...state({ includeMessages: true }),
-    controlAuthorized
-  };
-}
-
-function cookie(value, seconds) {
-  const secure = process.env.NODE_ENV === 'production' ? '; Secure' : '';
-  return `${COOKIE_NAME}=${value}; Path=/api/gerencia; HttpOnly; SameSite=Strict; Max-Age=${seconds}${secure}`;
+function clientState() {
+  // O chamador deve validar antes a sessão administrativa.
+  return state({ includeMessages: true });
 }
 
 async function authenticate(password, ip) {
@@ -224,6 +177,5 @@ async function authenticate(password, ip) {
 }
 
 module.exports = {
-  state, clientState, setEnabled, receiveWebhook, validControl, controlToken,
-  cookie, authenticate, parseCookie, CONTROL_SESSION_MS
+  state, clientState, setEnabled, receiveWebhook, authenticate
 };

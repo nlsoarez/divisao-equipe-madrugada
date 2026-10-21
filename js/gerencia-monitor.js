@@ -1,7 +1,7 @@
 /* Aba restrita /admin. Nenhuma credencial ou mensagem guardada em localStorage. */
 (function () {
   'use strict';
-  let running = false, fetching = false, timer = null, soundEnabled = false;
+  let running = false, fetching = false, timer = null, soundEnabled = false, monitorActive = false;
   let audio = null, knownIds = new Set(), initialized = false;
   const $ = id => document.getElementById(id);
 
@@ -81,8 +81,8 @@
       const data = await request('estado');
       const active = Boolean(data.active);
       const configured = Boolean(data.groupConfigured && data.passwordConfigured && data.webhookAuthConfigured);
-      const authenticated = Boolean(data.controlAuthorized);
       const messages = Array.isArray(data.messages) && active ? data.messages : [];
+      monitorActive = active;
       const ids = new Set(messages.map(item => item.id));
 
       // A primeira consulta apenas estabelece o cursor: nunca toca mensagens antigas.
@@ -107,13 +107,9 @@
             ? 'Aguardando a autenticação segura do webhook Evolution.'
           : active ? 'Ativado manualmente. Encerramento automático: 07h (Brasília).'
             : 'Inativo. Nenhuma mensagem é armazenada.';
-      const panel = $('gerenciaControle');
-      if (panel) panel.hidden = !authenticated;
-      const login = $('gerenciaLogin');
-      if (login) login.hidden = authenticated;
       const toggle = $('gerenciaAlternar');
       if (toggle) {
-        toggle.disabled = !authenticated || (!configured && !active);
+        toggle.disabled = !configured && !active;
         toggle.textContent = active ? 'Desabilitar monitoramento' : 'Habilitar monitoramento';
         toggle.className = 'btn ' + (active ? 'btn-outline-danger' : 'btn-danger');
       }
@@ -127,33 +123,21 @@
     } finally { fetching = false; }
   }
 
-  async function unlock() {
+  async function toggle() {
     const password = $('gerenciaSenha')?.value || '';
     if (!password) return status('Informe sua senha exclusiva.', true);
     try {
-      await request('desbloquear', { method: 'POST', body: JSON.stringify({ password }) });
-      if ($('gerenciaSenha')) $('gerenciaSenha').value = '';
-      await refresh();
-    } catch (error) {
-      if ($('gerenciaSenha')) $('gerenciaSenha').value = '';
-      status(error.message, true);
-    }
-  }
-
-  async function toggle() {
-    const active = $('gerenciaEstado')?.textContent !== 'DESLIGADO';
-    try {
-      await request('alternar', { method: 'POST', body: JSON.stringify({ enabled: !active }) });
+      await request('alternar', {
+        method: 'POST', body: JSON.stringify({ enabled: !monitorActive, password })
+      });
       initialized = false;
       knownIds.clear();
       await refresh();
-    } catch (error) { status(error.message, true); }
-  }
-
-  async function lock() {
-    try { await request('bloquear', { method: 'POST', body: '{}' }); }
-    catch (error) { status(error.message, true); return; }
-    await refresh();
+    } catch (error) {
+      status(error.message, true);
+    } finally {
+      if ($('gerenciaSenha')) $('gerenciaSenha').value = '';
+    }
   }
 
   async function enableSound() {
@@ -173,10 +157,8 @@
   function start() {
     if (running || !$('tabGerencia')) return;
     running = true;
-    $('gerenciaDesbloquear')?.addEventListener('click', unlock);
-    $('gerenciaSenha')?.addEventListener('keydown', e => { if (e.key === 'Enter') unlock(); });
+    $('gerenciaSenha')?.addEventListener('keydown', e => { if (e.key === 'Enter') toggle(); });
     $('gerenciaAlternar')?.addEventListener('click', toggle);
-    $('gerenciaBloquear')?.addEventListener('click', lock);
     $('gerenciaSom')?.addEventListener('click', enableSound);
     refresh();
     timer = setInterval(refresh, 4000);

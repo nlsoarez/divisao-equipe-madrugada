@@ -95,55 +95,18 @@ describe('monitor de gerencia - isolamento e janela', () => {
     jest.useRealTimers();
     jest.resetModules();
     const monitorWithRealTimers = require('../gerencia-monitor');
+    expect((await monitorWithRealTimers.authenticate('', '192.0.2.49')).ok).toBe(false);
     expect((await monitorWithRealTimers.authenticate('senha-administrativa', '192.0.2.50')).ok).toBe(false);
     expect((await monitorWithRealTimers.authenticate('SENHA-PRIVADA-FORTE', '192.0.2.50')).ok).toBe(true);
   });
 
-  it('entrega mensagens ao supervisor administrativo sem liberar o controle', () => {
+  it('entrega mensagens temporarias ao supervisor administrativo', () => {
     monitor.setEnabled(true);
     receive('sigilosa', Date.now());
 
-    const secret = 'um-segredo-com-no-minimo-trinta-e-dois-caracteres';
-    const adminCookie = 'cookie-admin-1';
-    const unauthorized = { headers: { cookie: 'divisao_admin_session=' + adminCookie } };
-    const supervisor = monitor.clientState(unauthorized, secret, 'divisao_admin_session');
-    expect(supervisor.controlAuthorized).toBe(false);
+    const supervisor = monitor.clientState();
     expect(supervisor.active).toBe(true);
     expect(supervisor.messages).toHaveLength(1);
     expect(supervisor.messages[0].id).toBe('sigilosa');
-
-    const token = monitor.controlToken(adminCookie, secret);
-    const authorized = { headers: { cookie: 'divisao_admin_session=' + adminCookie +
-      '; divisao_gerencia_control=' + token } };
-    const visible = monitor.clientState(authorized, secret, 'divisao_admin_session');
-    expect(visible.controlAuthorized).toBe(true);
-    expect(visible.messages).toHaveLength(1);
-    expect(visible.messages[0].id).toBe('sigilosa');
-  });
-
-  it('mantem a leitura dos supervisores quando o controle exclusivo expira', () => {
-    monitor.setEnabled(true);
-    receive('temporaria', Date.now());
-    const secret = 'um-segredo-com-no-minimo-trinta-e-dois-caracteres';
-    const adminCookie = 'cookie-admin-1';
-    const token = monitor.controlToken(adminCookie, secret);
-    const request = { headers: { cookie: 'divisao_admin_session=' + adminCookie +
-      '; divisao_gerencia_control=' + token } };
-
-    expect(monitor.clientState(request, secret, 'divisao_admin_session').messages).toHaveLength(1);
-    jest.advanceTimersByTime(monitor.CONTROL_SESSION_MS + 1);
-    const expired = monitor.clientState(request, secret, 'divisao_admin_session');
-    expect(expired.controlAuthorized).toBe(false);
-    expect(expired.messages).toHaveLength(1);
-    expect(expired.messages[0].id).toBe('temporaria');
-  });
-
-  it('sessao de controle esta vinculada ao cookie administrativo original', () => {
-    const secret = 'um-segredo-com-no-minimo-trinta-e-dois-caracteres';
-    const token = monitor.controlToken('cookie-admin-1', secret);
-    const request = {headers: {cookie: 'divisao_admin_session=cookie-admin-1; divisao_gerencia_control=' + token}};
-    expect(monitor.validControl(request, secret, 'divisao_admin_session')).toBe(true);
-    request.headers.cookie = 'divisao_admin_session=cookie-admin-2; divisao_gerencia_control=' + token;
-    expect(monitor.validControl(request, secret, 'divisao_admin_session')).toBe(false);
   });
 });

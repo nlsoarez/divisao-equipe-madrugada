@@ -2739,20 +2739,12 @@
         <details class="border rounded-3 p-3 mb-3 bg-light">
           <summary class="fw-semibold" style="cursor: pointer">Acesso do coordenador</summary>
           <div class="mt-3">
-            <div id="gerenciaLogin">
-              <label class="form-label" for="gerenciaSenha">Senha exclusiva desta função (diferente da senha administrativa)</label>
-              <div class="d-flex gap-2 flex-wrap">
-                <input id="gerenciaSenha" type="password" class="form-control" autocomplete="off"
-                  style="max-width: 300px" placeholder="Senha exclusiva" maxlength="256">
-                <button id="gerenciaDesbloquear" type="button" class="btn btn-outline-danger">Desbloquear controle</button>
-              </div>
-            </div>
-            <div id="gerenciaControle" hidden>
-              <p class="small text-muted mb-2">Controle desbloqueado apenas nesta sessão por tempo limitado.</p>
-              <div class="d-flex flex-wrap gap-2">
-                <button id="gerenciaAlternar" class="btn btn-danger" type="button" disabled>Habilitar monitoramento</button>
-                <button id="gerenciaBloquear" type="button" class="btn btn-outline-secondary">Bloquear controle</button>
-              </div>
+            <label class="form-label" for="gerenciaSenha">Senha exclusiva do coordenador</label>
+            <p class="small text-muted mb-2">A senha é exigida novamente em cada ativação ou desativação.</p>
+            <div class="d-flex gap-2 flex-wrap">
+              <input id="gerenciaSenha" type="password" class="form-control" autocomplete="off"
+                style="max-width: 300px" placeholder="Senha exclusiva" maxlength="256">
+              <button id="gerenciaAlternar" class="btn btn-danger" type="button" disabled>Habilitar monitoramento</button>
             </div>
           </div>
         </details>
