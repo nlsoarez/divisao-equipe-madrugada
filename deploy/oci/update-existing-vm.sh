@@ -40,7 +40,7 @@ if [[ ! "$RELEASE_DIR" =~ ^/opt/divisao/releases/[0-9a-f]{12}$ ]]; then
 fi
 rm -rf "$RELEASE_DIR"
 install -d -m 0755 "$RELEASE_DIR"
-unzip -q "$ARCHIVE" -d "$RELEASE_DIR"
+python3 -m zipfile -e "$ARCHIVE" "$RELEASE_DIR"
 docker build --pull=false -t "$NEW_IMAGE" -f "$RELEASE_DIR/Dockerfile" "$RELEASE_DIR"
 
 start_app() {
