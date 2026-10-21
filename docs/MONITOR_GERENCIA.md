@@ -21,12 +21,12 @@ O código desta funcionalidade vive em branch isolada, aguardando ID do grupo e 
 No arquivo **privado** `deploy/oci/.env` em produção (nunca no repositório):
 
 ```dotenv
-GERENCIA_GROUP_CHAT_ID=
+GERENCIA_GROUP_CHAT_ID=5521993571609-1390687807@g.us
 GERENCIA_CONTROL_PASSWORD_HASH=
 GERENCIA_WEBHOOK_TOKEN=
 ```
 
-1. Após obter o ID real do grupo, informar `GERENCIA_GROUP_CHAT_ID` no formato `...@g.us`. **Ainda não fornecido**.
+1. ID confirmado: `5521993571609-1390687807@g.us`. Aplicar no `.env` privado da implantação; estar no exemplo do Git não configura o servidor.
 2. Gerar um hash **bcrypt** (custo 12 recomendado) de uma senha **nova, conhecida somente pelo coordenador**. Salvar em `GERENCIA_CONTROL_PASSWORD_HASH` no servidor. O login /admin existente continua inalterado. Nunca enviar a senha por chat nem versionar seu texto ou hash.
 3. Gerar um token aleatório com pelo menos 32 caracteres e armazenar em `GERENCIA_WEBHOOK_TOKEN`.
 4. Configurar a **instância Evolution que já entrega os eventos ao portal** para encaminhar o cabeçalho customizado `X-Gerencia-Webhook-Token` com exatamente o mesmo token. A Evolution v2 possui suporte a cabeçalhos personalizados em **webhook por instância**, mas é preciso confirmar a versão e o mecanismo atualmente em uso. **Não sobrescrever o webhook do HUB**. Webhooks globais configurados somente no ambiente podem não suportar cabeçalhos customizados. Verificar antes de mudar qualquer endpoint.
@@ -43,3 +43,11 @@ GERENCIA_WEBHOOK_TOKEN=
 - `backend/__tests__/gerencia-monitor.test.js` — testes preparados com Jest (precisam ser executados em ambiente com dependências: `cd backend && npm ci && npm test -- --runInBand`).
 
 **Não publicar em produção antes de testar os segredos, o webhook e a compatibilidade da instância Evolution ativa.**
+
+## Verificação de integração pendente
+
+- A URL fornecida do Evolution Manager identifica a instância `49f9bd72-66b4-4318-884f-3d59977d46ca`, mas não comprova a versão nem a configuração efetiva do webhook.
+- Confirmar que o webhook existente envia `messages.upsert` ao endpoint `/api/whatsapp/webhook` e suporta o header `X-Gerencia-Webhook-Token`. Sem o header, o monitor descarta as mensagens, mesmo que a instância esteja conectada.
+- Não alterar webhooks de HUB/escala para testar; primeiro validar em homologação e conferir se o outro endpoint `/api/webhook/mensagem` pode receber conteúdo do grupo gerencial.
+- Senha exclusiva e token devem ser gerados e instalados **somente no servidor**, nunca no Git ou nesta conversa.
+
