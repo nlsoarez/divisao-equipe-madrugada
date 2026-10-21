@@ -2698,6 +2698,10 @@
       <i class="bi bi-geo-alt-fill"></i>
       Alocação de Hub
     </button>
+    <button class="admin-nav-tab" data-admin-tab="gerencia" style="display: none" onclick="trocarAbaAdmin('gerencia')">
+      <i class="bi bi-bell"></i>
+      Monitoramento da Gerência
+    </button>
   </div>
 
   <!-- Sub-navegação interna do Empresarial (Rio/ES e Leste) -->
@@ -2710,6 +2714,51 @@
       <i class="bi bi-geo-alt"></i>
       Leste
     </button>
+  </div>
+
+  <!-- Monitoramento temporario: conteudo acessivel somente na sessao /admin. -->
+  <div class="admin-tab-content" id="tabGerencia" aria-label="Monitoramento da Gerência">
+    <section class="card shadow-sm my-3">
+      <div class="card-body">
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-3">
+          <div>
+            <h2 class="h5 mb-2"><i class="bi bi-shield-lock me-2"></i>Monitoramento da Gerência</h2>
+            <span id="gerenciaEstado" class="badge bg-secondary">DESLIGADO</span>
+          </div>
+          <button type="button" id="gerenciaSom" class="btn btn-outline-secondary">
+            <i class="bi bi-volume-up me-1"></i>Ativar som neste navegador
+          </button>
+        </div>
+        <p id="gerenciaDetalhe" class="text-muted mb-3">Carregando estado seguro…</p>
+        <p class="small text-muted">
+          Somente mensagens recebidas entre 21h e 07h, após a ativação manual.
+          Sem acesso a conversas anteriores e sem possibilidade de resposta.
+          O monitor é desligado e as mensagens temporárias apagadas às 07h.
+        </p>
+        <div class="border rounded-3 p-3 mb-3 bg-light">
+          <h3 class="h6 mb-3">Controle exclusivo do coordenador</h3>
+          <div id="gerenciaLogin">
+            <label class="form-label" for="gerenciaSenha">Senha exclusiva desta função (diferente da senha administrativa)</label>
+            <div class="d-flex gap-2 flex-wrap">
+              <input id="gerenciaSenha" type="password" class="form-control" autocomplete="off"
+                style="max-width: 300px" placeholder="Senha exclusiva" maxlength="256">
+              <button id="gerenciaDesbloquear" type="button" class="btn btn-outline-danger">Desbloquear controle</button>
+            </div>
+          </div>
+          <div id="gerenciaControle" hidden>
+            <p class="small text-muted mb-2">Controle desbloqueado apenas nesta sessão por tempo limitado.</p>
+            <div class="d-flex flex-wrap gap-2">
+              <button id="gerenciaAlternar" class="btn btn-danger" type="button" disabled>Habilitar monitoramento</button>
+              <button id="gerenciaBloquear" type="button" class="btn btn-outline-secondary">Bloquear controle</button>
+            </div>
+          </div>
+          <p id="gerenciaErro" class="small text-muted mt-2 mb-0" role="status" aria-live="polite"></p>
+        </div>
+        <h3 class="h6">Mensagens recebidas durante esta ativação</h3>
+        <div id="gerenciaMensagens" class="border rounded-3 p-2" style="min-height: 85px; max-height: 520px; overflow-y: auto"
+          aria-live="polite"><p class="text-muted p-3">Monitoramento desligado.</p></div>
+      </div>
+    </section>
   </div>
 
   <!-- Conteúdo da Aba Residencial -->
@@ -3686,6 +3735,7 @@
 <script src="js/matriz-api.js"></script>
 <script src="js/backup-recovery.js"></script>
 <script src="js/escala-api.js"></script>
+<script src="js/gerencia-monitor.js"></script>
 <script>
 // ============================================
 // VARIÁVEIS GLOBAIS E ALIASES
@@ -6870,6 +6920,8 @@ function entrarComoVisualizador(tipo = 'residencial') {
 
 function iniciarComoAdmin() {
   isAdmin = true;
+  // Monitora novas mensagens em todas as abas administrativas.
+  window.GerenciaMonitor?.start();
   document.body.classList.add('app-logged-in');
   document.body.classList.add('admin-mode');
   document.body.classList.remove('viewer-mode');
@@ -6899,6 +6951,9 @@ function iniciarComoAdmin() {
   // Mostrar aba Alocacao de HUB para admin
   const hubTabNav = document.querySelector('.admin-nav-tab[data-admin-tab="alocacao_hub"]');
   if (hubTabNav) hubTabNav.style.display = '';
+
+  const gerenciaTabNav = document.querySelector('.admin-nav-tab[data-admin-tab="gerencia"]');
+  if (gerenciaTabNav) gerenciaTabNav.style.display = '';
 
   // Mostrar painel de gerenciamento baseado no calendário ativo
   const calendarioPanelResidencial = document.getElementById('calendarioPanelResidencial');
@@ -9967,6 +10022,11 @@ function trocarAbaAdmin(abaId) {
 
     // Iniciar auto-refresh para HUB (carrega dados automaticamente)
     iniciarAutoRefreshHub();
+  } else if (abaId === 'gerencia') {
+    if (!isAdmin) return;
+    const tabGerencia = document.getElementById('tabGerencia');
+    if (tabGerencia) tabGerencia.classList.add('active');
+    window.GerenciaMonitor?.refresh();
   }
 }
 
