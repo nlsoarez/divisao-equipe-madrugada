@@ -16,6 +16,7 @@ describe('monitor de gerencia - isolamento e janela', () => {
     jest.useFakeTimers();
     jest.setSystemTime(new Date('2026-10-22T01:00:00.000Z')); // 22:00 BRT
     process.env.GERENCIA_GROUP_CHAT_ID = groupId;
+    process.env.GERENCIA_WEBHOOK_TOKEN = 'segredo-teste-gerencia-minimo-trinta-e-dois';
     process.env.GERENCIA_CONTROL_PASSWORD_HASH = bcrypt.hashSync('SENHA-PRIVADA-FORTE', 10);
     jest.resetModules();
     monitor = require('../gerencia-monitor');
@@ -24,24 +25,25 @@ describe('monitor de gerencia - isolamento e janela', () => {
   afterEach(() => {
     jest.useRealTimers();
     delete process.env.GERENCIA_GROUP_CHAT_ID;
+    delete process.env.GERENCIA_WEBHOOK_TOKEN;
     delete process.env.GERENCIA_CONTROL_PASSWORD_HASH;
   });
 
   it('inicia desligado e nao guarda mensagens anteriores', () => {
     expect(monitor.state().active).toBe(false);
-    monitor.receiveWebhook(message('m1', Date.now()));
+    monitor.receiveWebhook(message('m1', Date.now(, 'segredo-teste-gerencia-minimo-trinta-e-dois'));
     expect(monitor.state().messages).toHaveLength(0);
     monitor.setEnabled(true);
-    monitor.receiveWebhook(message('m2', Date.now() - 60000));
+    monitor.receiveWebhook(message('m2', Date.now() - 60000, 'segredo-teste-gerencia-minimo-trinta-e-dois');
     expect(monitor.state().messages).toHaveLength(0);
   });
 
   it('aceita apenas o grupo alvo, sem duplicidade, e apaga ao desabilitar', () => {
     monitor.setEnabled(true);
     const now = Date.now();
-    expect(monitor.receiveWebhook(message('outro', now, 'outro@g.us'))).toBe(false);
-    expect(monitor.receiveWebhook(message('m1', now))).toBe(true);
-    expect(monitor.receiveWebhook(message('m1', now))).toBe(true);
+    expect(monitor.receiveWebhook(message('outro', now, 'outro@g.us', 'segredo-teste-gerencia-minimo-trinta-e-dois')).toBe(false);
+    expect(monitor.receiveWebhook(message('m1', now, 'segredo-teste-gerencia-minimo-trinta-e-dois')).toBe(true);
+    expect(monitor.receiveWebhook(message('m1', now, 'segredo-teste-gerencia-minimo-trinta-e-dois')).toBe(true);
     expect(monitor.state().messages).toHaveLength(1);
     monitor.setEnabled(false);
     expect(monitor.state().messages).toHaveLength(0);
@@ -50,22 +52,22 @@ describe('monitor de gerencia - isolamento e janela', () => {
   it('recusa conteudo fora da janela e desativa automaticamente as 07:00', () => {
     monitor.setEnabled(true);
     jest.setSystemTime(new Date('2026-10-22T09:59:58.000Z')); // 06:59:58 BRT
-    monitor.receiveWebhook(message('valid', Date.now()));
+    monitor.receiveWebhook(message('valid', Date.now(, 'segredo-teste-gerencia-minimo-trinta-e-dois'));
     expect(monitor.state().messages).toHaveLength(1);
     jest.setSystemTime(new Date('2026-10-22T10:00:00.000Z')); // 07:00 BRT
     expect(monitor.state().active).toBe(false);
     expect(monitor.state().messages).toHaveLength(0);
-    monitor.receiveWebhook(message('late', Date.now()));
+    monitor.receiveWebhook(message('late', Date.now(, 'segredo-teste-gerencia-minimo-trinta-e-dois'));
     expect(monitor.state().messages).toHaveLength(0);
   });
 
   it('permite armar antes das 21h, mas nao exibe mensagens desse intervalo', () => {
     jest.setSystemTime(new Date('2026-10-21T20:00:00.000Z')); // 17:00 BRT
     monitor.setEnabled(true);
-    monitor.receiveWebhook(message('day', Date.now()));
+    monitor.receiveWebhook(message('day', Date.now(, 'segredo-teste-gerencia-minimo-trinta-e-dois'));
     expect(monitor.state().messages).toHaveLength(0);
     jest.setSystemTime(new Date('2026-10-22T00:00:00.000Z')); // 21:00 BRT
-    monitor.receiveWebhook(message('night', Date.now()));
+    monitor.receiveWebhook(message('night', Date.now(, 'segredo-teste-gerencia-minimo-trinta-e-dois'));
     expect(monitor.state().messages).toHaveLength(1);
   });
 
