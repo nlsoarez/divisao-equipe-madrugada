@@ -80,7 +80,7 @@
     try {
       const data = await request('estado');
       const active = Boolean(data.active);
-      const configured = Boolean(data.groupConfigured && data.passwordConfigured);
+      const configured = Boolean(data.groupConfigured && data.passwordConfigured && data.webhookAuthConfigured);
       const authenticated = Boolean(data.controlAuthorized);
       const messages = Array.isArray(data.messages) && active ? data.messages : [];
       const ids = new Set(messages.map(item => item.id));
@@ -103,6 +103,8 @@
         ? 'Aguardando o ID do grupo. Nenhuma mensagem é capturada.'
         : !data.passwordConfigured
           ? 'Aguardando a configuração da senha exclusiva no servidor.'
+          : !data.webhookAuthConfigured
+            ? 'Aguardando a autenticação segura do webhook Evolution.'
           : active ? 'Ativado manualmente. Encerramento automático: 07h (Brasília).'
             : 'Inativo. Nenhuma mensagem é armazenada.';
       const panel = $('gerenciaControle');
