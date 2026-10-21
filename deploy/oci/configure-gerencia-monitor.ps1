@@ -57,6 +57,7 @@ $processInfo.UseShellExecute = $false
 $processInfo.RedirectStandardInput = $true
 
 $process = [Diagnostics.Process]::Start($processInfo)
+$process.StandardInput.NewLine = "`n"
 $process.StandardInput.WriteLine($passwordPlain)
 $process.StandardInput.Close()
 $passwordPlain = $null

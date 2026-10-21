@@ -47,7 +47,6 @@ if [[ ${#PASSWORD_HASH} -ne 60 || ${#WEBHOOK_TOKEN} -lt 32 ]]; then
   echo 'ERRO: nao foi possivel gerar as credenciais.' >&2
   exit 4
 fi
-unset PASSWORD
 
 umask 077
 cp -a "$APP_ENV_FILE" "$ENV_BACKUP"
@@ -147,6 +146,19 @@ if ! docker exec "$APP_CONTAINER" node -e '
   echo 'ERRO: backend recusou as credenciais; configuracao anterior restaurada.' >&2
   exit 6
 fi
+
+if ! printf '%s' "$PASSWORD" | docker exec -i "$APP_CONTAINER" node -e '
+  const bcrypt = require("bcryptjs");
+  let value = "";
+  process.stdin.setEncoding("utf8");
+  process.stdin.on("data", chunk => { value += chunk; });
+  process.stdin.on("end", async () => process.exit(await bcrypt.compare(value, process.env.GERENCIA_CONTROL_PASSWORD_HASH || "") ? 0 : 1));
+'; then
+  rollback
+  echo 'ERRO: a senha nao corresponde ao hash apos o reinicio; configuracao anterior restaurada.' >&2
+  exit 6
+fi
+unset PASSWORD
 
 WEBHOOK_CHANGED=true
 if ! docker exec -i "$APP_CONTAINER" node -e '
