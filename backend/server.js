@@ -633,7 +633,7 @@ app.post('/api/whatsapp/webhook', async (req, res) => {
     }
 
     // Intercepta apenas o grupo autorizado; nao registra seu texto nos logs legados.
-    if (gerencia.receiveWebhook(req.body)) {
+    if (gerencia.receiveWebhook(req.body, req.headers['x-gerencia-webhook-token'])) {
       return res.json({ sucesso: true, processado: true, tipo: 'GERENCIA' });
     }
 
