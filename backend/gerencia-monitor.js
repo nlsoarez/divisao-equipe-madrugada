@@ -34,16 +34,38 @@ function parts(when = Date.now()) {
   return Object.fromEntries(list.filter(p => p.type !== 'literal').map(p => [p.type, Number(p.value)]));
 }
 
+function epochForLocal(target) {
+  const desired = Date.UTC(target.year, target.month - 1, target.day, target.hour, target.minute || 0, 0);
+  let candidate = desired;
+
+  // Converte um horario civil da zona configurada em epoch sem assumir um offset fixo.
+  // As iteracoes tambem acomodam uma eventual mudanca futura de horario legal.
+  for (let index = 0; index < 4; index++) {
+    const actual = parts(candidate);
+    const represented = Date.UTC(actual.year, actual.month - 1, actual.day, actual.hour, actual.minute, 0);
+    const difference = desired - represented;
+    candidate += difference;
+    if (Math.abs(difference) < 60000) break;
+  }
+  return candidate;
+}
+
 function isNight(when = Date.now()) {
   const hour = parts(when).hour;
   return hour >= 21 || hour < 7;
 }
 
 function nextCutoff(when = Date.now()) {
-  // Sao Paulo permanece UTC-03 em 2026; calculo do proximo encerramento as 07h locais.
   const p = parts(when);
   const dayDelta = p.hour >= 7 ? 1 : 0;
-  return Date.UTC(p.year, p.month - 1, p.day + dayDelta, 10, 0, 0);
+  const targetDay = new Date(Date.UTC(p.year, p.month - 1, p.day + dayDelta));
+  return epochForLocal({
+    year: targetDay.getUTCFullYear(),
+    month: targetDay.getUTCMonth() + 1,
+    day: targetDay.getUTCDate(),
+    hour: 7,
+    minute: 0
+  });
 }
 
 function deactivate() {
@@ -62,7 +84,7 @@ function setEnabled(enabled) {
   validateState();
   if (!enabled) { deactivate(); return state(); }
   if (!configured()) {
-    const error = new Error('Grupo e senha exclusiva precisam ser configurados no servidor');
+    const error = new Error('Grupo, senha exclusiva e token do webhook precisam ser configurados no servidor');
     error.status = 503;
     throw error;
   }
@@ -76,7 +98,7 @@ function setEnabled(enabled) {
   return state();
 }
 
-function state() {
+function state({ includeMessages = false } = {}) {
   validateState();
   return {
     active, groupConfigured: Boolean(GROUP_ID),
@@ -84,7 +106,7 @@ function state() {
     webhookAuthConfigured: WEBHOOK_TOKEN.length >= 32,
     openedAt: active ? new Date(activatedAt).toISOString() : null,
     closesAt: active ? new Date(expiresAt).toISOString() : null,
-    inWindow: isNight(), messages: active ? messages : []
+    inWindow: isNight(), messages: active && includeMessages ? messages.slice() : []
   };
 }
 
@@ -169,6 +191,14 @@ function validControl(req, secret, adminCookieName) {
   } catch { return false; }
 }
 
+function clientState(req, secret, adminCookieName) {
+  const controlAuthorized = validControl(req, secret, adminCookieName);
+  return {
+    ...state({ includeMessages: controlAuthorized }),
+    controlAuthorized
+  };
+}
+
 function cookie(value, seconds) {
   const secure = process.env.NODE_ENV === 'production' ? '; Secure' : '';
   return `${COOKIE_NAME}=${value}; Path=/api/gerencia; HttpOnly; SameSite=Strict; Max-Age=${seconds}${secure}`;
@@ -192,6 +222,6 @@ async function authenticate(password, ip) {
 }
 
 module.exports = {
-  state, setEnabled, receiveWebhook, validControl, controlToken,
+  state, clientState, setEnabled, receiveWebhook, validControl, controlToken,
   cookie, authenticate, parseCookie, CONTROL_SESSION_MS
 };

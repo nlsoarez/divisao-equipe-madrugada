@@ -170,8 +170,7 @@ app.get('/api/gerencia/estado', (req, res) => {
   res.setHeader('Cache-Control', 'no-store');
   res.json({
     sucesso: true,
-    ...gerencia.state(),
-    controlAuthorized: gerencia.validControl(req, ADMIN_SESSION_SECRET, ADMIN_SESSION_COOKIE)
+    ...gerencia.clientState(req, ADMIN_SESSION_SECRET, ADMIN_SESSION_COOKIE)
   });
 });
 
