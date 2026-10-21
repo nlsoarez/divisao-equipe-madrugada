@@ -33,6 +33,14 @@ GERENCIA_WEBHOOK_TOKEN=
 5. Reiniciar/atualizar o backend depois de atualizar as variáveis. Até que **ID + hash + token** estejam configurados, o botão de habilitação permanecerá bloqueado.
 6. Fazer ensaio com grupo de teste e usuário autorizado, validando recebimento, som, bloqueio de histórico, 07h, reinício e casos de autenticação.
 
+O procedimento transacional para instalar os três valores e acrescentar o header sem expor a senha é:
+
+```powershell
+.\deploy\oci\configure-gerencia-monitor.ps1
+```
+
+O script pede a senha duas vezes em campos ocultos, gera hash e token na VM, preserva a configuração completa do webhook antes da alteração e mantém o monitor desligado. Em falha de saúde ou validação, restaura ambiente, webhook e container anteriores.
+
 **Atenção**: o endpoint existente `/api/whatsapp/webhook` continua com comportamento legado para os demais grupos. A autenticação adicional protege somente a ingestão de mensagens do grupo gerencial. Faça auditoria independente do endpoint legado antes de expor mais dados.
 
 ## Código
