@@ -74,16 +74,12 @@ describe('EscalaApi - Persistência Resiliente da Escala (Multi-Tier Storage)', 
     expect(fetchImpl.mock.calls[2][0]).toContain('data/escala.json');
   });
 
-  test('Camada 3: faz fallback para Backend quando Supabase e estático falharem', async () => {
-    const fetchImpl = jest.fn()
-      .mockResolvedValueOnce({ ok: false, status: 500, text: jest.fn().mockResolvedValue('Error') }) // Supabase escalas
-      .mockResolvedValueOnce({ ok: false, status: 500, text: jest.fn().mockResolvedValue('Error') }) // Supabase indicators
-      .mockResolvedValueOnce({ ok: false, status: 404, text: jest.fn().mockResolvedValue('Not found') }) // Estático
-      .mockResolvedValueOnce({
-        ok: true,
-        status: 200,
-        json: jest.fn().mockResolvedValue({ sucesso: true, dados: dadosValidos, origem: 'backend' })
-      }); // Backend
+  test('Camada 1 na OCI: carrega primeiro do Backend publicado', async () => {
+    const fetchImpl = jest.fn().mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: jest.fn().mockResolvedValue({ sucesso: true, dados: dadosValidos, origem: 'backend' })
+    });
 
     const res = await EscalaApi.carregarEscala({
       fetchImpl,
@@ -93,6 +89,8 @@ describe('EscalaApi - Persistência Resiliente da Escala (Multi-Tier Storage)', 
     expect(res.sucesso).toBe(true);
     expect(res.origem).toBe('backend');
     expect(res.dados).toEqual(dadosValidos);
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+    expect(fetchImpl.mock.calls[0][0]).toContain('/api/escala');
   });
 
   test('Camada 4: faz fallback para LocalStorage quando todas as redes falharem', async () => {
@@ -140,5 +138,26 @@ describe('EscalaApi - Persistência Resiliente da Escala (Multi-Tier Storage)', 
     expect(res.resultados.supabase).toBe(true);
     expect(res.resultados.localstorage).toBe(true);
     expect(localStorageImpl.setItem).toHaveBeenCalledWith('escala_backup', JSON.stringify(dadosValidos));
+  });
+
+  test('Salvar escala na OCI: publica no Backend sem gravar no Supabase legado', async () => {
+    const fetchImpl = jest.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: jest.fn().mockResolvedValue({ sucesso: true })
+    });
+    const localStorageImpl = { setItem: jest.fn(), getItem: jest.fn() };
+
+    const res = await EscalaApi.salvarEscala(dadosValidos, {
+      fetchImpl,
+      localStorageImpl,
+      backendUrl: 'https://portal.example.com'
+    });
+
+    expect(res.salvouRemoto).toBe(true);
+    expect(res.resultados.backend).toBe(true);
+    expect(res.resultados.supabase).toBe(false);
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+    expect(fetchImpl.mock.calls[0][0]).toBe('https://portal.example.com/api/escala');
   });
 });
