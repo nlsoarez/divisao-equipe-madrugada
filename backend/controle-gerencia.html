@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex,nofollow,noarchive">
+  <title>Controle do monitor</title>
+  <style>
+    :root { color-scheme: light; font-family: Arial, sans-serif; }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: #eef1f4; color: #172033; }
+    main { width: min(520px, calc(100% - 32px)); background: #fff; border-radius: 18px; padding: 28px; box-shadow: 0 12px 35px #1720331f; }
+    h1 { margin: 0 0 8px; font-size: 1.35rem; }
+    p { line-height: 1.5; }
+    .status { display: inline-block; border-radius: 999px; padding: 6px 10px; font-size: .78rem; font-weight: 700; background: #e9ecef; }
+    .status.active { background: #d1f3dc; color: #116329; }
+    label { display: block; margin: 24px 0 8px; font-weight: 700; }
+    .row { display: flex; gap: 10px; flex-wrap: wrap; }
+    input { flex: 1 1 250px; min-width: 0; border: 1px solid #cbd2da; border-radius: 10px; padding: 12px; font-size: 1rem; }
+    button { border: 0; border-radius: 10px; padding: 12px 16px; background: #d32f2f; color: #fff; font-weight: 700; cursor: pointer; }
+    button:disabled { opacity: .55; cursor: wait; }
+    .muted { color: #657082; font-size: .9rem; }
+    #message { min-height: 1.4em; margin-bottom: 0; }
+    #message.error { color: #b42318; }
+    a { color: #526071; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Controle do monitor</h1>
+    <span id="status" class="status">CARREGANDO</span>
+    <p id="detail" class="muted">Consultando o estado atual.</p>
+    <label for="password">Senha exclusiva</label>
+    <p class="muted">A senha é exigida em cada ativação ou desativação.</p>
+    <div class="row">
+      <input id="password" type="password" autocomplete="off" maxlength="256" placeholder="Senha exclusiva">
+      <button id="toggle" type="button" disabled>Carregando…</button>
+    </div>
+    <p id="message" class="muted" role="status" aria-live="polite"></p>
+    <p class="muted"><a href="/admin">Voltar ao portal</a></p>
+  </main>
+  <script>
+    (() => {
+      'use strict';
+      let active = false, configured = false;
+      const status = document.getElementById('status');
+      const detail = document.getElementById('detail');
+      const password = document.getElementById('password');
+      const toggle = document.getElementById('toggle');
+      const message = document.getElementById('message');
+
+      async function request(path, init = {}) {
+        const response = await fetch('/api/gerencia/' + path, {
+          cache: 'no-store', credentials: 'same-origin',
+          headers: { 'Content-Type': 'application/json' }, ...init
+        });
+        if (response.status === 401) {
+          window.location.replace('/admin?next=/controle-gerencia');
+          throw new Error('Sessão administrativa expirada.');
+        }
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(data.erro || 'HTTP ' + response.status);
+        return data;
+      }
+
+      function render(data) {
+        active = Boolean(data.active);
+        configured = Boolean(data.groupConfigured && data.passwordConfigured && data.webhookAuthConfigured);
+        status.textContent = active ? (data.inWindow ? 'MONITORANDO' : 'ARMADO • AGUARDANDO 21H') : 'DESLIGADO';
+        status.classList.toggle('active', active);
+        detail.textContent = active
+          ? 'Encerramento automático às 07h de Brasília.'
+          : configured ? 'Nenhuma mensagem está sendo capturada.' : 'Configuração incompleta no servidor.';
+        toggle.textContent = active ? 'Desabilitar monitoramento' : 'Habilitar monitoramento';
+        toggle.disabled = !configured && !active;
+      }
+
+      async function refresh() {
+        try { render(await request('controle/estado')); }
+        catch (error) {
+          message.textContent = error.message;
+          message.className = 'error';
+        }
+      }
+
+      async function changeState() {
+        const secret = password.value;
+        if (!secret) {
+          message.textContent = 'Informe a senha exclusiva.';
+          message.className = 'error';
+          password.focus();
+          return;
+        }
+        toggle.disabled = true;
+        message.textContent = '';
+        try {
+          await request('alternar', {
+            method: 'POST', body: JSON.stringify({ enabled: !active, password: secret })
+          });
+          await refresh();
+        } catch (error) {
+          message.textContent = error.message;
+          message.className = 'error';
+        } finally {
+          password.value = '';
+          toggle.disabled = !configured && !active;
+        }
+      }
+
+      toggle.addEventListener('click', changeState);
+      password.addEventListener('keydown', event => { if (event.key === 'Enter') changeState(); });
+      refresh();
+      setInterval(refresh, 5000);
+    })();
+  </script>
+</body>
+</html>

@@ -174,6 +174,12 @@ app.get('/api/gerencia/estado', (req, res) => {
   });
 });
 
+app.get('/api/gerencia/controle/estado', (req, res) => {
+  if (!hasValidAdminSession(req)) return res.status(401).json({ erro: 'Acesso administrativo necessario' });
+  res.setHeader('Cache-Control', 'no-store');
+  res.json({ sucesso: true, ...gerencia.state() });
+});
+
 app.post('/api/gerencia/alternar', async (req, res) => {
   if (!hasValidAdminSession(req)) return res.status(401).json({ erro: 'Acesso administrativo necessario' });
   if (typeof req.body?.enabled !== 'boolean') {
@@ -1740,6 +1746,11 @@ if (publicDir && fs.existsSync(publicDir)) {
   }));
   app.get(['/admin', '/admin/'], (req, res) => {
     res.sendFile(path.join(publicDir, 'index.html'));
+  });
+  app.get(['/controle-gerencia', '/controle-gerencia/'], (req, res) => {
+    if (!hasValidAdminSession(req)) return res.redirect('/admin?next=/controle-gerencia');
+    res.setHeader('Cache-Control', 'no-store');
+    res.sendFile(path.join(__dirname, 'controle-gerencia.html'));
   });
   console.log(`[Static] Frontend servido de ${publicDir}`);
 }

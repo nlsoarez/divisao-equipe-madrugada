@@ -8,7 +8,7 @@ O grupo e os segredos privados são configurados apenas no ambiente de produçã
 
 - Uma nova aba **Monitoramento da Gerência** aparece somente no modo `/admin`.
 - Todo supervisor com uma sessão administrativa válida vê automaticamente as mensagens enquanto o monitor está ativo. Não existe função de resposta.
-- A senha exclusiva é diferente da senha administrativa compartilhada e protege somente o controle de ativar/desativar. O painel do coordenador fica recolhido e exige a senha novamente em cada ativação ou desativação; não existe sessão de controle reutilizável.
+- A senha exclusiva é diferente da senha administrativa compartilhada e protege somente o controle de ativar/desativar. O controle fica em `/controle-gerencia`, rota separada e sem link na interface dos supervisores, e exige a senha novamente em cada ação; não existe sessão de controle reutilizável.
 - É possível armar antes das 21h, mas somente mensagens novas recebidas de **21:00 até 06:59:59**, horário de Brasília, entram na lista.
 - A ativação termina automaticamente às **07:00** da manhã seguinte (ou da manhã corrente se ativado após meia-noite); desativar antes limpa imediatamente as mensagens.
 - O máximo é de 80 mensagens em **memória do servidor**. Não há armazenamento em Supabase, localStorage ou histórico. Reinícios do servidor desligam o monitor (*fail closed*).

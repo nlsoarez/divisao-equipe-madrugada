@@ -1,7 +1,7 @@
 /* Aba restrita /admin. Nenhuma credencial ou mensagem guardada em localStorage. */
 (function () {
   'use strict';
-  let running = false, fetching = false, timer = null, soundEnabled = false, monitorActive = false;
+  let running = false, fetching = false, timer = null, soundEnabled = false;
   let audio = null, knownIds = new Set(), initialized = false;
   const $ = id => document.getElementById(id);
 
@@ -80,9 +80,7 @@
     try {
       const data = await request('estado');
       const active = Boolean(data.active);
-      const configured = Boolean(data.groupConfigured && data.passwordConfigured && data.webhookAuthConfigured);
       const messages = Array.isArray(data.messages) && active ? data.messages : [];
-      monitorActive = active;
       const ids = new Set(messages.map(item => item.id));
 
       // A primeira consulta apenas estabelece o cursor: nunca toca mensagens antigas.
@@ -105,14 +103,8 @@
           ? 'Aguardando a configuração da senha exclusiva no servidor.'
           : !data.webhookAuthConfigured
             ? 'Aguardando a autenticação segura do webhook Evolution.'
-          : active ? 'Ativado manualmente. Encerramento automático: 07h (Brasília).'
+          : active ? 'Monitoramento ativo. Encerramento automático: 07h (Brasília).'
             : 'Inativo. Nenhuma mensagem é armazenada.';
-      const toggle = $('gerenciaAlternar');
-      if (toggle) {
-        toggle.disabled = !configured && !active;
-        toggle.textContent = active ? 'Desabilitar monitoramento' : 'Habilitar monitoramento';
-        toggle.className = 'btn ' + (active ? 'btn-outline-danger' : 'btn-danger');
-      }
       renderMessages(messages);
       status('', false);
     } catch (error) {
@@ -121,23 +113,6 @@
       renderMessages([]);
       status('Monitor indisponível: ' + error.message, true);
     } finally { fetching = false; }
-  }
-
-  async function toggle() {
-    const password = $('gerenciaSenha')?.value || '';
-    if (!password) return status('Informe sua senha exclusiva.', true);
-    try {
-      await request('alternar', {
-        method: 'POST', body: JSON.stringify({ enabled: !monitorActive, password })
-      });
-      initialized = false;
-      knownIds.clear();
-      await refresh();
-    } catch (error) {
-      status(error.message, true);
-    } finally {
-      if ($('gerenciaSenha')) $('gerenciaSenha').value = '';
-    }
   }
 
   async function enableSound() {
@@ -157,8 +132,6 @@
   function start() {
     if (running || !$('tabGerencia')) return;
     running = true;
-    $('gerenciaSenha')?.addEventListener('keydown', e => { if (e.key === 'Enter') toggle(); });
-    $('gerenciaAlternar')?.addEventListener('click', toggle);
     $('gerenciaSom')?.addEventListener('click', enableSound);
     refresh();
     timer = setInterval(refresh, 4000);
