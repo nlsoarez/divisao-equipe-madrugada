@@ -2682,10 +2682,6 @@
       <i class="bi bi-cloud-arrow-up"></i>
     </button>
 
-    <button class="refresh-btn escalonamento-upload-admin" id="btnUploadEscalonamentoAdmin" onclick="document.getElementById('fileInputEscalonamento').click()" title="Upload do escalonamento" style="display: none;">
-      <i class="bi bi-telephone"></i>
-    </button>
-
     <!-- Botão Baixar escala.json para commit no GitHub -->
     <button class="refresh-btn" id="btnBaixarEscalaJson" onclick="baixarEscalaJson()" title="Baixar data/escala.json para commit no GitHub Pages">
       <i class="bi bi-file-earmark-arrow-down"></i>
@@ -2825,32 +2821,6 @@
 
   <!-- Alocacao de HUB embarcada (somente visualizadores; admin usa aba Alocação HUB) -->
   <div id="hubEmbedResidencial" class="mt-3"></div>
-
-  <!-- Admin: Painel de upload do escalonamento -->
-  <div class="config-accordion mt-3" id="escalonamentoPanelResidencial" style="display: none;">
-    <div class="config-header collapsed" data-bs-toggle="collapse" data-bs-target="#escalonamentoPanelBody">
-      <span><i class="bi bi-telephone me-2"></i>Gerenciar Escalonamento</span>
-      <i class="bi bi-chevron-down"></i>
-    </div>
-    <div id="escalonamentoPanelBody" class="collapse">
-      <div class="config-body">
-        <div class="d-flex gap-2 align-items-center flex-wrap">
-          <button class="btn btn-sm btn-outline-primary" onclick="document.getElementById('fileInputEscalonamento').click()">
-            <i class="bi bi-upload me-1"></i>Upload planilha de escalonamento
-          </button>
-          <input type="file" id="fileInputEscalonamento" accept=".xlsx,.xls" style="display: none;" onchange="uploadEscalonamento(this)">
-          <button class="btn btn-sm btn-outline-danger" id="btnLimparEscalonamento" onclick="limparEscalonamento()" style="display: none;">
-            <i class="bi bi-trash me-1"></i>Remover
-          </button>
-        </div>
-        <span class="text-muted small d-block mt-2" id="escalonamentoInfo">Nenhuma planilha carregada</span>
-        <small class="text-muted">Cada aba da planilha será exibida como uma sub-aba de região</small>
-      </div>
-    </div>
-  </div>
-
-  <!-- Escalonamento foi movido para fora de tabResidencial para aparecer
-       tambem em Empresarial (Rio/ES e Leste). Ver bloco apos tabLeste. -->
 
   </div><!-- Fim tabResidencial -->
 
@@ -3030,26 +3000,6 @@
   </div>
 
   </div><!-- Fim tabLeste -->
-
-  <!-- Escalonamento: visivel em Residencial, Empresarial Rio/ES e Empresarial Leste.
-       JS controla a exibicao via trocarAbaAdmin(). -->
-  <div id="escalonamentoSection" class="mt-3" style="display: none;">
-    <div id="escalonamentoHeader" onclick="toggleEscalonamento()" style="background: linear-gradient(135deg, #d32f2f 0%, #b71c1c 100%); color: white; padding: 0.75rem 1rem; border-radius: 8px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; user-select: none;">
-      <span><i class="bi bi-telephone me-2"></i>Escalonamento</span>
-      <i class="bi bi-chevron-down" id="escalonamentoChevron" style="transition: transform 0.2s;"></i>
-    </div>
-    <div id="escalonamentoBody" style="display: none;">
-      <div style="background: #ffebee; padding: 0.5rem 0.75rem; border-left: 1px solid #ffebee; border-right: 1px solid #ffebee; overflow-x: auto;">
-        <div id="escalonamentoTabs" style="display: flex; gap: 0.25rem; flex-wrap: wrap;"></div>
-      </div>
-      <div id="escalonamentoContent" style="padding: 1rem; background: white; border-radius: 0 0 8px 8px; border: 1px solid #ffebee; border-top: none; max-height: 70vh; overflow-y: auto;">
-        <div class="text-center text-muted py-4">
-          <i class="bi bi-hand-index" style="font-size: 2rem;"></i>
-          <p class="mt-2">Selecione uma região acima</p>
-        </div>
-      </div>
-    </div>
-  </div>
 
   <!-- Conteúdo da Aba WhatsApp -->
   <div class="admin-tab-content" id="tabTelegram">
