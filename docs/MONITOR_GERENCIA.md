@@ -1,0 +1,65 @@
+# Monitoramento da Gerência
+
+Escopo: o coordenador decide manualmente quando abrir o monitor do grupo de gestão.
+A funcionalidade é **desligada por padrão**. Não há consulta de mensagens antigas.
+O grupo e os segredos privados são configurados apenas no ambiente de produção, fora do Git.
+
+## Como funciona
+
+- Uma nova aba **Monitoramento da Gerência** aparece somente no modo `/admin`.
+- Todo supervisor com uma sessão administrativa válida vê automaticamente as mensagens enquanto o monitor está ativo. Não existe função de resposta.
+- A senha exclusiva é diferente da senha administrativa compartilhada e protege somente o controle de ativar/desativar. O controle fica em `/controle-gerencia`, rota separada e sem link na interface dos supervisores, e exige a senha novamente em cada ação; não existe sessão de controle reutilizável.
+- É possível armar antes das 21h, mas somente mensagens novas recebidas de **21:00 até 06:59:59**, horário de Brasília, entram na lista.
+- A ativação termina automaticamente às **07:00** da manhã seguinte (ou da manhã corrente se ativado após meia-noite); desativar antes limpa imediatamente as mensagens.
+- O máximo é de 80 mensagens em **memória do servidor**. Não há armazenamento em Supabase, localStorage ou histórico. Reinícios do servidor desligam o monitor (*fail closed*).
+- Aviso sonoro toca no navegador depois de o supervisor clicar uma vez em **Ativar som neste navegador**; isso é exigido pelas políticas de autoplay dos navegadores. É necessário manter a página aberta e autenticada.
+- `GET /api/gerencia/estado` exige a sessão administrativa atual e inclui as mensagens temporárias para os supervisores enquanto o monitor estiver ativo. A rota de controle exige, além dessa sessão, a senha exclusiva em cada chamada.
+- O backend só aceita mensagens do chat ID permitido e mensagens publicadas depois da ativação, via `messages.upsert`, autenticadas pelo token do webhook. Nunca faz `findMessages` nem lê histórico.
+
+## Configuração privada
+
+No arquivo **privado** `deploy/oci/.env` em produção (nunca no repositório):
+
+```dotenv
+GERENCIA_GROUP_CHAT_ID=5521993571609-1390687807@g.us
+GERENCIA_CONTROL_PASSWORD_HASH=
+GERENCIA_WEBHOOK_TOKEN=
+```
+
+1. ID confirmado: `5521993571609-1390687807@g.us`. Aplicar no `.env` privado da implantação; estar no exemplo do Git não configura o servidor.
+2. Gerar um hash **bcrypt** (custo 12 recomendado) de uma senha **nova, conhecida somente pelo coordenador**. Salvar em `GERENCIA_CONTROL_PASSWORD_HASH` no servidor. O login /admin existente continua inalterado. Nunca enviar a senha por chat nem versionar seu texto ou hash.
+3. Gerar um token aleatório com pelo menos 32 caracteres e armazenar em `GERENCIA_WEBHOOK_TOKEN`.
+4. A instância em uso respondeu como **Evolution API 2.3.7**. O código oficial dessa versão aceita `webhook.headers` na configuração por instância e os envia nas chamadas. Faça leitura-modificação-gravação da configuração existente: preserve URL, eventos, `byEvents` e `base64`, acrescentando `X-Gerencia-Webhook-Token`. A instância possui um único webhook por instância; portanto, não crie um segundo nem apague o webhook que atende HUB/escala. Webhooks globais do ambiente não aplicam esses headers.
+5. Reiniciar/atualizar o backend depois de atualizar as variáveis. Até que **ID + hash + token** estejam configurados, o botão de habilitação permanecerá bloqueado.
+6. Fazer ensaio com grupo de teste e usuário autorizado, validando recebimento, som, bloqueio de histórico, 07h, reinício e casos de autenticação.
+
+O procedimento transacional para instalar os três valores e acrescentar o header sem expor a senha é:
+
+```powershell
+.\deploy\oci\configure-gerencia-monitor.ps1
+```
+
+O script pede a senha duas vezes em campos ocultos, gera hash e token na VM, preserva a configuração completa do webhook antes da alteração e mantém o monitor desligado. Em falha de saúde ou validação, restaura ambiente, webhook e container anteriores.
+
+**Atenção**: o endpoint existente `/api/whatsapp/webhook` continua com comportamento legado para os demais grupos. A autenticação adicional protege somente a ingestão de mensagens do grupo gerencial. Faça auditoria independente do endpoint legado antes de expor mais dados.
+
+**Limitação de auditoria**: como o acesso administrativo é compartilhado, o sistema não identifica qual supervisor leu cada mensagem. Para rastreabilidade individual seria necessário substituir a senha compartilhada por contas pessoais.
+
+## Código
+
+- `backend/gerencia-monitor.js` — filtro, estado temporário e sessão exclusiva.
+- `backend/server.js` — rotas novas e interceptação do webhook no grupo configurado.
+- `js/gerencia-monitor.js` e `index.html` — aba, alerta sonoro e controle.
+- `backend/__tests__/gerencia-monitor.test.js` — testes preparados com Jest (precisam ser executados em ambiente com dependências: `cd backend && npm ci && npm test -- --runInBand`).
+
+**Não publicar em produção antes de testar os segredos, o webhook e a compatibilidade da instância Evolution ativa.**
+
+## Verificação de integração pendente
+
+- Verificação somente de leitura em 21/10/2026: a API pública respondeu como **2.3.7**. O webhook da instância estava habilitado, apontando para `https://divisao.163-176-155-119.sslip.io/api/whatsapp/webhook`, com apenas `MESSAGES_UPSERT`, `byEvents=false`, `base64=false` e **sem headers personalizados**.
+- Configuração concluída em 21/10/2026: `GERENCIA_GROUP_CHAT_ID`, `GERENCIA_CONTROL_PASSWORD_HASH` e `GERENCIA_WEBHOOK_TOKEN` estão presentes no ambiente privado. Os valores não foram exibidos nem versionados.
+- O header `X-Gerencia-Webhook-Token` foi acrescentado e validado sem revelar seu valor. A leitura posterior confirmou que URL, evento, `byEvents=false` e `base64=false` foram preservados. O monitor permaneceu desligado e sem mensagens após o reinício.
+- Não alterar webhooks de HUB/escala para testar; primeiro validar em homologação e conferir se o outro endpoint `/api/webhook/mensagem` pode receber conteúdo do grupo gerencial.
+- Senha exclusiva e token devem ser gerados e instalados **somente no servidor**, nunca no Git ou nesta conversa.
+
+Referências verificadas: [release 2.3.7](https://github.com/evolution-foundation/evolution-api/releases/tag/2.3.7), [schema de webhook 2.3.7](https://github.com/evolution-foundation/evolution-api/blob/2.3.7/src/api/integrations/event/webhook/webhook.schema.ts) e [envio dos headers 2.3.7](https://github.com/evolution-foundation/evolution-api/blob/2.3.7/src/api/integrations/event/webhook/webhook.controller.ts).

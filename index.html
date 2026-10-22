@@ -740,6 +740,43 @@
       box-shadow: 0 1px 3px rgba(245,158,11,0.15);
     }
 
+    .calendar-day-leader {
+      font-size: 0.68rem;
+      color: #1f5f46;
+      background: #ecfdf5;
+      border: 1px solid #bbf7d0;
+      border-radius: 10px;
+      padding: 0.18rem 0.4rem;
+      margin-top: 0.25rem;
+      font-weight: 700;
+      line-height: 1.2;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .lideranca-resumo {
+      grid-column: 1 / -1;
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 0.25rem;
+      background: #ecfdf5;
+      border: 1px solid #bbf7d0;
+      border-left: 3px solid #15803d;
+      border-radius: 8px;
+      padding: 0.5rem 0.75rem;
+      margin: 0;
+      color: #14532d;
+      font-size: 0.8rem;
+      line-height: 1.25;
+    }
+
+    .lideranca-resumo .badge {
+      font-size: 0.68rem;
+      margin-left: 0.35rem !important;
+    }
+
     /* Animação de pulse do design system */
     @keyframes ds-pulse {
       0%, 100% {
@@ -963,13 +1000,18 @@
     /* Conteúdo do Modal */
     .day-content {
       display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 1.5rem;
+      grid-template-columns: minmax(0, 1.15fr) minmax(260px, 0.85fr);
+      gap: 1rem;
     }
     
     @media (max-width: 768px) {
       .day-content {
         grid-template-columns: 1fr;
+        gap: 0.85rem;
+      }
+
+      .lideranca-resumo {
+        grid-column: auto;
       }
 
       .calendar-day {
@@ -2640,10 +2682,6 @@
       <i class="bi bi-cloud-arrow-up"></i>
     </button>
 
-    <button class="refresh-btn escalonamento-upload-admin" id="btnUploadEscalonamentoAdmin" onclick="document.getElementById('fileInputEscalonamento').click()" title="Upload do escalonamento" style="display: none;">
-      <i class="bi bi-telephone"></i>
-    </button>
-
     <!-- Botão Baixar escala.json para commit no GitHub -->
     <button class="refresh-btn" id="btnBaixarEscalaJson" onclick="baixarEscalaJson()" title="Baixar data/escala.json para commit no GitHub Pages">
       <i class="bi bi-file-earmark-arrow-down"></i>
@@ -2698,6 +2736,10 @@
       <i class="bi bi-geo-alt-fill"></i>
       Alocação de Hub
     </button>
+    <button class="admin-nav-tab" data-admin-tab="gerencia" style="display: none" onclick="trocarAbaAdmin('gerencia')">
+      <i class="bi bi-bell"></i>
+      Monitoramento da Gerência
+    </button>
   </div>
 
   <!-- Sub-navegação interna do Empresarial (Rio/ES e Leste) -->
@@ -2710,6 +2752,34 @@
       <i class="bi bi-geo-alt"></i>
       Leste
     </button>
+  </div>
+
+  <!-- Monitoramento temporario: conteudo acessivel somente na sessao /admin. -->
+  <div class="admin-tab-content" id="tabGerencia" aria-label="Monitoramento da Gerência">
+    <section class="card shadow-sm my-3">
+      <div class="card-body">
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-3">
+          <div>
+            <h2 class="h5 mb-2"><i class="bi bi-shield-lock me-2"></i>Monitoramento da Gerência</h2>
+            <span id="gerenciaEstado" class="badge bg-secondary">DESLIGADO</span>
+          </div>
+          <button type="button" id="gerenciaSom" class="btn btn-outline-secondary">
+            <i class="bi bi-volume-up me-1"></i>Ativar som neste navegador
+          </button>
+        </div>
+        <p id="gerenciaDetalhe" class="text-muted mb-3">Carregando estado seguro…</p>
+        <div class="alert alert-light border small text-muted mb-3" role="note">
+          <strong class="text-body">Como funciona:</strong>
+          enquanto o monitor estiver ativo, esta tela exibe automaticamente apenas as novas mensagens recebidas
+          entre 21h e 07h. Não há acesso ao histórico nem possibilidade de resposta. Às 07h, o monitor é desligado
+          e o conteúdo temporário é apagado.
+        </div>
+        <p id="gerenciaErro" class="small text-muted mb-3" role="status" aria-live="polite"></p>
+        <h3 class="h6">Mensagens do turno</h3>
+        <div id="gerenciaMensagens" class="border rounded-3 p-2" style="min-height: 85px; max-height: 520px; overflow-y: auto"
+          aria-live="polite"><p class="text-muted p-3">Monitoramento desligado.</p></div>
+      </div>
+    </section>
   </div>
 
   <!-- Conteúdo da Aba Residencial -->
@@ -2740,38 +2810,17 @@
         <button class="btn btn-success btn-sm mt-2" onclick="salvarConfiguracaoCalendarios()">
           <i class="bi bi-cloud-arrow-up me-1"></i>Salvar e publicar
         </button>
+        <button class="btn btn-outline-success btn-sm mt-2 ms-1" onclick="document.getElementById('fileInputLideranca').click()">
+          <i class="bi bi-upload me-1"></i>Upload escala de líderes
+        </button>
+        <input type="file" id="fileInputLideranca" accept=".xlsx,.xls,.csv" style="display: none;" onchange="uploadEscalaLideranca(this)">
+        <span class="text-muted small d-block mt-2 lideranca-upload-info">Nenhuma planilha de líderes carregada</span>
       </div>
     </div>
   </div>
 
   <!-- Alocacao de HUB embarcada (somente visualizadores; admin usa aba Alocação HUB) -->
   <div id="hubEmbedResidencial" class="mt-3"></div>
-
-  <!-- Admin: Painel de upload do escalonamento -->
-  <div class="config-accordion mt-3" id="escalonamentoPanelResidencial" style="display: none;">
-    <div class="config-header collapsed" data-bs-toggle="collapse" data-bs-target="#escalonamentoPanelBody">
-      <span><i class="bi bi-telephone me-2"></i>Gerenciar Escalonamento</span>
-      <i class="bi bi-chevron-down"></i>
-    </div>
-    <div id="escalonamentoPanelBody" class="collapse">
-      <div class="config-body">
-        <div class="d-flex gap-2 align-items-center flex-wrap">
-          <button class="btn btn-sm btn-outline-primary" onclick="document.getElementById('fileInputEscalonamento').click()">
-            <i class="bi bi-upload me-1"></i>Upload planilha de escalonamento
-          </button>
-          <input type="file" id="fileInputEscalonamento" accept=".xlsx,.xls" style="display: none;" onchange="uploadEscalonamento(this)">
-          <button class="btn btn-sm btn-outline-danger" id="btnLimparEscalonamento" onclick="limparEscalonamento()" style="display: none;">
-            <i class="bi bi-trash me-1"></i>Remover
-          </button>
-        </div>
-        <span class="text-muted small d-block mt-2" id="escalonamentoInfo">Nenhuma planilha carregada</span>
-        <small class="text-muted">Cada aba da planilha será exibida como uma sub-aba de região</small>
-      </div>
-    </div>
-  </div>
-
-  <!-- Escalonamento foi movido para fora de tabResidencial para aparecer
-       tambem em Empresarial (Rio/ES e Leste). Ver bloco apos tabLeste. -->
 
   </div><!-- Fim tabResidencial -->
 
@@ -2805,6 +2854,10 @@
         <button class="btn btn-success btn-sm mt-3" onclick="salvarConfiguracaoCalendarios()">
           <i class="bi bi-cloud-arrow-up me-1"></i>Salvar e publicar
         </button>
+        <button class="btn btn-outline-success btn-sm mt-3 ms-1" onclick="document.getElementById('fileInputLideranca').click()">
+          <i class="bi bi-upload me-1"></i>Upload escala de líderes
+        </button>
+        <span class="text-muted small d-block mt-2 lideranca-upload-info">Nenhuma planilha de líderes carregada</span>
       </div>
     </div>
   </div>
@@ -2891,6 +2944,10 @@
         <button class="btn btn-success btn-sm mt-3" onclick="salvarConfiguracaoCalendarios()">
           <i class="bi bi-cloud-arrow-up me-1"></i>Salvar e publicar
         </button>
+        <button class="btn btn-outline-success btn-sm mt-3 ms-1" onclick="document.getElementById('fileInputLideranca').click()">
+          <i class="bi bi-upload me-1"></i>Upload escala de líderes
+        </button>
+        <span class="text-muted small d-block mt-2 lideranca-upload-info">Nenhuma planilha de líderes carregada</span>
       </div>
     </div>
   </div>
@@ -2943,26 +3000,6 @@
   </div>
 
   </div><!-- Fim tabLeste -->
-
-  <!-- Escalonamento: visivel em Residencial, Empresarial Rio/ES e Empresarial Leste.
-       JS controla a exibicao via trocarAbaAdmin(). -->
-  <div id="escalonamentoSection" class="mt-3" style="display: none;">
-    <div id="escalonamentoHeader" onclick="toggleEscalonamento()" style="background: linear-gradient(135deg, #d32f2f 0%, #b71c1c 100%); color: white; padding: 0.75rem 1rem; border-radius: 8px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; user-select: none;">
-      <span><i class="bi bi-telephone me-2"></i>Escalonamento</span>
-      <i class="bi bi-chevron-down" id="escalonamentoChevron" style="transition: transform 0.2s;"></i>
-    </div>
-    <div id="escalonamentoBody" style="display: none;">
-      <div style="background: #ffebee; padding: 0.5rem 0.75rem; border-left: 1px solid #ffebee; border-right: 1px solid #ffebee; overflow-x: auto;">
-        <div id="escalonamentoTabs" style="display: flex; gap: 0.25rem; flex-wrap: wrap;"></div>
-      </div>
-      <div id="escalonamentoContent" style="padding: 1rem; background: white; border-radius: 0 0 8px 8px; border: 1px solid #ffebee; border-top: none; max-height: 70vh; overflow-y: auto;">
-        <div class="text-center text-muted py-4">
-          <i class="bi bi-hand-index" style="font-size: 2rem;"></i>
-          <p class="mt-2">Selecione uma região acima</p>
-        </div>
-      </div>
-    </div>
-  </div>
 
   <!-- Conteúdo da Aba WhatsApp -->
   <div class="admin-tab-content" id="tabTelegram">
@@ -3685,7 +3722,9 @@
 <script src="js/volume-cluster.js"></script>
 <script src="js/matriz-api.js"></script>
 <script src="js/backup-recovery.js"></script>
-<script src="js/escala-api.js"></script>
+<script src="js/escala-api.js?v=backend-oci-2"></script>
+<script src="js/lideranca.js?v=2"></script>
+<script src="js/gerencia-monitor.js"></script>
 <script>
 // ============================================
 // VARIÁVEIS GLOBAIS E ALIASES
@@ -3752,6 +3791,165 @@ let calendarioAtivo = 'calendario1';  // Qual calendário está sendo visualizad
 // Dados do escalonamento (planilha de contatos por região)
 let escalonamentoDados = {};  // { sheetName: [ {nivel, subtitulo, headers, dados} ] }
 let escalonamentoAbaAtiva = '';
+
+// Escala de liderança técnica importada da planilha mensal.
+let liderancaEscala = { versao: '1.0', dias: {} };
+
+function normalizarLiderancaDocumento(valor) {
+  const origem = valor && typeof valor === 'object' ? valor : {};
+  const diasOrigem = origem.dias && typeof origem.dias === 'object' ? origem.dias : {};
+  const dias = {};
+  Object.entries(diasOrigem).forEach(([chave, registro]) => {
+    dias[chave] = LiderancaEscala.normalizarRegistro(registro);
+  });
+  const fonte = origem.fonte && typeof origem.fonte === 'object' ? { ...origem.fonte } : null;
+  return { versao: '1.0', dias, fonte };
+}
+
+function obterChaveLideranca(ano, mes, dia) {
+  return LiderancaEscala.chaveData(ano, mes, dia);
+}
+
+function obterLiderDia(area, ano, mes, dia) {
+  const chave = obterChaveLideranca(ano, mes, dia);
+  return LiderancaEscala.liderDaArea(chave, area, liderancaEscala.dias[chave]);
+}
+
+function obterResumoLiderDia(area, ano, mes, dia) {
+  const chave = obterChaveLideranca(ano, mes, dia);
+  const registro = liderancaEscala.dias[chave];
+  const resolvido = LiderancaEscala.resolverDia(chave, registro);
+  return {
+    chave,
+    nome: resolvido[area] || 'A definir',
+    tipo: resolvido.tipo,
+    feriado: registro?.feriado === true
+  };
+}
+
+function atualizarStatusUploadLideranca() {
+  const fonte = liderancaEscala.fonte;
+  const texto = fonte?.nomeArquivo
+    ? `${fonte.nomeArquivo} — ${MESES[fonte.mes]}/${fonte.ano}`
+    : 'Nenhuma planilha de líderes carregada';
+  document.querySelectorAll('.lideranca-upload-info').forEach(el => {
+    el.textContent = texto;
+  });
+}
+
+function converterLinhasPlanilhaEmObjetos(linhas) {
+  let indiceCabecalho = 0;
+  for (let i = 0; i < Math.min(5, linhas.length); i++) {
+    if ((linhas[i] || []).some(celula => String(celula).toUpperCase().includes('NOME'))) {
+      indiceCabecalho = i;
+      break;
+    }
+  }
+  const cabecalhos = (linhas[indiceCabecalho] || []).map(item => String(item).trim());
+  if (!cabecalhos.length) return [];
+  return linhas.slice(indiceCabecalho + 1).map(linha => {
+    const objeto = {};
+    cabecalhos.forEach((cabecalho, indice) => {
+      objeto[cabecalho || `Col${indice + 1}`] = linha?.[indice] ?? '';
+    });
+    return objeto;
+  }).filter(objeto => String(objeto[cabecalhos[0]] || '').trim());
+}
+
+async function publicarEscalaLideranca(lideranca) {
+  const response = await fetch(`${ESCALA_BACKEND_URL}/api/escala/lideranca`, {
+    method: 'PUT',
+    credentials: 'same-origin',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ lideranca })
+  });
+  const resultado = await response.json().catch(() => null);
+
+  if (response.status === 401) {
+    throw new Error('Sua sessão administrativa expirou. Entre novamente como administrador e repita o upload.');
+  }
+  if (!response.ok || !resultado?.sucesso || !resultado?.persistido) {
+    throw new Error(resultado?.erro || `Falha ao publicar a liderança (HTTP ${response.status})`);
+  }
+
+  const enviados = Object.keys(lideranca?.dias || {}).length;
+  const confirmados = Object.keys(resultado.lideranca?.dias || {}).length;
+  const marcadorEnviado = lideranca?.fonte?.dataUpload || null;
+  const marcadorConfirmado = resultado.lideranca?.fonte?.dataUpload || null;
+  if (enviados !== confirmados || (marcadorEnviado && marcadorConfirmado !== marcadorEnviado)) {
+    throw new Error(`A confirmação remota divergiu: ${enviados} dias enviados e ${confirmados} confirmados`);
+  }
+  return resultado;
+}
+
+function uploadEscalaLideranca(inputElement) {
+  if (!isAdmin) return;
+  const file = inputElement.files?.[0];
+  if (!file) return;
+  const liderancaAnterior = normalizarLiderancaDocumento(liderancaEscala);
+  showLoading();
+
+  const reader = new FileReader();
+  reader.onload = async function(evento) {
+    try {
+      const workbook = XLSX.read(new Uint8Array(evento.target.result), { type: 'array' });
+      const planilha = workbook.Sheets[workbook.SheetNames[0]];
+      const linhas = XLSX.utils.sheet_to_json(planilha, { header: 1, defval: '' });
+      const dadosPlanilhaLideres = converterLinhasPlanilhaEmObjetos(linhas);
+      if (!dadosPlanilhaLideres.length) throw new Error('Planilha vazia ou sem a coluna NOME');
+
+      const { mes, ano } = extrairMesAnoDoNomeArquivo(file.name);
+      const calendarioLideres = processarPlanilhaParaCalendario(dadosPlanilhaLideres, mes, ano, 'residencial');
+      const importacao = LiderancaEscala.importarCalendario(calendarioLideres, ano, mes);
+      if (importacao.erros.length > 0) {
+        const detalhes = importacao.erros.slice(0, 12).join('\n');
+        const restantes = importacao.erros.length > 12 ? `\n... e mais ${importacao.erros.length - 12} erro(s)` : '';
+        throw new Error(`A escala de líderes não foi publicada:\n${detalhes}${restantes}`);
+      }
+
+      const prefixoMes = `${ano}-${String(mes + 1).padStart(2, '0')}-`;
+      const diasOutrosMeses = Object.fromEntries(
+        Object.entries(liderancaEscala.dias || {}).filter(([chave]) => !chave.startsWith(prefixoMes))
+      );
+      liderancaEscala = {
+        versao: '1.0',
+        dias: { ...diasOutrosMeses, ...importacao.dias },
+        fonte: {
+          nomeArquivo: file.name,
+          mes,
+          ano,
+          dataUpload: new Date().toISOString()
+        }
+      };
+
+      atualizarStatusUploadLideranca();
+      atualizarCalendario();
+      carregarCalendarioEmpresarialGrid('rio_es');
+      carregarCalendarioEmpresarialGrid('leste');
+
+      await publicarEscalaLideranca(normalizarLiderancaDocumento(liderancaEscala));
+      showToast(`Escala de líderes ${MESES[mes]}/${ano} publicada para todos.`, 'success');
+    } catch (erro) {
+      liderancaEscala = liderancaAnterior;
+      atualizarStatusUploadLideranca();
+      atualizarCalendario();
+      carregarCalendarioEmpresarialGrid('rio_es');
+      carregarCalendarioEmpresarialGrid('leste');
+      console.error('Erro ao importar escala de líderes:', erro);
+      alert(erro.message);
+      showToast('Erro no upload da escala de líderes.', 'danger');
+    } finally {
+      inputElement.value = '';
+      hideLoading();
+    }
+  };
+  reader.onerror = () => {
+    inputElement.value = '';
+    hideLoading();
+    showToast('Erro ao ler a planilha de líderes.', 'danger');
+  };
+  reader.readAsArrayBuffer(file);
+}
 
 // ============================================
 // FUNÇÕES AUXILIARES
@@ -4280,6 +4478,9 @@ function carregarCalendarioEmpresarialGrid(subEscala) {
         content += `<div class="calendar-day-absent">${numAusentes} ausente(s)</div>`;
       }
 
+      const liderDia = obterLiderDia(subEscala, ano, mes, dia);
+      content += `<div class="calendar-day-leader" title="Líder técnico: ${escapeHtml(liderDia)}"><i class="bi bi-person-badge me-1"></i>${escapeHtml(liderDia)}</div>`;
+
       // Verificar se há trocas ativas para este dia (inclui movimentos)
       const trocasAtivas = (subEscalaDados.trocas || []).filter(t =>
         t.status === 'ativa' &&
@@ -4519,8 +4720,15 @@ function mostrarDetalhesDiaEmpresarial(subEscala, dia) {
 
   modalTitle.innerHTML = `Dia ${dia} (${dadosDia.diaSemana}) - ${nomeSubEscala} - ${dadosDia.numPessoas} pessoa(s)${tituloExtra}`;
 
+  const resumoLider = obterResumoLiderDia(subEscala, subEscalaDados.ano, mes, dia);
+
   let html = `
     <div class="day-content">
+      <div class="lideranca-resumo">
+        <i class="bi bi-person-badge me-1"></i><strong>Líder técnico de ${nomeSubEscala}:</strong>
+        ${escapeHtml(resumoLider.nome)}
+        ${resumoLider.tipo !== 'dia_util' ? '<span class="badge bg-success ms-2">Líder geral</span>' : ''}
+      </div>
       <div class="area-section">
         <div class="area-title">
           <i class="bi bi-diagram-3"></i>
@@ -6172,6 +6380,7 @@ function baixarEscalaJson() {
     calendarioAtivo: calendarioAtivo,
     calendario1: calendariosParaSalvar.calendario1,
     calendario2: calendariosParaSalvar.calendario2,
+    lideranca: normalizarLiderancaDocumento(liderancaEscala),
     escalonamento: Object.keys(escalonamentoDados).length > 0 ? escalonamentoDados : null,
     ultima_atualizacao: new Date().toISOString(),
     origem: 'repositorio-estatico'
@@ -6252,7 +6461,7 @@ async function salvarConfiguracaoCalendarios(tentativa = 1) {
         showToast(msg, resSalvar.salvouRemoto ? 'success' : 'warning');
         salvarBackupLocalSeguro(dadosParaSalvar, !resSalvar.salvouRemoto);
         if (!resSalvar.salvouRemoto) mostrarBotaoRepublicar();
-        return;
+        return resSalvar;
       }
     }
 
@@ -6262,7 +6471,7 @@ async function salvarConfiguracaoCalendarios(tentativa = 1) {
       if (resultadoBackend?.binId) salvarBinId(resultadoBackend.binId);
       showToast('✅ Escalas salvas e publicadas para todos!', 'success');
       salvarBackupLocalSeguro(dadosParaSalvar, false);
-      return;
+      return { sucesso: true, salvouRemoto: true, resultados: { backend: resultadoBackend } };
     } catch (backendError) {
       console.warn('⚠️ Backend/Supabase não conseguiu salvar a escala.', backendError);
     }
@@ -6270,11 +6479,13 @@ async function salvarConfiguracaoCalendarios(tentativa = 1) {
     salvarBackupLocalSeguro(dadosParaSalvar, true);
     showToast('⚠️ Salvo apenas localmente. Use "Baixar escala.json" para commitar no GitHub.', 'warning');
     mostrarBotaoRepublicar();
+    return { sucesso: false, salvouRemoto: false };
   } catch (error) {
     console.error('❌ Erro ao salvar calendários:', error);
     salvarBackupLocalSeguro(dadosParaSalvar, true);
     showToast('⚠️ Salvo no cache local: ' + error.message, 'warning');
     mostrarBotaoRepublicar();
+    return { sucesso: false, salvouRemoto: false, erro: error.message };
   } finally {
     hideLoading();
   }
@@ -6523,6 +6734,8 @@ function processarDadosCarregados(dados) {
     calendarios.calendario1 = dados.calendario1 || null;
     calendarios.calendario2 = dados.calendario2 || null;
     calendarioAtivo = dados.calendarioAtivo || 'calendario1';
+    liderancaEscala = normalizarLiderancaDocumento(dados.lideranca);
+    atualizarStatusUploadLideranca();
 
     // Restaurar escalonamento se disponível
     if (dados.escalonamento && typeof dados.escalonamento === 'object') {
@@ -6782,6 +6995,11 @@ function mostrarModalLogin(mensagem = '') {
 }
 
 function iniciarAplicacaoAdmin() {
+  const destino = new URLSearchParams(window.location.search).get('next');
+  if (destino === '/controle-gerencia') {
+    window.location.replace(destino);
+    return;
+  }
   iniciarComoAdmin();
   carregarDadosDaNuvem();
   setTimeout(async () => {
@@ -6870,6 +7088,8 @@ function entrarComoVisualizador(tipo = 'residencial') {
 
 function iniciarComoAdmin() {
   isAdmin = true;
+  // Monitora novas mensagens em todas as abas administrativas.
+  window.GerenciaMonitor?.start();
   document.body.classList.add('app-logged-in');
   document.body.classList.add('admin-mode');
   document.body.classList.remove('viewer-mode');
@@ -6899,6 +7119,9 @@ function iniciarComoAdmin() {
   // Mostrar aba Alocacao de HUB para admin
   const hubTabNav = document.querySelector('.admin-nav-tab[data-admin-tab="alocacao_hub"]');
   if (hubTabNav) hubTabNav.style.display = '';
+
+  const gerenciaTabNav = document.querySelector('.admin-nav-tab[data-admin-tab="gerencia"]');
+  if (gerenciaTabNav) gerenciaTabNav.style.display = '';
 
   // Mostrar painel de gerenciamento baseado no calendário ativo
   const calendarioPanelResidencial = document.getElementById('calendarioPanelResidencial');
@@ -8550,6 +8773,9 @@ function atualizarCalendario() {
       if (dadosDia.ausentes.length > 0) {
         content += `<div class="calendar-day-absent">${dadosDia.ausentes.length} ausente(s)</div>`;
       }
+
+      const liderDia = obterLiderDia('residencial', anoSelecionado, mesSelecionado, dia);
+      content += `<div class="calendar-day-leader" title="Líder técnico: ${escapeHtml(liderDia)}"><i class="bi bi-person-badge me-1"></i>${escapeHtml(liderDia)}</div>`;
       
       // Adicionar ícone de troca se houver
       const temTrocas = trocasRegistradas.some(troca => 
@@ -8597,9 +8823,16 @@ function mostrarDetalhesDia(dia) {
   }
   
   modalTitle.innerHTML = `Dia ${dia} (${dadosDia.diaSemana}) - ${dadosDia.numPessoas} pessoa(s) trabalhando${tituloExtra}`;
+
+  const resumoLider = obterResumoLiderDia('residencial', anoSelecionado, mesSelecionado, dia);
   
   let html = `
     <div class="day-content">
+      <div class="lideranca-resumo">
+        <i class="bi bi-person-badge me-1"></i><strong>Líder técnico do Residencial:</strong>
+        ${escapeHtml(resumoLider.nome)}
+        ${resumoLider.tipo !== 'dia_util' ? '<span class="badge bg-success ms-2">Líder geral</span>' : ''}
+      </div>
       <div class="area-section">
         <div class="area-title">
           <i class="bi bi-diagram-3"></i>
@@ -9967,6 +10200,19 @@ function trocarAbaAdmin(abaId) {
 
     // Iniciar auto-refresh para HUB (carrega dados automaticamente)
     iniciarAutoRefreshHub();
+  } else if (abaId === 'gerencia') {
+    if (!isAdmin) return;
+    const tabGerencia = document.getElementById('tabGerencia');
+    if (tabGerencia) tabGerencia.classList.add('active');
+    if (calendarSection) calendarSection.style.display = 'none';
+    if (calendarSectionRioEs) calendarSectionRioEs.style.display = 'none';
+    if (calendarSectionLeste) calendarSectionLeste.style.display = 'none';
+    if (calendarioPanelResidencial) calendarioPanelResidencial.style.display = 'none';
+    if (calendarioPanelRioEs) calendarioPanelRioEs.style.display = 'none';
+    if (calendarioPanelLeste) calendarioPanelLeste.style.display = 'none';
+    if (telegramPanel) telegramPanel.style.display = 'none';
+    if (escalonamentoSection) escalonamentoSection.style.display = 'none';
+    window.GerenciaMonitor?.refresh();
   }
 }
 
