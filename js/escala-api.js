@@ -2,9 +2,9 @@
  * MÓDULO DE PERSISTÊNCIA RESILIENTE DA ESCALA (Multi-Tier Resilient Storage)
  * 
  * Camadas de redundância para alta disponibilidade:
- * 1. Supabase Data API (Nuvem principal - sem limite de cota de 10k)
- * 2. GitHub Pages / Repositório Estático (data/escala.json - 100% uptime)
- * 3. Backend OCI / Local (/api/escala)
+ * 1. Backend OCI (/api/escala), fonte oficial da escala publicada
+ * 2. Supabase Data API legado (apenas quando não há backend configurado)
+ * 3. GitHub Pages / Repositório Estático (data/escala.json)
  * 4. LocalStorage (Cache local offline)
  */
 
@@ -264,31 +264,36 @@
    */
   async function carregarEscala(opcoes = {}) {
     const logs = [];
+    const usarBackend = opcoes.backendUrl && !opcoes.backendUrl.includes('github.io');
 
-    // 1. Tentar Supabase
-    try {
-      const res = await carregarDoSupabase(opcoes);
-      return { ...res, logs };
-    } catch (err) {
-      logs.push(`Supabase: ${err.message}`);
-    }
-
-    // 2. Tentar Arquivo Estático (data/escala.json)
-    try {
-      const res = await carregarDoArquivoEstatico(opcoes);
-      return { ...res, logs };
-    } catch (err) {
-      logs.push(`Arquivo Estático: ${err.message}`);
-    }
-
-    // 3. Tentar Backend
-    if (opcoes.backendUrl && !opcoes.backendUrl.includes('github.io')) {
+    // 1. Na OCI, o backend e a fonte oficial e acessa o Supabase sem
+    // expor a chave secreta no navegador.
+    if (usarBackend) {
       try {
         const res = await carregarDoBackend(opcoes);
         return { ...res, logs };
       } catch (err) {
         logs.push(`Backend: ${err.message}`);
       }
+    }
+
+    // 2. Compatibilidade com instalacoes estaticas/legadas. Nao consulte o
+    // Supabase legado quando o portal OCI estiver configurado.
+    if (!usarBackend || (opcoes.supabaseUrl && opcoes.anonKey)) {
+      try {
+        const res = await carregarDoSupabase(opcoes);
+        return { ...res, logs };
+      } catch (err) {
+        logs.push(`Supabase: ${err.message}`);
+      }
+    }
+
+    // 3. Tentar Arquivo Estático (data/escala.json)
+    try {
+      const res = await carregarDoArquivoEstatico(opcoes);
+      return { ...res, logs };
+    } catch (err) {
+      logs.push(`Arquivo Estático: ${err.message}`);
     }
 
     // 4. Tentar LocalStorage
@@ -414,16 +419,10 @@
       erros: []
     };
 
-    // 1. Tentar salvar no Supabase
-    try {
-      await salvarNoSupabase(dados, opcoes);
-      resultados.supabase = true;
-    } catch (err) {
-      resultados.erros.push(`Supabase: ${err.message}`);
-    }
+    const usarBackend = opcoes.backendUrl && !opcoes.backendUrl.includes('github.io');
 
-    // 2. Tentar salvar no Backend (se configurado e não for github.io)
-    if (opcoes.backendUrl && !opcoes.backendUrl.includes('github.io')) {
+    // 1. Na OCI, publique primeiro no backend oficial.
+    if (usarBackend) {
       try {
         const fetchImpl = extrairFetch(opcoes);
         const resp = await fetchImpl(`${opcoes.backendUrl}/api/escala`, {
@@ -435,6 +434,17 @@
         else resultados.erros.push(`Backend HTTP ${resp.status}`);
       } catch (err) {
         resultados.erros.push(`Backend: ${err.message}`);
+      }
+    }
+
+    // 2. O acesso direto ao Supabase existe apenas para instalacoes sem
+    // backend ou quando credenciais foram fornecidas explicitamente.
+    if (!resultados.backend && (!usarBackend || (opcoes.supabaseUrl && opcoes.anonKey))) {
+      try {
+        await salvarNoSupabase(dados, opcoes);
+        resultados.supabase = true;
+      } catch (err) {
+        resultados.erros.push(`Supabase: ${err.message}`);
       }
     }
 

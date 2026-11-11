@@ -111,6 +111,14 @@ Para trocar apenas a senha administrativa, sem alterar Supabase ou Caddy:
 
 O script pede a nova senha duas vezes em campos ocultos, gera o hash na VM, invalida sessoes antigas, recria o container e restaura a configuracao anterior se a validacao falhar. Nunca envie a senha pelo chat nem grave a senha em texto puro no repositorio.
 
+Para atualizar somente o codigo da aplicacao na VM compartilhada, preservando Caddy, ambiente, rede e volume atuais:
+
+```powershell
+.\deploy\oci\update-existing-vm.ps1
+```
+
+O atualizador empacota exclusivamente o commit atual, cria uma nova imagem e executa smoke tests de saude, consulta publica, escala e protecao do monitor da gerencia. Se qualquer teste falhar, restaura automaticamente a imagem anterior.
+
 ## 5. Validar
 
 ```bash

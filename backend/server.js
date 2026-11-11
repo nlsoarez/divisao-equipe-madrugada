@@ -17,6 +17,7 @@ const { client: supabase } = require('./supabase');
 const storage = require('./storage');
 const storageHub = require('./storageHub');
 const whatsapp = require('./whatsapp');
+const gerencia = require('./gerencia-monitor');
 const { buscarMatrizOfensores } = require('../js/matriz-api');
 
 const app = express();
@@ -36,6 +37,12 @@ app.use(cors({
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
   allowedHeaders: ['Content-Type', 'Authorization'],
   credentials: true
+}));
+// A escala mensal processada no navegador pode ultrapassar o limite padrao
+// de 100 KB do body-parser. Aumente somente esta rota administrativa e
+// mantenha o limite global reduzido para os demais endpoints/webhooks.
+app.use('/api/escala', express.json({
+  limit: process.env.ESCALA_BODY_LIMIT || '2mb'
 }));
 app.use(express.json());
 
@@ -160,6 +167,41 @@ app.use('/api', (req, res, next) => {
     sucesso: false,
     erro: 'Autenticacao administrativa necessaria'
   });
+});
+
+// Monitor da gerencia: restrito ao /admin, sem impacto nas permissoes legadas.
+// Senha EXCLUSIVA e adicional: a senha geral nunca habilita/desabilita este monitor.
+app.get('/api/gerencia/estado', (req, res) => {
+  if (!hasValidAdminSession(req)) return res.status(401).json({ erro: 'Acesso administrativo necessario' });
+  res.setHeader('Cache-Control', 'no-store');
+  res.json({
+    sucesso: true,
+    ...gerencia.clientState()
+  });
+});
+
+app.get('/api/gerencia/controle/estado', (req, res) => {
+  if (!hasValidAdminSession(req)) return res.status(401).json({ erro: 'Acesso administrativo necessario' });
+  res.setHeader('Cache-Control', 'no-store');
+  res.json({ sucesso: true, ...gerencia.state() });
+});
+
+app.post('/api/gerencia/alternar', async (req, res) => {
+  if (!hasValidAdminSession(req)) return res.status(401).json({ erro: 'Acesso administrativo necessario' });
+  if (typeof req.body?.enabled !== 'boolean') {
+    return res.status(400).json({ sucesso: false, erro: 'Informe enabled como booleano' });
+  }
+  const authorization = await gerencia.authenticate(req.body?.password, req.ip);
+  if (!authorization.ok) {
+    return res.status(authorization.status).json({ sucesso: false, erro: authorization.error });
+  }
+  try {
+    const estado = gerencia.setEnabled(req.body.enabled);
+    res.setHeader('Cache-Control', 'no-store');
+    res.json({ sucesso: true, ...estado });
+  } catch (e) {
+    res.status(e.status || 500).json({ sucesso: false, erro: e.message });
+  }
 });
 
 /**
@@ -456,8 +498,12 @@ app.put('/api/escala', async (req, res) => {
       return res.status(400).json({ sucesso: false, erro: 'dados é obrigatório' });
     }
 
-    const metadata = await supabase.rpc('replace_schedule_document', { p_document: dados });
-    salvarEscalaEmCache(dados);
+    // Liderança possui endpoint atômico próprio. Ignorar esse campo aqui evita
+    // que uma aba administrativa antiga apague ou restaure uma escala obsoleta.
+    const { lideranca: _liderancaIgnorada, ...documentoSemLideranca } = dados;
+    const metadata = await supabase.rpc('replace_schedule_document', { p_document: documentoSemLideranca });
+    const documentoPublicado = await supabase.rpc('get_schedule_document');
+    salvarEscalaEmCache(documentoPublicado);
     res.json({
       sucesso: true,
       binId: 'supabase',
@@ -467,13 +513,60 @@ app.put('/api/escala', async (req, res) => {
   } catch (error) {
     console.error('[API Escala] Erro ao salvar:', error.message);
     if (req.body?.dados && typeof req.body.dados === 'object') {
-      salvarEscalaEmCache(req.body.dados);
+      const cacheAtual = carregarEscalaDoCache();
+      const { lideranca: _liderancaIgnorada, ...documentoSemLideranca } = req.body.dados;
+      salvarEscalaEmCache({
+        ...documentoSemLideranca,
+        ...(cacheAtual?.dados?.lideranca ? { lideranca: cacheAtual.dados.lideranca } : {})
+      });
     }
     res.status(error.status || 503).json({
       sucesso: false,
       persistido: false,
       origem: 'backend-cache',
       aviso: 'Supabase indisponível; uma cópia de emergência ficou somente no backend OCI',
+      erro: error.message,
+      detalhes: error.details || null
+    });
+  }
+});
+
+app.put('/api/escala/lideranca', async (req, res) => {
+  try {
+    const lideranca = req.body?.lideranca;
+    if (!lideranca || typeof lideranca !== 'object' || !lideranca.dias || typeof lideranca.dias !== 'object') {
+      return res.status(400).json({ sucesso: false, erro: 'lideranca.dias é obrigatório' });
+    }
+
+    const totalDias = Object.keys(lideranca.dias).length;
+    if (totalDias === 0) {
+      return res.status(400).json({ sucesso: false, erro: 'A escala de líderes está vazia' });
+    }
+
+    const metadata = await supabase.rpc('set_schedule_leadership', { p_leadership: lideranca });
+    const documentoPublicado = await supabase.rpc('get_schedule_document');
+    const liderancaPublicada = documentoPublicado?.lideranca;
+    const totalDiasPublicados = Object.keys(liderancaPublicada?.dias || {}).length;
+    const marcadorEnviado = lideranca.fonte?.dataUpload || null;
+    const marcadorPublicado = liderancaPublicada?.fonte?.dataUpload || null;
+
+    if (totalDiasPublicados !== totalDias || (marcadorEnviado && marcadorPublicado !== marcadorEnviado)) {
+      throw new Error(`Confirmação da liderança falhou: enviados ${totalDias}, publicados ${totalDiasPublicados}`);
+    }
+
+    salvarEscalaEmCache(documentoPublicado);
+    res.json({
+      sucesso: true,
+      persistido: true,
+      origem: 'supabase',
+      metadata,
+      lideranca: liderancaPublicada
+    });
+  } catch (error) {
+    console.error('[API Escala Liderança] Erro ao salvar:', error.message);
+    res.status(error.status || 503).json({
+      sucesso: false,
+      persistido: false,
       erro: error.message,
       detalhes: error.details || null
     });
@@ -579,13 +672,16 @@ app.post('/api/whatsapp/sincronizar', async (req, res) => {
  */
 app.post('/api/whatsapp/webhook', async (req, res) => {
   try {
-    console.log('[WhatsApp Webhook] Recebido:', JSON.stringify(req.body).substring(0, 200));
-
     // Verificar se é evento de mensagem
     const event = req.body.event || req.body.type;
     if (event !== 'messages.upsert' && event !== 'MESSAGES_UPSERT') {
       console.log('[WhatsApp Webhook] Ignorando evento:', event);
       return res.json({ sucesso: true, ignorado: true });
+    }
+
+    // Intercepta apenas o grupo autorizado; nao registra seu texto nos logs legados.
+    if (gerencia.receiveWebhook(req.body, req.headers['x-gerencia-webhook-token'])) {
+      return res.json({ sucesso: true, processado: true, tipo: 'GERENCIA' });
     }
 
     const resultado = await whatsapp.processarWebhook(req.body);
@@ -1703,10 +1799,23 @@ const publicDir = process.env.PUBLIC_DIR;
 if (publicDir && fs.existsSync(publicDir)) {
   app.use(express.static(publicDir, {
     etag: true,
-    maxAge: process.env.NODE_ENV === 'production' ? '10m' : 0
+    maxAge: process.env.NODE_ENV === 'production' ? '10m' : 0,
+    setHeaders: (res, filePath) => {
+      // O HTML referencia versões dos assets. Revalidá-lo impede que um
+      // deploy deixe usuários presos ao JavaScript antigo por dez minutos.
+      if (path.extname(filePath).toLowerCase() === '.html') {
+        res.setHeader('Cache-Control', 'no-cache');
+      }
+    }
   }));
   app.get(['/admin', '/admin/'], (req, res) => {
+    res.setHeader('Cache-Control', 'no-cache');
     res.sendFile(path.join(publicDir, 'index.html'));
+  });
+  app.get(['/controle-gerencia', '/controle-gerencia/'], (req, res) => {
+    if (!hasValidAdminSession(req)) return res.redirect('/admin?next=/controle-gerencia');
+    res.setHeader('Cache-Control', 'no-store');
+    res.sendFile(path.join(__dirname, 'controle-gerencia.html'));
   });
   console.log(`[Static] Frontend servido de ${publicDir}`);
 }
