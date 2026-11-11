@@ -3725,6 +3725,7 @@
 <script src="js/escala-api.js?v=backend-oci-2"></script>
 <script src="js/lideranca.js?v=2"></script>
 <script src="js/gerencia-monitor.js"></script>
+<script src="js/folga-cancelada.js"></script>
 <script>
 // ============================================
 // VARIÁVEIS GLOBAIS E ALIASES
@@ -4835,16 +4836,35 @@ function mostrarDetalhesDiaEmpresarial(subEscala, dia) {
       }).map(({nome, motivo, tipo}) => {
         const primeiroNome = obterPrimeiroNome(nome);
         const podeRemover = isAdmin && tipo === 'nao_esperada';
-        const nomeEsc = String(nome).replace(/'/g, "\\'");
+        const nomeCodificado = encodeURIComponent(String(nome));
         const btnRemover = podeRemover
-          ? `<button class="btn btn-outline-success btn-sm py-0 px-1 ms-2" onclick="removerAusenciaNaoEsperadaEmpresarial('${subEscala}', ${dia}, '${nomeEsc}')" title="Remover ausência (colaborador retornou)"><i class="bi bi-arrow-counterclockwise"></i> Desfazer</button>`
+          ? `<button type="button" class="btn btn-outline-success btn-sm py-0 px-1 ms-2" onclick="removerAusenciaNaoEsperadaEmpresarial('${subEscala}', ${dia}, decodeURIComponent('${nomeCodificado}'))" title="Remover ausência (colaborador retornou)"><i class="bi bi-arrow-counterclockwise"></i> Desfazer</button>`
+          : '';
+        const btnCancelarFolga = isAdmin && window.FolgaCancelada?.ehMotivoFolga(motivo)
+          ? `<button type="button" class="btn btn-outline-danger btn-sm py-0 px-2 ms-2" onclick="cancelarFolgaEmpresarial('${subEscala}', ${dia}, '${nomeCodificado}')" aria-label="Cancelar folga de ${escapeHtml(primeiroNome)}"><i class="bi bi-calendar2-x me-1"></i>Cancelar folga</button>`
           : '';
         return `
           <div class="d-flex justify-content-between align-items-center py-1 border-bottom">
-            <span class="small"><span class="badge bg-warning text-dark me-2">${motivo}</span>${primeiroNome}</span>
-            ${btnRemover}
+            <span class="small"><span class="badge bg-warning text-dark me-2">${escapeHtml(motivo)}</span>${escapeHtml(primeiroNome)}</span>
+            <span>${btnRemover}${btnCancelarFolga}</span>
           </div>`;
       }).join('')}
+    </div>`;
+  }
+
+  const folgasPendentesEmpresarial = window.FolgaCancelada?.listarPendentes(dadosDia) || [];
+  if (isAdmin && folgasPendentesEmpresarial.length > 0) {
+    html += `
+    <div class="status-section mt-2">
+      <div class="status-title">
+        <i class="bi bi-calendar2-check"></i>
+        <span>Folgas pendentes de remarcação (${folgasPendentesEmpresarial.length})</span>
+      </div>
+      ${folgasPendentesEmpresarial.map(registro => `
+        <div class="d-flex justify-content-between align-items-center py-1 border-bottom">
+          <span class="small"><span class="badge bg-danger me-2">Pendente</span>${escapeHtml(obterPrimeiroNome(registro.nome))} <span class="text-muted">(${escapeHtml(registro.motivoOriginal)})</span></span>
+          <button type="button" class="btn btn-outline-secondary btn-sm py-0 px-2 ms-2" onclick="desfazerCancelamentoFolgaEmpresarial('${subEscala}', ${dia}, '${encodeURIComponent(registro.id)}')" aria-label="Desfazer cancelamento da folga de ${escapeHtml(obterPrimeiroNome(registro.nome))}"><i class="bi bi-arrow-counterclockwise me-1"></i>Desfazer</button>
+        </div>`).join('')}
     </div>`;
   }
 
@@ -5256,6 +5276,82 @@ function removerAusenciaNaoEsperadaEmpresarial(subEscala, dia, nomeFuncionario) 
     console.error('Erro ao salvar:', error);
     showToast('❌ Erro ao salvar alterações', 'danger');
   });
+}
+
+async function cancelarFolgaEmpresarial(subEscala, dia, nomeCodificado) {
+  if (!isAdmin || !window.FolgaCancelada) return;
+  const nomeFuncionario = decodeURIComponent(nomeCodificado);
+  const subEscalaDados = calendarios.calendario2?.[subEscala];
+  const dadosDia = subEscalaDados?.dadosOriginais?.[dia];
+  if (!dadosDia) return;
+
+  const confirmou = confirm(`${obterPrimeiroNome(nomeFuncionario)} passará a trabalhar neste dia. A folga ficará registrada como pendente para remarcação. Continuar?`);
+  if (!confirmou) return;
+
+  const backup = JSON.parse(JSON.stringify(dadosDia));
+  const resultado = window.FolgaCancelada.cancelarFolga(dadosDia, nomeFuncionario);
+  if (!resultado.ok) {
+    showToast(`⚠️ ${resultado.erro}`, 'warning');
+    return;
+  }
+
+  const tipoConfig = subEscala === 'leste' ? 'leste' : 'rio_es';
+  dadosDia.divisao = calcularDivisaoPorNumero(dadosDia.numPessoas, dadosDia.trabalhando, tipoConfig);
+  dadosDia.divisaoManual = false;
+
+  try {
+    const publicacao = await salvarConfiguracaoCalendarios();
+    if (!publicacao?.sucesso || !publicacao?.salvouRemoto) {
+      throw new Error(publicacao?.erro || 'A alteração não foi publicada na nuvem.');
+    }
+    aplicarTrocasEmpresarial(subEscala);
+    carregarCalendarioEmpresarialGrid(subEscala);
+    showToast(`✅ Folga de ${obterPrimeiroNome(nomeFuncionario)} cancelada e registrada para remarcação.`, 'success');
+  } catch (error) {
+    subEscalaDados.dadosOriginais[dia] = backup;
+    aplicarTrocasEmpresarial(subEscala);
+    console.error('Erro ao cancelar folga:', error);
+    showToast(`❌ Não foi possível publicar o cancelamento: ${error.message}`, 'danger');
+  }
+
+  const modal = bootstrap.Modal.getInstance(document.getElementById('dayModal'));
+  if (modal) modal.hide();
+  setTimeout(() => mostrarDetalhesDiaEmpresarial(subEscala, dia), 300);
+}
+
+async function desfazerCancelamentoFolgaEmpresarial(subEscala, dia, registroIdCodificado) {
+  if (!isAdmin || !window.FolgaCancelada) return;
+  const subEscalaDados = calendarios.calendario2?.[subEscala];
+  const dadosDia = subEscalaDados?.dadosOriginais?.[dia];
+  if (!dadosDia) return;
+
+  const backup = JSON.parse(JSON.stringify(dadosDia));
+  const resultado = window.FolgaCancelada.desfazerCancelamento(dadosDia, decodeURIComponent(registroIdCodificado));
+  if (!resultado.ok) {
+    showToast(`⚠️ ${resultado.erro}`, 'warning');
+    return;
+  }
+
+  const tipoConfig = subEscala === 'leste' ? 'leste' : 'rio_es';
+  dadosDia.divisao = calcularDivisaoPorNumero(dadosDia.numPessoas, dadosDia.trabalhando, tipoConfig);
+  dadosDia.divisaoManual = false;
+
+  try {
+    const publicacao = await salvarConfiguracaoCalendarios();
+    if (!publicacao?.sucesso || !publicacao?.salvouRemoto) throw new Error(publicacao?.erro || 'A alteração não foi publicada na nuvem.');
+    aplicarTrocasEmpresarial(subEscala);
+    carregarCalendarioEmpresarialGrid(subEscala);
+    showToast('✅ Cancelamento desfeito e folga restaurada.', 'success');
+  } catch (error) {
+    subEscalaDados.dadosOriginais[dia] = backup;
+    aplicarTrocasEmpresarial(subEscala);
+    console.error('Erro ao desfazer cancelamento de folga:', error);
+    showToast(`❌ Não foi possível publicar a alteração: ${error.message}`, 'danger');
+  }
+
+  const modal = bootstrap.Modal.getInstance(document.getElementById('dayModal'));
+  if (modal) modal.hide();
+  setTimeout(() => mostrarDetalhesDiaEmpresarial(subEscala, dia), 300);
 }
 
 // Mudar mês nos calendários Empresarial
@@ -8934,20 +9030,39 @@ function mostrarDetalhesDia(dia) {
     ausentesOrdenados.forEach(({nome, motivo, tipo}) => {
       const primeiroNome = obterPrimeiroNome(nome);
       const podeRemover = isAdmin && tipo === 'nao_esperada';
-      const nomeEsc = String(nome).replace(/'/g, "\\'");
+      const nomeCodificado = encodeURIComponent(String(nome));
       const btnRemover = podeRemover
-        ? `<button class="btn btn-sm btn-outline-success ms-auto" onclick="removerAusenciaNaoEsperada(${dia}, '${nomeEsc}')" title="Remover ausência (colaborador retornou)"><i class="bi bi-arrow-counterclockwise"></i></button>`
+        ? `<button type="button" class="btn btn-sm btn-outline-success ms-auto" onclick="removerAusenciaNaoEsperada(${dia}, decodeURIComponent('${nomeCodificado}'))" title="Remover ausência (colaborador retornou)" aria-label="Remover ausência de ${escapeHtml(primeiroNome)}"><i class="bi bi-arrow-counterclockwise"></i></button>`
+        : '';
+      const btnCancelarFolga = isAdmin && window.FolgaCancelada?.ehMotivoFolga(motivo)
+        ? `<button type="button" class="btn btn-sm btn-outline-danger ms-auto" onclick="cancelarFolgaResidencial(${dia}, '${nomeCodificado}')" aria-label="Cancelar folga de ${escapeHtml(primeiroNome)}"><i class="bi bi-calendar2-x me-1"></i>Cancelar folga</button>`
         : '';
       html += `
         <div class="status-item">
-          <span class="status-badge badge-ausente">${motivo}</span>
-          <span>${primeiroNome}</span>
-          ${btnRemover}
+          <span class="status-badge badge-ausente">${escapeHtml(motivo)}</span>
+          <span>${escapeHtml(primeiroNome)}</span>
+          ${btnRemover}${btnCancelarFolga}
         </div>
       `;
     });
 
     html += `</div></div>`;
+  }
+
+  const folgasPendentesResidencial = window.FolgaCancelada?.listarPendentes(dadosDia) || [];
+  if (isAdmin && folgasPendentesResidencial.length > 0) {
+    html += `
+      <div class="status-group mt-3">
+        <div class="status-group-title">Folgas pendentes de remarcação (${folgasPendentesResidencial.length})</div>
+        <div class="status-list">
+          ${folgasPendentesResidencial.map(registro => `
+            <div class="status-item">
+              <span class="status-badge badge-ausente">Pendente</span>
+              <span>${escapeHtml(obterPrimeiroNome(registro.nome))} <span class="text-muted">(${escapeHtml(registro.motivoOriginal)})</span></span>
+              <button type="button" class="btn btn-sm btn-outline-secondary ms-auto" onclick="desfazerCancelamentoFolgaResidencial(${dia}, '${encodeURIComponent(registro.id)}')" aria-label="Desfazer cancelamento da folga de ${escapeHtml(obterPrimeiroNome(registro.nome))}"><i class="bi bi-arrow-counterclockwise me-1"></i>Desfazer</button>
+            </div>`).join('')}
+        </div>
+      </div>`;
   }
 
   // Adicionar informações das trocas se houver
@@ -9407,6 +9522,74 @@ function removerAusenciaNaoEsperada(dia, nomeFuncionario) {
     console.error('Erro ao salvar:', error);
     showToast('❌ Erro ao salvar alterações', 'danger');
   });
+}
+
+async function cancelarFolgaResidencial(dia, nomeCodificado) {
+  if (!isAdmin || !window.FolgaCancelada || !dadosOriginais[dia]) return;
+  const nomeFuncionario = decodeURIComponent(nomeCodificado);
+  const confirmou = confirm(`${obterPrimeiroNome(nomeFuncionario)} passará a trabalhar neste dia. A folga ficará registrada como pendente para remarcação. Continuar?`);
+  if (!confirmou) return;
+
+  const backup = JSON.parse(JSON.stringify(dadosOriginais[dia]));
+  const resultado = window.FolgaCancelada.cancelarFolga(dadosOriginais[dia], nomeFuncionario);
+  if (!resultado.ok) {
+    showToast(`⚠️ ${resultado.erro}`, 'warning');
+    return;
+  }
+
+  const dadosDia = dadosOriginais[dia];
+  dadosDia.divisao = calcularDivisaoPorNumero(dadosDia.numPessoas, dadosDia.trabalhando, 'residencial');
+  dadosDia.divisaoManual = false;
+
+  try {
+    const publicacao = await salvarDadosNaNuvem();
+    if (!publicacao?.sucesso || !publicacao?.salvouRemoto) {
+      throw new Error(publicacao?.erro || 'A alteração não foi publicada na nuvem.');
+    }
+    aplicarTrocasAosDados();
+    atualizarCalendario();
+    showToast(`✅ Folga de ${obterPrimeiroNome(nomeFuncionario)} cancelada e registrada para remarcação.`, 'success');
+  } catch (error) {
+    dadosOriginais[dia] = backup;
+    aplicarTrocasAosDados();
+    console.error('Erro ao cancelar folga:', error);
+    showToast(`❌ Não foi possível publicar o cancelamento: ${error.message}`, 'danger');
+  }
+
+  const modal = bootstrap.Modal.getInstance(document.getElementById('dayModal'));
+  if (modal) modal.hide();
+  setTimeout(() => mostrarDetalhesDia(dia), 300);
+}
+
+async function desfazerCancelamentoFolgaResidencial(dia, registroIdCodificado) {
+  if (!isAdmin || !window.FolgaCancelada || !dadosOriginais[dia]) return;
+  const backup = JSON.parse(JSON.stringify(dadosOriginais[dia]));
+  const resultado = window.FolgaCancelada.desfazerCancelamento(dadosOriginais[dia], decodeURIComponent(registroIdCodificado));
+  if (!resultado.ok) {
+    showToast(`⚠️ ${resultado.erro}`, 'warning');
+    return;
+  }
+
+  const dadosDia = dadosOriginais[dia];
+  dadosDia.divisao = calcularDivisaoPorNumero(dadosDia.numPessoas, dadosDia.trabalhando, 'residencial');
+  dadosDia.divisaoManual = false;
+
+  try {
+    const publicacao = await salvarDadosNaNuvem();
+    if (!publicacao?.sucesso || !publicacao?.salvouRemoto) throw new Error(publicacao?.erro || 'A alteração não foi publicada na nuvem.');
+    aplicarTrocasAosDados();
+    atualizarCalendario();
+    showToast('✅ Cancelamento desfeito e folga restaurada.', 'success');
+  } catch (error) {
+    dadosOriginais[dia] = backup;
+    aplicarTrocasAosDados();
+    console.error('Erro ao desfazer cancelamento de folga:', error);
+    showToast(`❌ Não foi possível publicar a alteração: ${error.message}`, 'danger');
+  }
+
+  const modal = bootstrap.Modal.getInstance(document.getElementById('dayModal'));
+  if (modal) modal.hide();
+  setTimeout(() => mostrarDetalhesDia(dia), 300);
 }
 
 // ============================================
